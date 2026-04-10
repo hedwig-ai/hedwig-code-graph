@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>hedwig-kb Knowledge Graph</title>
+<style>
+body {
+  margin: 0; background: #0d1117; color: #c9d1d9;
+  font-family: -apple-system, system-ui, sans-serif;
+  overflow: hidden;
+}
+#toolbar {
+  position: fixed; top: 10px; left: 10px; z-index: 10;
+  background: rgba(22,27,34,0.9); padding: 8px 14px;
+  border-radius: 8px; font-size: 13px;
+}
+#toolbar input {
+  width: 200px; padding: 4px 8px; background: #21262d;
+  border: 1px solid #30363d; color: #c9d1d9; border-radius: 4px;
+}
+#legend {
+  position: fixed; bottom: 10px; left: 10px; z-index: 10;
+  background: rgba(22,27,34,0.9); padding: 8px 14px;
+  border-radius: 8px; font-size: 12px;
+}
+#tooltip {
+  position: fixed; display: none; background: #161b22;
+  border: 1px solid #30363d; padding: 10px; border-radius: 6px;
+  font-size: 12px; max-width: 300px; z-index: 20;
+  pointer-events: none;
+}
+svg { width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <strong>hedwig-kb</strong> &nbsp;
+  <input id="search" type="text" placeholder="Search nodes..." />
+  &nbsp; <span id="info"></span>
+</div>
+<div id="legend"><!-- LEGEND_PLACEHOLDER --></div>
+<div id="tooltip"></div>
+<svg></svg>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+const data = /* GRAPH_DATA_PLACEHOLDER */ {};
+
+const svg = d3.select("svg");
+const width = window.innerWidth, height = window.innerHeight;
+const g = svg.append("g");
+
+svg.call(d3.zoom().scaleExtent([0.1, 8])
+  .on("zoom", (e) => g.attr("transform", e.transform)));
+
+const groupCount = Object.keys(data.metadata.kind_groups).length || 1;
+const color = (group) =>
+  d3.hsl(group * 360 / groupCount, 0.7, 0.5).toString();
+
+const simulation = d3.forceSimulation(data.nodes)
+  .force("link", d3.forceLink(data.links).id(d => d.id).distance(60))
+  .force("charge", d3.forceManyBody().strength(-120))
+  .force("center", d3.forceCenter(width / 2, height / 2))
+  .force("collision", d3.forceCollide().radius(d => d.size + 2));
+
+const link = g.append("g")
+  .attr("stroke", "#30363d").attr("stroke-opacity", 0.4)
+  .selectAll("line").data(data.links).join("line")
+  .attr("stroke-width", d => Math.sqrt(d.value));
+
+const node = g.append("g")
+  .selectAll("circle").data(data.nodes).join("circle")
+  .attr("r", d => d.size)
+  .attr("fill", d => color(d.group))
+  .attr("stroke", "#0d1117").attr("stroke-width", 1)
+  .call(d3.drag()
+    .on("start", dragstarted)
+    .on("drag", dragged)
+    .on("end", dragended));
+
+const label = g.append("g")
+  .selectAll("text").data(data.nodes).join("text")
+  .text(d => d.label)
+  .attr("font-size", d => Math.max(8, d.size * 0.8))
+  .attr("fill", "#8b949e")
+  .attr("dx", d => d.size + 3).attr("dy", 3)
+  .style("pointer-events", "none");
+
+const tooltip = d3.select("#tooltip");
+node.on("mouseover", (e, d) => {
+  const comms = (d.community_ids || []).join(", ") || "\u2014";
+  tooltip.style("display", "block").html(
+    `<strong>${d.label}</strong><br/>` +
+    `Kind: ${d.kind}<br/>` +
+    `File: ${d.file_path || "\u2014"}<br/>` +
+    `Communities: ${comms}`
+  );
+}).on("mousemove", (e) => {
+  tooltip
+    .style("left", (e.clientX + 15) + "px")
+    .style("top", (e.clientY - 10) + "px");
+}).on("mouseout", () => tooltip.style("display", "none"));
+
+simulation.on("tick", () => {
+  link
+    .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+    .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+  node.attr("cx", d => d.x).attr("cy", d => d.y);
+  label.attr("x", d => d.x).attr("y", d => d.y);
+});
+
+d3.select("#search").on("input", function() {
+  const q = this.value.toLowerCase();
+  node.attr("opacity",
+    d => !q || d.label.toLowerCase().includes(q) ? 1 : 0.1);
+  label.attr("opacity",
+    d => !q || d.label.toLowerCase().includes(q) ? 1 : 0.05);
+  link.attr("stroke-opacity", !q ? 0.4 : 0.05);
+});
+
+d3.select("#info").text(
+  `${data.metadata.node_count} nodes, ${data.metadata.link_count} links`
+);
+
+function dragstarted(e) {
+  if (!e.active) simulation.alphaTarget(0.3).restart();
+  e.subject.fx = e.subject.x;
+  e.subject.fy = e.subject.y;
+}
+function dragged(e) {
+  e.subject.fx = e.x;
+  e.subject.fy = e.y;
+}
+function dragended(e) {
+  if (!e.active) simulation.alphaTarget(0);
+  e.subject.fx = null;
+  e.subject.fy = null;
+}
+</script>
+</body>
+</html>
