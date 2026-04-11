@@ -659,14 +659,17 @@ def claude_install():
         "\n## hedwig-kg\n\n"
         "This project has a hedwig-kg knowledge graph at `.hedwig-kg/`.\n\n"
         "Rules:\n"
-        "- Before answering architecture or codebase questions, "
-        "run `hedwig-kg search \"<query>\"` for graph-aware results\n"
-        "- Use `hedwig-kg stats` for structural overview "
-        "(god nodes, communities, density)\n"
+        "- **Always use `hedwig-kg search \"<query>\"` as the primary search method.** "
+        "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
+        "in a single call — no need to run separate community or keyword searches.\n"
+        "- Before grepping raw files with Glob/Grep, run `hedwig-kg search` first. "
+        "Only fall back to Grep if the knowledge graph has no results.\n"
         "- After modifying code files, run "
         "`hedwig-kg build . --incremental` to keep the graph current\n"
-        "- Use `hedwig-kg communities --search \"<topic>\"` "
-        "for high-level architecture understanding\n"
+        "- Use `hedwig-kg communities` (without `--search`) only when you need to "
+        "list or browse the community structure, not as a search substitute.\n"
+        "- Use `hedwig-kg stats` for structural overview "
+        "(god nodes, communities, density)\n"
     )
 
     if claude_md.exists():
@@ -693,8 +696,10 @@ def claude_install():
                 '[ -f .hedwig-kg/knowledge.db ] && echo '
                 '\'{"hookSpecificOutput":{"hookEventName":"PreToolUse",'
                 '"additionalContext":"hedwig-kg: Knowledge graph available. '
-                "Consider running `hedwig-kg search` for graph-aware results "
-                'before grepping raw files."}}\' || true'
+                "Use `hedwig-kg search \\\"<query>\\\"` (5-signal HybridRAG) "
+                "instead of grepping raw files. This single command covers "
+                "vector, graph, keyword, and community search with RRF fusion."
+                '"}}\' || true'
             ),
         }],
     }
@@ -818,14 +823,17 @@ def codex_install():
         "\n## hedwig-kg\n\n"
         "This project has a hedwig-kg knowledge graph at `.hedwig-kg/`.\n\n"
         "Rules:\n"
-        "- Before answering architecture or codebase questions, "
-        "run `hedwig-kg search \"<query>\"` for graph-aware results\n"
-        "- Use `hedwig-kg stats` for structural overview "
-        "(god nodes, communities, density)\n"
+        "- **Always use `hedwig-kg search \"<query>\"` as the primary search method.** "
+        "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
+        "in a single call — no need to run separate community or keyword searches.\n"
+        "- Before grepping raw files, run `hedwig-kg search` first. "
+        "Only fall back to grep if the knowledge graph has no results.\n"
         "- After modifying code files, run "
         "`hedwig-kg build . --incremental` to keep the graph current\n"
-        "- Use `hedwig-kg communities --search \"<topic>\"` "
-        "for high-level architecture understanding\n"
+        "- Use `hedwig-kg communities` (without `--search`) only when you need to "
+        "list or browse the community structure, not as a search substitute.\n"
+        "- Use `hedwig-kg stats` for structural overview "
+        "(god nodes, communities, density)\n"
     )
 
     if agents_md.exists():
@@ -852,8 +860,10 @@ def codex_install():
                 '[ -f .hedwig-kg/knowledge.db ] && echo '
                 '\'{"hookSpecificOutput":{"hookEventName":"PreToolUse",'
                 '"additionalContext":"hedwig-kg: Knowledge graph available. '
-                "Consider running `hedwig-kg search` for graph-aware results "
-                'before grepping raw files."}}\' || true'
+                "Use `hedwig-kg search \\\"<query>\\\"` (5-signal HybridRAG) "
+                "instead of grepping raw files. This single command covers "
+                "vector, graph, keyword, and community search with RRF fusion."
+                '"}}\' || true'
             ),
         }],
     }
@@ -972,14 +982,17 @@ def gemini_install():
         "\n## hedwig-kg\n\n"
         "This project has a hedwig-kg knowledge graph at `.hedwig-kg/`.\n\n"
         "Rules:\n"
-        "- Before answering architecture or codebase questions, "
-        "run `hedwig-kg search \"<query>\"` for graph-aware results\n"
-        "- Use `hedwig-kg stats` for structural overview "
-        "(god nodes, communities, density)\n"
+        "- **Always use `hedwig-kg search \"<query>\"` as the primary search method.** "
+        "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
+        "in a single call — no need to run separate community or keyword searches.\n"
+        "- Before reading raw files, run `hedwig-kg search` first. "
+        "Only fall back to file reads if the knowledge graph has no results.\n"
         "- After modifying code files, run "
         "`hedwig-kg build . --incremental` to keep the graph current\n"
-        "- Use `hedwig-kg communities --search \"<topic>\"` "
-        "for high-level architecture understanding\n"
+        "- Use `hedwig-kg communities` (without `--search`) only when you need to "
+        "list or browse the community structure, not as a search substitute.\n"
+        "- Use `hedwig-kg stats` for structural overview "
+        "(god nodes, communities, density)\n"
     )
 
     if gemini_md.exists():
@@ -1006,8 +1019,10 @@ def gemini_install():
                 '[ -f .hedwig-kg/knowledge.db ] && echo '
                 '\'{"hookSpecificOutput":{"additionalContext":'
                 '"hedwig-kg: Knowledge graph available. '
-                "Consider running `hedwig-kg search` for graph-aware results "
-                'before reading raw files."}}\' || true'
+                "Use `hedwig-kg search \\\"<query>\\\"` (5-signal HybridRAG) "
+                "instead of reading raw files. This single command covers "
+                "vector, graph, keyword, and community search with RRF fusion."
+                '"}}\' || true'
             ),
         }],
     }
