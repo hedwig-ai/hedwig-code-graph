@@ -84,8 +84,8 @@ def _get_model(model_name: str):
 def _get_process_rss() -> int:
     """Return current process RSS in bytes (0 if unavailable)."""
     try:
-        import resource
         import platform
+        import resource
         rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         if platform.system() == "Darwin":
             return rss  # already bytes on macOS

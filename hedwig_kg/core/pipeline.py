@@ -198,10 +198,16 @@ def run_pipeline(
                     code_count += len(batch_ids)
                 else:
                     text_count += len(batch_ids)
-                _progress("embed", f"Embedded {total_count} nodes (code:{code_count} text:{text_count})")
+                _progress(
+                    "embed",
+                    f"Embedded {total_count} nodes (code:{code_count} text:{text_count})",
+                )
 
             result.embeddings_count = total_count
-            _progress("embed", f"Generated {total_count} embeddings (code:{code_count} text:{text_count})")
+            _progress(
+                "embed",
+                f"Generated {total_count} embeddings (code:{code_count} text:{text_count})",
+            )
 
             _progress("embed", "Computing edge weights")
             compute_edge_weights(result.graph, embeddings=all_embeddings)
