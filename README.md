@@ -18,7 +18,7 @@
 
 ## Why hedwig-kg?
 
-hedwig-kg analyzes source code with tree-sitter AST extraction (17 languages), builds a knowledge graph on NetworkX, and provides 5-signal hybrid search — dual vector (code + text), graph expansion, FTS5 keyword, and community summary — fused via weighted RRF. Agents query one endpoint and get ranked results across code, docs, configs, and tests. Everything runs 100% locally on SQLite + FAISS + sentence-transformers — no cloud services, no data leaves your machine.
+hedwig-kg builds a unified knowledge graph from your code, docs, and dependencies — so coding agents can truly understand your entire project, not just search keywords. Install it, and Claude Code sees the full picture — no extra tokens, no extra commands, everything runs 100% locally.
 
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 

@@ -18,7 +18,7 @@
 
 ## 为什么选择 hedwig-kg？
 
-hedwig-kg通过tree-sitter AST提取（17种语言）分析源代码，在NetworkX上构建知识图谱，提供5信号混合搜索——双向量（代码+文本）、图扩展、FTS5关键词、社区摘要——通过加权RRF融合。代理查询单一端点，即可获得跨代码、文档、配置和测试的排序结果。一切基于SQLite + FAISS + sentence-transformers 100%本地运行——无需云服务，数据不会离开你的机器。
+hedwig-kg从代码、文档和依赖关系构建统一的知识图谱——让编程代理真正理解你的整个项目，而不仅仅是搜索关键词。安装后，Claude Code就能看到全貌——无需额外的token，无需额外的命令，一切100%本地运行。
 
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 
