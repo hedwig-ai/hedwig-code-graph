@@ -632,6 +632,12 @@ def show_node(node_id: str, db: str | None, source_dir: str):
     store.close()
 
 
+def _auto_rebuild_command() -> str:
+    """Return the shell command for auto-rebuild on session stop."""
+    script = Path(__file__).parent.parent / "scripts" / "auto_rebuild.sh"
+    return f"sh {script}"
+
+
 @cli.group(name="claude")
 def claude_group():
     """Manage per-project Claude Code integration."""
@@ -706,15 +712,35 @@ def claude_install():
         for h in pre_hooks
     )
     if already:
-        console.print("[dim].claude/settings.json already has hedwig-kg hook.[/]")
+        console.print("[dim].claude/settings.json already has hedwig-kg PreToolUse hook.[/]")
     else:
         pre_hooks.append(hook_entry)
-        settings_file.write_text(json.dumps(settings, indent=2) + "\n")
         console.print("[green]Added PreToolUse hook to .claude/settings.json[/]")
+
+    # 3. Write Stop hook for auto-rebuild
+    stop_hook_entry = {
+        "matcher": "*",
+        "hooks": [{
+            "type": "command",
+            "command": _auto_rebuild_command(),
+            "timeout": 10,
+        }],
+    }
+    stop_hooks = hooks.setdefault("Stop", [])
+    stop_already = any("hedwig-kg" in json.dumps(h) or "auto_rebuild" in json.dumps(h)
+                       for h in stop_hooks)
+    if stop_already:
+        console.print("[dim].claude/settings.json already has hedwig-kg Stop hook.[/]")
+    else:
+        stop_hooks.append(stop_hook_entry)
+        console.print("[green]Added Stop hook for auto-rebuild to .claude/settings.json[/]")
+
+    settings_file.write_text(json.dumps(settings, indent=2) + "\n")
 
     console.print()
     console.print("[bold]Done![/] Claude Code will now use the knowledge graph "
                   "when searching this project.")
+    console.print("[dim]Graph auto-rebuilds when your session ends.[/]")
     console.print("[dim]Run 'hedwig-kg claude uninstall' to remove.[/]")
 
 
@@ -744,22 +770,24 @@ def claude_uninstall():
         claude_md.write_text(new_content)
         console.print("[green]Removed hedwig-kg section from CLAUDE.md[/]")
 
-    # 2. Remove hook from .claude/settings.json
+    # 2. Remove hooks from .claude/settings.json
     settings_file = project_root / ".claude" / "settings.json"
     if settings_file.exists():
         settings = json.loads(settings_file.read_text())
         hooks = settings.get("hooks", {})
-        pre_hooks = hooks.get("PreToolUse", [])
-        hooks["PreToolUse"] = [
-            h for h in pre_hooks
-            if "hedwig-kg" not in json.dumps(h)
-        ]
-        if not hooks["PreToolUse"]:
-            del hooks["PreToolUse"]
+        for event in ("PreToolUse", "Stop"):
+            event_hooks = hooks.get(event, [])
+            hooks[event] = [
+                h for h in event_hooks
+                if "hedwig-kg" not in json.dumps(h)
+                and "auto_rebuild" not in json.dumps(h)
+            ]
+            if not hooks[event]:
+                hooks.pop(event, None)
         if not hooks:
-            del settings["hooks"]
+            settings.pop("hooks", None)
         settings_file.write_text(json.dumps(settings, indent=2) + "\n")
-        console.print("[green]Removed PreToolUse hook from .claude/settings.json[/]")
+        console.print("[green]Removed hedwig-kg hooks from .claude/settings.json[/]")
 
     console.print("[dim]hedwig-kg Claude Code integration removed.[/]")
 
@@ -839,15 +867,34 @@ def codex_install():
 
     already = any("hedwig-kg" in json.dumps(h) for h in pre_hooks)
     if already:
-        console.print("[dim].codex/hooks.json already has hedwig-kg hook.[/]")
+        console.print("[dim].codex/hooks.json already has hedwig-kg PreToolUse hook.[/]")
     else:
         pre_hooks.append(hook_entry)
-        hooks_file.write_text(json.dumps(hooks_data, indent=2) + "\n")
         console.print("[green]Added PreToolUse hook to .codex/hooks.json[/]")
+
+    # 3. Write Stop hook for auto-rebuild
+    stop_hook_entry = {
+        "matcher": "*",
+        "hooks": [{
+            "type": "command",
+            "command": _auto_rebuild_command(),
+            "timeout": 10,
+        }],
+    }
+    stop_hooks = hooks.setdefault("Stop", [])
+    stop_already = any("auto_rebuild" in json.dumps(h) for h in stop_hooks)
+    if stop_already:
+        console.print("[dim].codex/hooks.json already has hedwig-kg Stop hook.[/]")
+    else:
+        stop_hooks.append(stop_hook_entry)
+        console.print("[green]Added Stop hook for auto-rebuild to .codex/hooks.json[/]")
+
+    hooks_file.write_text(json.dumps(hooks_data, indent=2) + "\n")
 
     console.print()
     console.print("[bold]Done![/] Codex CLI will now use the knowledge graph "
                   "when working in this project.")
+    console.print("[dim]Graph auto-rebuilds when your session ends.[/]")
     console.print("[dim]Run 'hedwig-kg codex uninstall' to remove.[/]")
 
 
@@ -877,22 +924,24 @@ def codex_uninstall():
         agents_md.write_text(new_content)
         console.print("[green]Removed hedwig-kg section from AGENTS.md[/]")
 
-    # 2. Remove hook from .codex/hooks.json
+    # 2. Remove hooks from .codex/hooks.json
     hooks_file = project_root / ".codex" / "hooks.json"
     if hooks_file.exists():
         hooks_data = json.loads(hooks_file.read_text())
         hooks = hooks_data.get("hooks", {})
-        pre_hooks = hooks.get("PreToolUse", [])
-        hooks["PreToolUse"] = [
-            h for h in pre_hooks
-            if "hedwig-kg" not in json.dumps(h)
-        ]
-        if not hooks["PreToolUse"]:
-            del hooks["PreToolUse"]
+        for event in ("PreToolUse", "Stop"):
+            event_hooks = hooks.get(event, [])
+            hooks[event] = [
+                h for h in event_hooks
+                if "hedwig-kg" not in json.dumps(h)
+                and "auto_rebuild" not in json.dumps(h)
+            ]
+            if not hooks[event]:
+                hooks.pop(event, None)
         if not hooks:
-            del hooks_data["hooks"]
+            hooks_data.pop("hooks", None)
         hooks_file.write_text(json.dumps(hooks_data, indent=2) + "\n")
-        console.print("[green]Removed PreToolUse hook from .codex/hooks.json[/]")
+        console.print("[green]Removed hedwig-kg hooks from .codex/hooks.json[/]")
 
     console.print("[dim]hedwig-kg Codex CLI integration removed.[/]")
 
@@ -972,15 +1021,34 @@ def gemini_install():
 
     already = any("hedwig-kg" in json.dumps(h) for h in before_hooks)
     if already:
-        console.print("[dim].gemini/settings.json already has hedwig-kg hook.[/]")
+        console.print("[dim].gemini/settings.json already has hedwig-kg BeforeTool hook.[/]")
     else:
         before_hooks.append(hook_entry)
-        settings_file.write_text(json.dumps(settings, indent=2) + "\n")
         console.print("[green]Added BeforeTool hook to .gemini/settings.json[/]")
+
+    # 3. Write SessionEnd hook for auto-rebuild
+    session_end_entry = {
+        "matcher": "*",
+        "hooks": [{
+            "type": "command",
+            "command": _auto_rebuild_command(),
+            "timeout": 10,
+        }],
+    }
+    session_hooks = hooks.setdefault("SessionEnd", [])
+    session_already = any("auto_rebuild" in json.dumps(h) for h in session_hooks)
+    if session_already:
+        console.print("[dim].gemini/settings.json already has hedwig-kg SessionEnd hook.[/]")
+    else:
+        session_hooks.append(session_end_entry)
+        console.print("[green]Added SessionEnd hook for auto-rebuild to .gemini/settings.json[/]")
+
+    settings_file.write_text(json.dumps(settings, indent=2) + "\n")
 
     console.print()
     console.print("[bold]Done![/] Gemini CLI will now use the knowledge graph "
                   "when working in this project.")
+    console.print("[dim]Graph auto-rebuilds when your session ends.[/]")
     console.print("[dim]Run 'hedwig-kg gemini uninstall' to remove.[/]")
 
 
@@ -1010,22 +1078,24 @@ def gemini_uninstall():
         gemini_md.write_text(new_content)
         console.print("[green]Removed hedwig-kg section from GEMINI.md[/]")
 
-    # 2. Remove hook from .gemini/settings.json
+    # 2. Remove hooks from .gemini/settings.json
     settings_file = project_root / ".gemini" / "settings.json"
     if settings_file.exists():
         settings = json.loads(settings_file.read_text())
         hooks = settings.get("hooks", {})
-        before_hooks = hooks.get("BeforeTool", [])
-        hooks["BeforeTool"] = [
-            h for h in before_hooks
-            if "hedwig-kg" not in json.dumps(h)
-        ]
-        if not hooks["BeforeTool"]:
-            del hooks["BeforeTool"]
+        for event in ("BeforeTool", "SessionEnd"):
+            event_hooks = hooks.get(event, [])
+            hooks[event] = [
+                h for h in event_hooks
+                if "hedwig-kg" not in json.dumps(h)
+                and "auto_rebuild" not in json.dumps(h)
+            ]
+            if not hooks[event]:
+                hooks.pop(event, None)
         if not hooks:
-            del settings["hooks"]
+            settings.pop("hooks", None)
         settings_file.write_text(json.dumps(settings, indent=2) + "\n")
-        console.print("[green]Removed BeforeTool hook from .gemini/settings.json[/]")
+        console.print("[green]Removed hedwig-kg hooks from .gemini/settings.json[/]")
 
     console.print("[dim]hedwig-kg Gemini CLI integration removed.[/]")
 
