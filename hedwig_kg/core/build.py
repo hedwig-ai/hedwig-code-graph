@@ -47,6 +47,7 @@ def build_graph(extractions: list[ExtractionResult]) -> nx.DiGraph:
                 docstring=node.docstring,
                 signature=node.signature,
                 source_snippet=node.source_snippet,
+                decorators=node.decorators,
             )
             name_index[node.name].append(node.id)
 

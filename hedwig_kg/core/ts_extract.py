@@ -140,11 +140,13 @@ def _extract_python_ts(file_path: str, content: str) -> ExtractionResult:
         full_name = f"{prefix}{name}" if prefix else name
         node_id = _make_node_id(file_path, full_name, "class")
 
-        # Decorators
+        # Decorators live on the parent decorated_definition, not on class_definition
         decorators = []
-        for child in node.children:
-            if child.type == "decorator":
-                decorators.append(_get_node_text(child, source_bytes).lstrip("@"))
+        parent = node.parent
+        if parent and parent.type == "decorated_definition":
+            for child in parent.children:
+                if child.type == "decorator":
+                    decorators.append(_get_node_text(child, source_bytes).lstrip("@"))
 
         # Bases
         bases_node = node.child_by_field_name("superclasses")
@@ -165,6 +167,7 @@ def _extract_python_ts(file_path: str, content: str) -> ExtractionResult:
             end_line=node.end_point[0],
             docstring=_find_docstring(node, source_bytes),
             source_snippet=_extract_snippet(content, node.start_point[0], node.end_point[0]),
+            decorators=decorators,
         ))
         result.edges.append(ExtractedEdge(parent_id, node_id, "defines"))
 
@@ -206,6 +209,14 @@ def _extract_python_ts(file_path: str, content: str) -> ExtractionResult:
 
         node_id = _make_node_id(file_path, full_name, kind)
 
+        # Decorators (collected from the parent decorated_definition node)
+        decorators = []
+        parent = node.parent
+        if parent and parent.type == "decorated_definition":
+            for child in parent.children:
+                if child.type == "decorator":
+                    decorators.append(_get_node_text(child, source_bytes).lstrip("@"))
+
         # Parameters
         params_node = node.child_by_field_name("parameters")
         sig = _get_node_text(params_node, source_bytes) if params_node else "()"
@@ -227,6 +238,7 @@ def _extract_python_ts(file_path: str, content: str) -> ExtractionResult:
             docstring=_find_docstring(node, source_bytes),
             signature=f"{sig} -> {return_type}" if return_type else sig,
             source_snippet=_extract_snippet(content, node.start_point[0], node.end_point[0]),
+            decorators=decorators,
         ))
         result.edges.append(ExtractedEdge(parent_id, node_id, "defines"))
 

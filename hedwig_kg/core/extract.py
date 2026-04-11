@@ -23,6 +23,7 @@ class ExtractedNode:
     docstring: str = ""
     signature: str = ""
     source_snippet: str = ""  # First N lines for embedding context
+    decorators: list[str] = field(default_factory=list)  # e.g. ["app.route('/api')", "staticmethod"]
 
 
 @dataclass

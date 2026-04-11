@@ -115,6 +115,11 @@ def _node_text(data: dict) -> str:
         parts.append(kind)
     if label:
         parts.append(label)
+    # Include decorator names so searches like "route handler", "dataclass",
+    # or "staticmethod" match decorated functions/classes.
+    decos = data.get("decorators", [])
+    if decos:
+        parts.append("decorated with " + " ".join(decos))
     # Extract parent class context from dotted label (e.g. "MyClass.my_method")
     # This enriches method embeddings with class membership information.
     if kind in ("method", "constructor", "property") and "." in label:
