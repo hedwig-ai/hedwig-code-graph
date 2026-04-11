@@ -116,9 +116,13 @@ def reciprocal_rank_fusion(
 
 
 # Default signal weights: [code_vector, text_vector, graph, keyword, community]
-# Code/text vectors are primary signals; graph adds structural context;
-# keyword provides exact-match precision; community gives thematic boost.
-DEFAULT_WEIGHTS = [1.2, 1.2, 0.8, 1.0, 0.6]
+# Tuned via empirical testing on code search queries:
+# - Vector signals (1.0): primary semantic matching
+# - Graph (0.8): structural context from call/inheritance edges
+# - Keyword (1.5): boosted for precise term matching — ensures code entities
+#   with exact name matches rank above loosely-similar document nodes
+# - Community (0.7): thematic grouping boost
+DEFAULT_WEIGHTS = [1.0, 1.0, 0.8, 1.5, 0.7]
 
 
 # --- Relation-type weights for graph expansion ---
@@ -278,13 +282,14 @@ def hybrid_search(
     # Stage 1: Vector search
     if fast:
         # Fast mode: text model only (cold start ~0.2s vs ~2.8s)
+        # Uses a single text-model vector to search both indexes.
+        # The code index search is a cross-model approximate match —
+        # less precise but avoids loading the code model entirely.
         from hedwig_kg.query.embeddings import TEXT_MODEL, embed_query
         query_vec = embed_query(query, TEXT_MODEL)
-        code_vector_hits: list[tuple[str, float]] = []
         text_vector_hits = store.vector_search(
             query_vec, top_k=vector_candidates, model_type="text",
         )
-        # Also search code index with text vector (cross-model approximate match)
         code_vector_hits = store.vector_search(
             query_vec, top_k=vector_candidates, model_type="code",
         )
@@ -309,7 +314,7 @@ def hybrid_search(
     # over low-quality edges (AMBIGUOUS imports to external nodes).
     graph_hits: list[tuple[str, float]] = []
     expanded_nodes: set[str] = set()
-    for node_id, vscore in vector_hits[:5]:  # Expand top 5
+    for node_id, vscore in vector_hits[:8]:  # Expand top 8 seeds
         if not G.has_node(node_id):
             continue
         try:
