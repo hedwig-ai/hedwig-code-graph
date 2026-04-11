@@ -58,6 +58,9 @@ _LANG_TO_PACKAGE: dict[str, str] = {
     "csharp": "c_sharp",
     "typescript": "typescript",
     "php": "php",
+    "objc": "objc",
+    "objective-c": "objc",
+    "kotlin": "kotlin",
 }
 
 # Packages that use non-standard language() function names
@@ -135,6 +138,18 @@ _IMPORT_QUERIES: dict[str, str] = {
           (arguments (alias) @name)
           (#match? @_fn "^(import|use|alias|require)$"))
     """,
+    "c_sharp": """
+        (using_directive
+          (_) @name) @_import
+    """,
+    "kotlin": """
+        (import
+          (qualified_identifier) @name) @_import
+    """,
+    "objc": """
+        (preproc_include
+          path: (_) @name) @_import
+    """,
 }
 
 _INHERITANCE_QUERIES: dict[str, str] = {
@@ -205,6 +220,21 @@ _INHERITANCE_QUERIES: dict[str, str] = {
         (class_declaration
           (base_clause
             (qualified_name) @name)) @_inherits
+    """,
+    "c_sharp": """
+        (class_declaration
+          (base_list (_) @name)) @_inherits
+    """,
+    "kotlin": """
+        (class_declaration
+          (delegation_specifiers
+            (delegation_specifier
+              (user_type
+                (identifier) @name)))) @_inherits
+    """,
+    "objc": """
+        (class_interface
+          superclass: (identifier) @name) @_inherits
     """,
 }
 
@@ -363,7 +393,13 @@ def _build_typescript_tags() -> str | None:
 
 
 def _load_tags_file(pkg_name: str) -> str | None:
-    """Load tags.scm from a package's queries/ directory."""
+    """Load tags.scm from a package's queries/ directory or local fallback.
+
+    Search order:
+    1. tree_sitter_{pkg_name}/queries/tags.scm (inside installed package)
+    2. hedwig_kg/queries/{pkg_name}-tags.scm (local custom queries)
+    """
+    # Try installed package first
     try:
         from importlib.resources import files
         tags_path = files(f"tree_sitter_{pkg_name}") / "queries" / "tags.scm"
@@ -371,6 +407,15 @@ def _load_tags_file(pkg_name: str) -> str | None:
             return tags_path.read_text()
     except Exception:
         pass
+
+    # Fallback: local queries directory
+    try:
+        local_path = Path(__file__).parent.parent / "queries" / f"{pkg_name}-tags.scm"
+        if local_path.is_file():
+            return local_path.read_text()
+    except Exception:
+        pass
+
     return None
 
 
@@ -969,6 +1014,6 @@ def supported_languages() -> list[str]:
     candidates = [
         "python", "javascript", "typescript", "go", "rust", "java",
         "c", "cpp", "c_sharp", "ruby", "swift", "scala", "lua",
-        "php", "elixir", "kotlin", "julia", "objc", "powershell", "zig",
+        "php", "elixir", "kotlin", "objc",
     ]
     return [lang for lang in candidates if _get_lang_resources(lang) is not None]

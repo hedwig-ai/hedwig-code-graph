@@ -23,6 +23,8 @@ LANGUAGE_MAP: dict[str, list[str]] = {
     "php": [".php"],
     "swift": [".swift"],
     "kotlin": [".kt", ".kts"],
+    "c_sharp": [".cs"],
+    "objc": [".m", ".mm"],
     "scala": [".scala"],
     "shell": [".sh", ".bash", ".zsh"],
     "lua": [".lua"],
