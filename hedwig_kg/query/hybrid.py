@@ -213,12 +213,21 @@ def hybrid_search(
         weights=signal_weights,
     )
 
-    # Build final results
+    # Build final results (skip external/directory nodes without source context)
     results = []
-    for node_id, rrf_score in fused[:top_k]:
+    seen = 0
+    for node_id, rrf_score in fused:
+        if seen >= top_k:
+            break
         data = G.nodes.get(node_id, {})
         if not data:
             continue
+        # External nodes (stdlib/library refs) lack file paths and source —
+        # they add noise to results. Skip them in the final ranking.
+        kind = data.get("kind", "")
+        if kind in ("external", "directory"):
+            continue
+        seen += 1
 
         # Get immediate neighbors for context
         neighbors = []

@@ -35,6 +35,11 @@ CODE_KINDS = frozenset({
     "constructor", "property", "decorator",
 })
 
+# Node kinds excluded from embedding (these are references to external
+# libraries/symbols that lack source code, docstrings, and file paths,
+# polluting the vector search space with low-information vectors).
+SKIP_KINDS = frozenset({"external", "directory"})
+
 # Memory budget: 2 GB max for embeddings pipeline
 _MEMORY_LIMIT_BYTES = 2 * 1024 * 1024 * 1024
 
@@ -148,11 +153,17 @@ def embed_nodes_streaming(
     code_ids, code_texts = [], []
     text_ids, text_texts = [], []
 
+    skipped = 0
     for node_id, data in G.nodes(data=True):
+        kind = data.get("kind", "")
+        # Skip external/directory nodes — they lack source code and pollute
+        # the vector index with low-information embeddings.
+        if kind.lower() in SKIP_KINDS:
+            skipped += 1
+            continue
         text = _node_text(data)
         if not text.strip():
             continue
-        kind = data.get("kind", "")
         if is_code_node(kind):
             code_ids.append(node_id)
             code_texts.append(text)
@@ -161,8 +172,8 @@ def embed_nodes_streaming(
             text_texts.append(text)
 
     logger.debug(
-        "Dual-model split: %d code nodes, %d text nodes",
-        len(code_ids), len(text_ids),
+        "Dual-model split: %d code nodes, %d text nodes, %d skipped",
+        len(code_ids), len(text_ids), skipped,
     )
 
     # Embed code nodes
