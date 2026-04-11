@@ -55,6 +55,7 @@ def run_pipeline(
     max_file_size: int = 1_000_000,
     on_progress: callable | None = None,
     incremental: bool = False,
+    lang: str = "auto",
 ) -> PipelineResult:
     """Run the full knowledge graph build pipeline.
 
@@ -67,6 +68,8 @@ def run_pipeline(
         max_file_size: Skip files larger than this.
         on_progress: Callback(stage: str, detail: str) for progress updates.
         incremental: Skip unchanged files (based on content hash).
+        lang: Language mode — "auto" (detect from text nodes), "en" (English-only
+            models), or "multilingual" (force multilingual text model).
 
     Returns:
         PipelineResult with all intermediate and final results.
@@ -194,15 +197,41 @@ def run_pipeline(
     # Stage 5: Embeddings (optional) — dual-model streaming
     _start_stage("embed")
     all_embeddings: dict = {}  # only kept for edge weight computation
+    detected_lang = lang if lang != "auto" else "en"
+    effective_text_model = "all-MiniLM-L6-v2"
     if embed:
         try:
             from hedwig_kg.query.embeddings import (
                 CODE_MODEL,
+                MULTILINGUAL_TEXT_MODEL,
                 TEXT_MODEL,
                 embed_nodes_streaming,
             )
 
-            _progress("embed", f"Dual-model: code={CODE_MODEL}, text={TEXT_MODEL}")
+            # Determine text model based on language setting
+            detected_lang = lang
+            if lang == "auto":
+                from hedwig_kg.core.lang_detect import detect_language
+                from hedwig_kg.query.embeddings import _node_text, is_code_node
+                # Sample text nodes for language detection
+                text_samples = []
+                for _, data in result.graph.nodes(data=True):
+                    kind = data.get("kind", "")
+                    if not is_code_node(kind) and kind not in ("external", "directory"):
+                        t = _node_text(data)
+                        if t.strip():
+                            text_samples.append(t)
+                        if len(text_samples) >= 200:
+                            break
+                detected_lang = detect_language(text_samples)
+                _progress("embed", f"Language detected: {detected_lang}")
+
+            effective_text_model = (
+                MULTILINGUAL_TEXT_MODEL if detected_lang == "multilingual"
+                else TEXT_MODEL
+            )
+
+            _progress("embed", f"Dual-model: code={CODE_MODEL}, text={effective_text_model}")
 
             # Incremental embedding: skip nodes that already have embeddings
             skip_ids: set[str] | None = None
@@ -227,10 +256,12 @@ def run_pipeline(
             code_count = 0
             text_count = 0
             for batch_ids, batch_vecs, model_type in embed_nodes_streaming(
-                result.graph, skip_ids=skip_ids,
+                result.graph,
+                text_model=effective_text_model,
+                skip_ids=skip_ids,
             ):
                 batch_dict = dict(zip(batch_ids, batch_vecs))
-                model_label = CODE_MODEL if model_type == "code" else TEXT_MODEL
+                model_label = CODE_MODEL if model_type == "code" else effective_text_model
                 store.save_embeddings(
                     batch_dict, model_name=model_label, model_type=model_type,
                 )
@@ -295,6 +326,8 @@ def run_pipeline(
     store.save_communities(result.cluster_result.communities)
     store.set_meta("source_dir", str(source_dir))
     store.set_meta("model_name", model_name or "dual:bge-small+MiniLM")
+    store.set_meta("lang", detected_lang)
+    store.set_meta("text_model", effective_text_model)
     store.set_meta("status", "complete")
 
     # Save file hashes for incremental builds

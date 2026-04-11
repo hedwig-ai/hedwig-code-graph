@@ -242,7 +242,8 @@ Source Code/Docs
 ## Key Features
 
 - **5-Signal HybridRAG Search** — Dual vector (code + text) + Graph + Keyword + Community → Weighted RRF fusion with per-result signal breakdown
-- **Dual Embedding Models** — Code nodes use `bge-small-en-v1.5`, text nodes use `all-MiniLM-L6-v2` (~220MB total, cached locally)
+- **Dual Embedding Models** — Code nodes use `bge-small-en-v1.5`, text nodes use `all-MiniLM-L6-v2` or `multilingual-e5-small` for 100+ languages (~220MB–470MB, cached locally)
+- **Multilingual Support** — Auto-detects natural language in text nodes; switches to `intfloat/multilingual-e5-small` (384-dim, 100+ languages) for non-English codebases. Code embeddings stay English-optimized since code is language-agnostic. Use `--lang auto|en|multilingual`
 - **Tree-sitter AST Extraction** — Python, JavaScript, TypeScript with call graph tracking, class hierarchy, and decorator extraction
 - **Weight-Aware Graph Expansion** — Edges scored by semantic similarity, confidence, proximity, and relation type (`calls`/`inherits` > `imports` > `contains`)
 - **Search Explainability** — Each result shows which signals contributed (e.g. `cv:0.019 kw:0.016 g:0.012`)

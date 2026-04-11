@@ -251,6 +251,7 @@ def hybrid_search(
     weights: list[float] | None = None,
     use_cache: bool = True,
     fast: bool = False,
+    text_model: str | None = None,
 ) -> list[SearchResult]:
     """Execute hybrid search combining vector, graph, and keyword signals.
 
@@ -266,6 +267,8 @@ def hybrid_search(
         use_cache: Whether to use LRU search result caching.
         fast: If True, use only the text model (skips code model loading).
             Reduces cold-start latency from ~2.8s to ~0.2s.
+        text_model: Override text model name (e.g. multilingual-e5-small).
+            Read from DB metadata at search time.
 
     Returns:
         Ranked list of SearchResult.
@@ -282,11 +285,9 @@ def hybrid_search(
     # Stage 1: Vector search
     if fast:
         # Fast mode: text model only (cold start ~0.2s vs ~2.8s)
-        # Uses a single text-model vector to search both indexes.
-        # The code index search is a cross-model approximate match —
-        # less precise but avoids loading the code model entirely.
         from hedwig_kg.query.embeddings import TEXT_MODEL, embed_query
-        query_vec = embed_query(query, TEXT_MODEL)
+        effective_text = text_model or TEXT_MODEL
+        query_vec = embed_query(query, effective_text)
         text_vector_hits = store.vector_search(
             query_vec, top_k=vector_candidates, model_type="text",
         )
@@ -296,7 +297,7 @@ def hybrid_search(
     else:
         # Full dual-model search
         from hedwig_kg.query.embeddings import embed_query_dual
-        query_vecs = embed_query_dual(query)
+        query_vecs = embed_query_dual(query, text_model=text_model)
         code_vector_hits = store.vector_search(
             query_vecs["code"], top_k=vector_candidates, model_type="code",
         )

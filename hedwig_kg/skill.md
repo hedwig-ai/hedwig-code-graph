@@ -45,12 +45,18 @@ Response format:
 ### Build
 
 ```bash
-# Full build (first time)
+# Full build (first time) — auto-detects language from text nodes
 hedwig-kg --json build .
 
 # Incremental rebuild (skips unchanged files)
 hedwig-kg --json build . --incremental
+
+# Force multilingual mode (for non-English codebases: Japanese, Korean, Chinese, etc.)
+hedwig-kg --json build . --lang multilingual
 ```
+
+Language modes: `auto` (default, detects from text nodes), `en` (English-only models), `multilingual` (100+ languages via multilingual-e5-small).
+Search automatically uses the correct model based on the language set during build.
 
 ### Inspect
 

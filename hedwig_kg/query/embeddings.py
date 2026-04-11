@@ -28,6 +28,17 @@ logger = logging.getLogger(__name__)
 CODE_MODEL = "BAAI/bge-small-en-v1.5"
 TEXT_MODEL = "all-MiniLM-L6-v2"
 
+# Multilingual text model: same 384-dim as MiniLM, supports 100+ languages.
+# Requires "query: " / "passage: " prefixes for optimal performance.
+MULTILINGUAL_TEXT_MODEL = "intfloat/multilingual-e5-small"
+
+# Models that require instruction prefixes (E5 family)
+_PREFIX_MODELS: dict[str, dict[str, str]] = {
+    "intfloat/multilingual-e5-small": {"query": "query: ", "passage": "passage: "},
+    "intfloat/multilingual-e5-base": {"query": "query: ", "passage": "passage: "},
+    "intfloat/multilingual-e5-large": {"query": "query: ", "passage": "passage: "},
+}
+
 # Node kinds routed to the code model
 CODE_KINDS = frozenset({
     "function", "class", "method", "module", "variable",
@@ -147,15 +158,26 @@ def is_code_node(kind: str) -> bool:
     return kind.lower() in CODE_KINDS
 
 
+def _add_prefix(model_name: str, texts: list[str], mode: str = "passage") -> list[str]:
+    """Add instruction prefix if required by the model (e.g. E5 family)."""
+    prefixes = _PREFIX_MODELS.get(model_name)
+    if not prefixes:
+        return texts
+    prefix = prefixes.get(mode, "")
+    return [prefix + t for t in texts]
+
+
 def _encode_batch(
     model_name: str,
     texts: list[str],
     batch_size: int = 64,
+    prefix_mode: str = "passage",
 ) -> np.ndarray:
     """Encode texts with the specified model."""
     model = _get_model(model_name)
+    prefixed = _add_prefix(model_name, texts, prefix_mode)
     return model.encode(
-        texts,
+        prefixed,
         batch_size=batch_size,
         show_progress_bar=False,
         normalize_embeddings=True,
@@ -165,7 +187,7 @@ def _encode_batch(
 def embed_nodes_streaming(
     G: "nx.DiGraph",
     code_model: str = CODE_MODEL,
-    text_model: str = TEXT_MODEL,
+    text_model: str | None = None,
     batch_size: int = 64,
     skip_ids: set[str] | None = None,
 ) -> Generator[tuple[list[str], np.ndarray, str], None, None]:
@@ -175,12 +197,14 @@ def embed_nodes_streaming(
     then embedded with the appropriate model.
 
     Args:
+        text_model: Override text model (e.g. multilingual-e5-small).
         skip_ids: Node IDs to skip (already embedded). Used for incremental builds.
 
     Yields:
         (node_ids_batch, vectors_batch, model_type) tuples.
         model_type is "code" or "text".
     """
+    effective_text = text_model or TEXT_MODEL
     code_ids, code_texts = [], []
     text_ids, text_texts = [], []
 
@@ -228,7 +252,7 @@ def embed_nodes_streaming(
     # Embed text nodes
     for i in range(0, len(text_texts), batch_size):
         batch_ids = text_ids[i : i + batch_size]
-        vectors = _encode_batch(text_model, text_texts[i : i + batch_size], batch_size)
+        vectors = _encode_batch(effective_text, text_texts[i : i + batch_size], batch_size)
         yield batch_ids, vectors, "text"
         _memory_guard()
 
@@ -289,28 +313,41 @@ def embed_query(
     model_name: str | None = None,
 ) -> np.ndarray:
     """Embed a single query string using the text model (default)."""
-    model = _get_model(model_name or TEXT_MODEL)
-    return model.encode(query, normalize_embeddings=True)
+    effective_model = model_name or TEXT_MODEL
+    model = _get_model(effective_model)
+    prefixed = _add_prefix(effective_model, [query], "query")[0]
+    return model.encode(prefixed, normalize_embeddings=True)
 
 
-def embed_query_dual(query: str) -> dict[str, np.ndarray]:
+def embed_query_dual(
+    query: str,
+    text_model: str | None = None,
+) -> dict[str, np.ndarray]:
     """Embed query with both models for dual-index search.
 
     Uses an LRU cache to avoid re-encoding identical queries.
 
+    Args:
+        text_model: Override text model (e.g. multilingual-e5-small).
+
     Returns:
         {"code": code_vector, "text": text_vector}
     """
-    if query in _query_cache:
-        return _query_cache[query]
+    effective_text = text_model or TEXT_MODEL
+    cache_key = f"{query}|{effective_text}"
+    if cache_key in _query_cache:
+        return _query_cache[cache_key]
+
+    code_query = _add_prefix(CODE_MODEL, [query], "query")[0]
+    text_query = _add_prefix(effective_text, [query], "query")[0]
 
     result = {
-        "code": _get_model(CODE_MODEL).encode(query, normalize_embeddings=True),
-        "text": _get_model(TEXT_MODEL).encode(query, normalize_embeddings=True),
+        "code": _get_model(CODE_MODEL).encode(code_query, normalize_embeddings=True),
+        "text": _get_model(effective_text).encode(text_query, normalize_embeddings=True),
     }
 
-    _query_cache[query] = result
-    _query_cache_order.append(query)
+    _query_cache[cache_key] = result
+    _query_cache_order.append(cache_key)
     if len(_query_cache_order) > _QUERY_CACHE_MAX:
         evict = _query_cache_order.pop(0)
         _query_cache.pop(evict, None)

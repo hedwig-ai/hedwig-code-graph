@@ -71,10 +71,15 @@ def cli(ctx, json_output: bool):
               help="Override embedding model (default: dual-model, code=bge-small + text=MiniLM)")
 @click.option("--max-file-size", default=1_000_000, type=int, help="Max file size in bytes")
 @click.option("--incremental", is_flag=True, help="Skip unchanged files (faster rebuilds)")
+@click.option(
+    "--lang", default="auto",
+    type=click.Choice(["auto", "en", "multilingual"], case_sensitive=False),
+    help="Language mode: auto (detect), en (English models), multilingual (100+ languages)",
+)
 @click.pass_context
 def build(
     ctx, source_dir: str, output: str | None, no_embed: bool,
-    model: str, max_file_size: int, incremental: bool,
+    model: str, max_file_size: int, incremental: bool, lang: str,
 ):
     """Build knowledge graph from a source directory."""
     from hedwig_kg.core.pipeline import run_pipeline
@@ -90,6 +95,7 @@ def build(
             max_file_size=max_file_size,
             on_progress=None,
             incremental=incremental,
+            lang=lang,
         )
     else:
         with Progress(
@@ -110,6 +116,7 @@ def build(
                 max_file_size=max_file_size,
                 on_progress=on_progress,
                 incremental=incremental,
+                lang=lang,
             )
 
     if json_mode:
@@ -199,7 +206,11 @@ def search(ctx, query: str, db: str | None, top_k: int, source_dir: str, fast: b
         if not json_mode:
             console.print("[dim]Vector index not available, keyword search only.[/]")
 
-    results = hybrid_search(query, store, G, top_k=top_k, fast=fast)
+    # Read text model from DB metadata (set during build)
+    text_model = store.get_meta("text_model", None)
+    results = hybrid_search(
+        query, store, G, top_k=top_k, fast=fast, text_model=text_model,
+    )
 
     if json_mode:
         _json_out([
