@@ -216,6 +216,21 @@ def embed_nodes(
     return result
 
 
+# --- Query embedding LRU cache ---
+# Caches encoded query vectors to avoid re-encoding identical queries.
+# Separate from the hybrid_search result cache: this cache is reusable
+# even when search parameters (top_k, weights) change.
+_query_cache: dict[str, dict[str, np.ndarray]] = {}
+_QUERY_CACHE_MAX = 256
+_query_cache_order: list[str] = []
+
+
+def clear_query_cache() -> None:
+    """Clear the query embedding cache."""
+    _query_cache.clear()
+    _query_cache_order.clear()
+
+
 def embed_query(
     query: str,
     model_name: str | None = None,
@@ -228,13 +243,26 @@ def embed_query(
 def embed_query_dual(query: str) -> dict[str, np.ndarray]:
     """Embed query with both models for dual-index search.
 
+    Uses an LRU cache to avoid re-encoding identical queries.
+
     Returns:
         {"code": code_vector, "text": text_vector}
     """
-    return {
+    if query in _query_cache:
+        return _query_cache[query]
+
+    result = {
         "code": _get_model(CODE_MODEL).encode(query, normalize_embeddings=True),
         "text": _get_model(TEXT_MODEL).encode(query, normalize_embeddings=True),
     }
+
+    _query_cache[query] = result
+    _query_cache_order.append(query)
+    if len(_query_cache_order) > _QUERY_CACHE_MAX:
+        evict = _query_cache_order.pop(0)
+        _query_cache.pop(evict, None)
+
+    return result
 
 
 def _memory_guard():

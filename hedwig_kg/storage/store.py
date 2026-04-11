@@ -290,7 +290,11 @@ class KnowledgeStore:
         if not idx_path.exists() or not lbl_path.exists():
             return False
         try:
-            index = faiss.read_index(str(idx_path))
+            # Use mmap when available for faster loading and lower RSS
+            try:
+                index = faiss.read_index(str(idx_path), faiss.IO_FLAG_MMAP)
+            except Exception:
+                index = faiss.read_index(str(idx_path))
             labels = json.loads(lbl_path.read_text(encoding="utf-8"))
             self._faiss_indices[model_type] = index
             self._faiss_labels[model_type] = labels

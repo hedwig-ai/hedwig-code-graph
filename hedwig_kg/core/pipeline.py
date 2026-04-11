@@ -263,10 +263,15 @@ def run_pipeline(
         except Exception:
             logger.debug("Vector index build failed", exc_info=True)
 
-    # Clear search cache after rebuild (stale results)
+    # Clear search and query embedding caches after rebuild (stale results)
     try:
         from hedwig_kg.query.hybrid import clear_search_cache
         clear_search_cache()
+    except ImportError:
+        pass
+    try:
+        from hedwig_kg.query.embeddings import clear_query_cache
+        clear_query_cache()
     except ImportError:
         pass
 
