@@ -62,6 +62,18 @@ Each `install` command does two things:
 
 To remove: `hedwig-kg <platform> uninstall`
 
+### Requirements
+
+- Python 3.10+
+- ~500MB disk space for the default embedding model (downloaded on first use)
+
+### Optional Dependencies
+
+```bash
+# PDF text extraction
+pip install hedwig-kg[docs]
+```
+
 ## Quick Start
 
 ### 1. Install & Build

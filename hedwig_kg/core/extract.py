@@ -249,11 +249,187 @@ def _extract_markdown(file_path: str, content: str) -> ExtractionResult:
     return result
 
 
+def _extract_pdf(file_path: str, content: str) -> ExtractionResult:
+    """Extract text content from PDF files using pymupdf."""
+    result = ExtractionResult()
+    doc_id = _make_node_id(file_path, Path(file_path).stem, "document")
+    result.nodes.append(ExtractedNode(
+        id=doc_id,
+        name=Path(file_path).stem,
+        kind="document",
+        file_path=file_path,
+        language="pdf",
+        source_snippet="[PDF document]",
+    ))
+
+    try:
+        import pymupdf
+    except ImportError:
+        result.nodes[0].source_snippet = "[PDF — install pymupdf for text extraction]"
+        return result
+
+    try:
+        doc = pymupdf.open(file_path)
+    except Exception:
+        return result
+
+    for page_num in range(len(doc)):
+        page = doc[page_num]
+        text = page.get_text().strip()
+        if not text:
+            continue
+
+        section_id = _make_node_id(file_path, f"page_{page_num + 1}", "section")
+        result.nodes.append(ExtractedNode(
+            id=section_id,
+            name=f"Page {page_num + 1}",
+            kind="section",
+            file_path=file_path,
+            language="pdf",
+            start_line=page_num,
+            source_snippet=text[:500],
+        ))
+        result.edges.append(ExtractedEdge(doc_id, section_id, "defines"))
+
+    doc.close()
+    return result
+
+
+def _extract_html(file_path: str, content: str) -> ExtractionResult:
+    """Extract text and structure from HTML files."""
+    result = ExtractionResult()
+    doc_id = _make_node_id(file_path, Path(file_path).stem, "document")
+    result.nodes.append(ExtractedNode(
+        id=doc_id,
+        name=Path(file_path).stem,
+        kind="document",
+        file_path=file_path,
+        language="html",
+        source_snippet=content[:500],
+    ))
+
+    try:
+        from html.parser import HTMLParser
+    except ImportError:
+        return result
+
+    class _HeadingParser(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self._in_heading = False
+            self._heading_tag = ""
+            self._heading_text = ""
+            self._pos = 0
+            self.headings: list[tuple[str, str, int]] = []
+
+        def handle_starttag(self, tag, attrs):
+            if tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
+                self._in_heading = True
+                self._heading_tag = tag
+                self._heading_text = ""
+                self._pos = self.getpos()[0]
+
+        def handle_data(self, data):
+            if self._in_heading:
+                self._heading_text += data
+
+        def handle_endtag(self, tag):
+            if self._in_heading and tag == self._heading_tag:
+                self._in_heading = False
+                text = self._heading_text.strip()
+                if text:
+                    self.headings.append((self._heading_tag, text, self._pos))
+
+    parser = _HeadingParser()
+    try:
+        parser.feed(content)
+    except Exception:
+        return result
+
+    for tag, text, line_num in parser.headings:
+        section_id = _make_node_id(file_path, text, "section")
+        result.nodes.append(ExtractedNode(
+            id=section_id,
+            name=text,
+            kind="section",
+            file_path=file_path,
+            language="html",
+            start_line=line_num,
+            source_snippet=text,
+        ))
+        result.edges.append(ExtractedEdge(doc_id, section_id, "defines"))
+
+    # Extract links
+    _HTML_LINK = re.compile(r'href=["\']([^"\']+)["\']')
+    for m in _HTML_LINK.finditer(content):
+        href = m.group(1)
+        if not href.startswith(("http://", "https://", "mailto:", "#", "javascript:")):
+            target_name = Path(href.split("?")[0].split("#")[0]).stem
+            if target_name:
+                result.edges.append(ExtractedEdge(
+                    doc_id, f"*::document::{target_name}", "references",
+                    confidence="INFERRED",
+                ))
+
+    return result
+
+
+def _extract_csv(file_path: str, content: str) -> ExtractionResult:
+    """Extract structure from CSV/TSV files (headers as schema)."""
+    import csv
+    import io
+
+    result = ExtractionResult()
+    doc_id = _make_node_id(file_path, Path(file_path).stem, "document")
+
+    ext = Path(file_path).suffix.lower()
+    delimiter = "\t" if ext == ".tsv" else ","
+
+    try:
+        reader = csv.reader(io.StringIO(content), delimiter=delimiter)
+        headers = next(reader, None)
+    except Exception:
+        headers = None
+
+    row_count = content.count("\n")
+    header_str = ", ".join(headers) if headers else ""
+    snippet = f"Columns: {header_str}\nRows: ~{row_count}" if headers else content[:500]
+
+    result.nodes.append(ExtractedNode(
+        id=doc_id,
+        name=Path(file_path).stem,
+        kind="document",
+        file_path=file_path,
+        language="csv",
+        source_snippet=snippet,
+    ))
+
+    if headers:
+        for col in headers:
+            col = col.strip()
+            if col:
+                col_id = _make_node_id(file_path, col, "variable")
+                result.nodes.append(ExtractedNode(
+                    id=col_id,
+                    name=col,
+                    kind="variable",
+                    file_path=file_path,
+                    language="csv",
+                    source_snippet=f"Column: {col}",
+                ))
+                result.edges.append(ExtractedEdge(doc_id, col_id, "defines"))
+
+    return result
+
+
 _EXTRACTORS: dict[str, Any] = {
     "python": _extract_python,
     "javascript": _extract_javascript,
     "typescript": _extract_javascript,  # Close enough for regex fallback
     "markdown": _extract_markdown,
+    "pdf": _extract_pdf,
+    "html": _extract_html,
+    "csv": _extract_csv,
 }
 
 
@@ -269,7 +445,10 @@ def extract_file(file_path: str, language: str, content: str | None = None) -> E
         ExtractionResult with nodes and edges.
     """
     if content is None:
-        content = Path(file_path).read_text(errors="replace")
+        if language == "pdf":
+            content = ""  # PDF uses pymupdf to read binary directly
+        else:
+            content = Path(file_path).read_text(errors="replace")
 
     extractor = _EXTRACTORS.get(language)
     if extractor:

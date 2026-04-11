@@ -31,6 +31,9 @@ LANGUAGE_MAP: dict[str, list[str]] = {
     "yaml": [".yml", ".yaml"],
     "json": [".json"],
     "toml": [".toml"],
+    "pdf": [".pdf"],
+    "html": [".html", ".htm"],
+    "csv": [".csv", ".tsv"],
 }
 
 EXT_TO_LANG: dict[str, str] = {}
@@ -86,6 +89,8 @@ def _classify_file(path: Path) -> str:
     if ext in EXT_TO_LANG:
         return "code"
     if ext in {".md", ".mdx", ".rst", ".txt"}:
+        return "doc"
+    if ext in {".pdf", ".html", ".htm", ".csv", ".tsv"}:
         return "doc"
     if ext in {".json", ".yaml", ".yml", ".toml", ".ini", ".cfg"}:
         return "config"
