@@ -632,5 +632,222 @@ def show_node(node_id: str, db: str | None, source_dir: str):
     store.close()
 
 
+@cli.command()
+def install():
+    """Install hedwig-kg as a global Claude Code skill (/hedwig-kg slash command)."""
+    import shutil
+
+    skill_src = Path(__file__).parent.parent / "skill.md"
+    if not skill_src.exists():
+        console.print("[red]skill.md not found in package.[/]")
+        raise SystemExit(1)
+
+    # Determine Claude skills directory
+    claude_dir = Path.home() / ".claude"
+    skills_dir = claude_dir / "skills" / "hedwig-kg"
+    skills_dir.mkdir(parents=True, exist_ok=True)
+
+    # Copy skill file
+    dest = skills_dir / "SKILL.md"
+    shutil.copy2(skill_src, dest)
+    console.print(f"[green]Skill installed:[/] {dest}")
+
+    # Append to global CLAUDE.md if not already present
+    claude_md = claude_dir / "CLAUDE.md"
+    marker = "# hedwig-kg"
+    skill_block = (
+        "\n# hedwig-kg\n"
+        "- **hedwig-kg** (`~/.claude/skills/hedwig-kg/SKILL.md`) "
+        "- local-first knowledge graph builder. Trigger: `/hedwig-kg`\n"
+        "When the user types `/hedwig-kg`, invoke the Skill tool with "
+        '`skill: "hedwig-kg"` before doing anything else.\n'
+    )
+
+    if claude_md.exists():
+        content = claude_md.read_text()
+        if marker in content:
+            console.print("[dim]Already registered in ~/.claude/CLAUDE.md[/]")
+        else:
+            claude_md.write_text(content + skill_block)
+            console.print("[green]Registered /hedwig-kg in ~/.claude/CLAUDE.md[/]")
+    else:
+        claude_md.write_text(skill_block)
+        console.print("[green]Created ~/.claude/CLAUDE.md with /hedwig-kg skill[/]")
+
+    console.print()
+    console.print("[bold]Usage:[/] Type [cyan]/hedwig-kg[/] in Claude Code to use the skill.")
+
+
+@cli.command()
+def uninstall():
+    """Remove hedwig-kg global Claude Code skill."""
+    import shutil
+
+    claude_dir = Path.home() / ".claude"
+    skills_dir = claude_dir / "skills" / "hedwig-kg"
+
+    # Remove skill directory
+    if skills_dir.exists():
+        shutil.rmtree(skills_dir)
+        console.print("[green]Removed skill directory.[/]")
+    else:
+        console.print("[dim]Skill directory not found.[/]")
+
+    # Remove from CLAUDE.md
+    claude_md = claude_dir / "CLAUDE.md"
+    if claude_md.exists():
+        lines = claude_md.read_text().splitlines(keepends=True)
+        filtered = []
+        skip = False
+        for line in lines:
+            if line.strip() == "# hedwig-kg":
+                skip = True
+                continue
+            if skip and line.startswith("#") and "hedwig-kg" not in line.lower():
+                skip = False
+            if skip:
+                continue
+            filtered.append(line)
+        claude_md.write_text("".join(filtered))
+        console.print("[green]Removed /hedwig-kg from ~/.claude/CLAUDE.md[/]")
+
+    console.print("[dim]hedwig-kg skill uninstalled.[/]")
+
+
+@cli.group(name="claude")
+def claude_group():
+    """Manage per-project Claude Code integration."""
+    pass
+
+
+@claude_group.command(name="install")
+def claude_install():
+    """Install per-project Claude Code integration (CLAUDE.md + PreToolUse hook)."""
+    import json
+
+    project_root = Path.cwd()
+
+    # 1. Write section to project CLAUDE.md
+    claude_md = project_root / "CLAUDE.md"
+    marker = "## hedwig-kg"
+    section = (
+        "\n## hedwig-kg\n\n"
+        "This project has a hedwig-kg knowledge graph at `.hedwig-kg/`.\n\n"
+        "Rules:\n"
+        "- Before answering architecture or codebase questions, "
+        "run `hedwig-kg search \"<query>\"` for graph-aware results\n"
+        "- Use `hedwig-kg stats` for structural overview "
+        "(god nodes, communities, density)\n"
+        "- After modifying code files, run "
+        "`hedwig-kg build . --incremental` to keep the graph current\n"
+        "- Use `hedwig-kg communities --search \"<topic>\"` "
+        "for high-level architecture understanding\n"
+    )
+
+    if claude_md.exists():
+        content = claude_md.read_text()
+        if marker in content:
+            console.print("[dim]CLAUDE.md already has hedwig-kg section.[/]")
+        else:
+            claude_md.write_text(content + section)
+            console.print("[green]Added hedwig-kg section to CLAUDE.md[/]")
+    else:
+        claude_md.write_text(section.lstrip("\n"))
+        console.print("[green]Created CLAUDE.md with hedwig-kg section[/]")
+
+    # 2. Write PreToolUse hook to .claude/settings.json
+    settings_dir = project_root / ".claude"
+    settings_dir.mkdir(parents=True, exist_ok=True)
+    settings_file = settings_dir / "settings.json"
+
+    hook_entry = {
+        "matcher": "Glob|Grep",
+        "hooks": [{
+            "type": "command",
+            "command": (
+                '[ -f .hedwig-kg/knowledge.db ] && echo '
+                '\'{"hookSpecificOutput":{"hookEventName":"PreToolUse",'
+                '"additionalContext":"hedwig-kg: Knowledge graph available. '
+                "Consider running `hedwig-kg search` for graph-aware results "
+                'before grepping raw files."}}\' || true'
+            ),
+        }],
+    }
+
+    if settings_file.exists():
+        settings = json.loads(settings_file.read_text())
+    else:
+        settings = {}
+
+    hooks = settings.setdefault("hooks", {})
+    pre_hooks = hooks.setdefault("PreToolUse", [])
+
+    # Check if already installed
+    already = any(
+        "hedwig-kg" in json.dumps(h)
+        for h in pre_hooks
+    )
+    if already:
+        console.print("[dim].claude/settings.json already has hedwig-kg hook.[/]")
+    else:
+        pre_hooks.append(hook_entry)
+        settings_file.write_text(json.dumps(settings, indent=2) + "\n")
+        console.print("[green]Added PreToolUse hook to .claude/settings.json[/]")
+
+    console.print()
+    console.print("[bold]Done![/] Claude Code will now use the knowledge graph "
+                  "when searching this project.")
+    console.print("[dim]Run 'hedwig-kg claude uninstall' to remove.[/]")
+
+
+@claude_group.command(name="uninstall")
+def claude_uninstall():
+    """Remove per-project Claude Code integration."""
+    import json
+
+    project_root = Path.cwd()
+
+    # 1. Remove section from CLAUDE.md
+    claude_md = project_root / "CLAUDE.md"
+    if claude_md.exists():
+        lines = claude_md.read_text().splitlines(keepends=True)
+        filtered = []
+        skip = False
+        for line in lines:
+            if line.strip() == "## hedwig-kg":
+                skip = True
+                continue
+            if skip and line.startswith("##") and "hedwig-kg" not in line.lower():
+                skip = False
+            if skip:
+                continue
+            filtered.append(line)
+        new_content = "".join(filtered).rstrip("\n") + "\n"
+        claude_md.write_text(new_content)
+        console.print("[green]Removed hedwig-kg section from CLAUDE.md[/]")
+
+    # 2. Remove hook from .claude/settings.json
+    settings_file = project_root / ".claude" / "settings.json"
+    if settings_file.exists():
+        settings = json.loads(settings_file.read_text())
+        hooks = settings.get("hooks", {})
+        pre_hooks = hooks.get("PreToolUse", [])
+        hooks["PreToolUse"] = [
+            h for h in pre_hooks
+            if "hedwig-kg" not in json.dumps(h)
+        ]
+        if not hooks["PreToolUse"]:
+            del hooks["PreToolUse"]
+        if not hooks:
+            del settings["hooks"]
+        settings_file.write_text(json.dumps(settings, indent=2) + "\n")
+        console.print("[green]Removed PreToolUse hook from .claude/settings.json[/]")
+
+    console.print("[dim]hedwig-kg Claude Code integration removed.[/]")
+
+
+cli.add_command(claude_group)
+
+
 if __name__ == "__main__":
     cli()
