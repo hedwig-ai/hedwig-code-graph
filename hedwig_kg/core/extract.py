@@ -190,7 +190,7 @@ def _extract_markdown(file_path: str, content: str) -> ExtractionResult:
         kind="document",
         file_path=file_path,
         language="markdown",
-        source_snippet=content[:500],
+        source_snippet=content,
     ))
 
     _MD_HEADING = re.compile(r"^(#{1,6})\s+(.+)", re.MULTILINE)
@@ -216,7 +216,7 @@ def _extract_markdown(file_path: str, content: str) -> ExtractionResult:
         # Determine section end
         end_line = headings[idx + 1][2] - 1 if idx + 1 < len(headings) else len(lines) - 1
 
-        section_content = "\n".join(lines[line_num:min(line_num + 15, end_line + 1)])
+        section_content = "\n".join(lines[line_num:end_line + 1])
 
         result.nodes.append(ExtractedNode(
             id=section_id,
@@ -292,7 +292,7 @@ def _extract_pdf(file_path: str, content: str) -> ExtractionResult:
             file_path=file_path,
             language="pdf",
             start_line=page_num,
-            source_snippet=text[:500],
+            source_snippet=text,
         ))
         result.edges.append(ExtractedEdge(doc_id, section_id, "defines"))
 
@@ -310,7 +310,7 @@ def _extract_html(file_path: str, content: str) -> ExtractionResult:
         kind="document",
         file_path=file_path,
         language="html",
-        source_snippet=content[:500],
+        source_snippet=content,
     ))
 
     try:
@@ -468,6 +468,6 @@ def extract_file(file_path: str, language: str, content: str | None = None) -> E
         kind="module",
         file_path=file_path,
         language=language,
-        source_snippet=content[:500],
+        source_snippet=content,
     ))
     return result

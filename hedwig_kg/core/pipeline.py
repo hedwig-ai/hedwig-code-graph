@@ -197,39 +197,17 @@ def run_pipeline(
     # Stage 5: Embeddings (optional) — dual-model streaming
     _start_stage("embed")
     all_embeddings: dict = {}  # only kept for edge weight computation
-    detected_lang = lang if lang != "auto" else "en"
-    effective_text_model = "all-MiniLM-L6-v2"
+    detected_lang = lang if lang != "auto" else "multilingual"
+    effective_text_model = "intfloat/multilingual-e5-small"
     if embed:
         try:
             from hedwig_kg.query.embeddings import (
                 CODE_MODEL,
-                MULTILINGUAL_TEXT_MODEL,
                 TEXT_MODEL,
                 embed_nodes_streaming,
             )
 
-            # Determine text model based on language setting
-            detected_lang = lang
-            if lang == "auto":
-                from hedwig_kg.core.lang_detect import detect_language
-                from hedwig_kg.query.embeddings import _node_text, is_code_node
-                # Sample text nodes for language detection
-                text_samples = []
-                for _, data in result.graph.nodes(data=True):
-                    kind = data.get("kind", "")
-                    if not is_code_node(kind) and kind not in ("external", "directory"):
-                        t = _node_text(data)
-                        if t.strip():
-                            text_samples.append(t)
-                        if len(text_samples) >= 200:
-                            break
-                detected_lang = detect_language(text_samples)
-                _progress("embed", f"Language detected: {detected_lang}")
-
-            effective_text_model = (
-                MULTILINGUAL_TEXT_MODEL if detected_lang == "multilingual"
-                else TEXT_MODEL
-            )
+            effective_text_model = TEXT_MODEL
 
             _progress("embed", f"Dual-model: code={CODE_MODEL}, text={effective_text_model}")
 
@@ -325,7 +303,7 @@ def run_pipeline(
     store.save_graph(result.graph)
     store.save_communities(result.cluster_result.communities)
     store.set_meta("source_dir", str(source_dir))
-    store.set_meta("model_name", model_name or "dual:bge-small+MiniLM")
+    store.set_meta("model_name", model_name or "dual:bge-small+e5-small")
     store.set_meta("lang", detected_lang)
     store.set_meta("text_model", effective_text_model)
     store.set_meta("status", "complete")

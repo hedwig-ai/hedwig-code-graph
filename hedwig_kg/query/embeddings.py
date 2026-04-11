@@ -2,7 +2,7 @@
 
 Dual-model architecture:
 - Code nodes (function, class, method, module) → BAAI/bge-small-en-v1.5
-- Text nodes (heading, section, docstring, etc.) → all-MiniLM-L6-v2
+- Text nodes (heading, section, docstring, etc.) → intfloat/multilingual-e5-small
 
 Both models output 384-dim vectors, enabling a single FAISS index.
 Memory-bounded: yields batches to avoid loading all vectors into RAM at once.
@@ -26,11 +26,10 @@ logger = logging.getLogger(__name__)
 # --- Model configuration ---
 
 CODE_MODEL = "BAAI/bge-small-en-v1.5"
-TEXT_MODEL = "all-MiniLM-L6-v2"
+TEXT_MODEL = "intfloat/multilingual-e5-small"
 
-# Multilingual text model: same 384-dim as MiniLM, supports 100+ languages.
-# Requires "query: " / "passage: " prefixes for optimal performance.
-MULTILINGUAL_TEXT_MODEL = "intfloat/multilingual-e5-small"
+# Legacy alias for backward compatibility
+MULTILINGUAL_TEXT_MODEL = TEXT_MODEL
 
 # Models that require instruction prefixes (E5 family)
 _PREFIX_MODELS: dict[str, dict[str, str]] = {
@@ -136,14 +135,21 @@ def _node_text(data: dict) -> str:
     if kind in ("method", "constructor", "property") and "." in label:
         class_name = label.rsplit(".", 1)[0]
         parts.append(f"method of {class_name}")
-    # Add filename for file-based query matching (e.g. "store.py methods")
+    # Add file path context for service/module discovery.
+    # Includes parent directory names (up to 3 levels) so that embeddings
+    # encode service context automatically — e.g. "payperview/infra/purchase_v2.go"
+    # embeds "payperview" enabling cross-service search without manual curation.
     fp = data.get("file_path", "")
     if fp:
-        # Extract just the filename from absolute/relative paths
         from pathlib import PurePosixPath
-        fname = PurePosixPath(fp).name
+        p = PurePosixPath(fp)
+        fname = p.name
         if fname:
             parts.append(f"in {fname}")
+        # Include up to 3 parent directory names as service/module context
+        dir_parts = list(p.parts[:-1])[-3:]  # last 3 dirs before filename
+        if dir_parts:
+            parts.append(f"path {'/'.join(dir_parts)}")
     if data.get("signature"):
         parts.append(data["signature"])
     if data.get("docstring"):
