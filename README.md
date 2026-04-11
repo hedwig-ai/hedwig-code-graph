@@ -187,13 +187,37 @@ Source Code/Docs
 
 ## Key Features
 
-- **5-Signal HybridRAG Search** — Dual vector (code + text) + Graph + Keyword + Community → RRF fusion
+- **5-Signal HybridRAG Search** — Dual vector (code + text) + Graph + Keyword + Community → Weighted RRF fusion
 - **Dual Embedding Models** — Code nodes use `bge-small-en-v1.5`, text nodes use `all-MiniLM-L6-v2` (~220MB total, cached locally)
 - **Tree-sitter AST Extraction** — Python, JavaScript, TypeScript with call graph analysis
 - **Hierarchical Communities** — Multi-resolution Leiden clustering with auto-generated summaries
 - **Incremental Builds** — SHA-256 content hashing skips unchanged files
+- **5 AI Agent Integrations** — Claude Code, Codex CLI, Gemini CLI, Cursor IDE, Windsurf IDE
 - **100% Local** — SQLite + FTS5 + FAISS, no cloud APIs
 - **20+ Languages** — File detection for Python, JS/TS, Java, Go, Rust, C/C++, Ruby, and more
+
+## Performance
+
+Benchmarks measured on a ~2,300-line Python project (hedwig-kg itself):
+
+| Operation | Time | Notes |
+|-----------|------|-------|
+| Full build | ~12s | Detect + extract + embed + cluster + store |
+| Incremental build | ~2s | SHA-256 hash check, skip unchanged files |
+| Cold search (first query) | ~3.2s | Model loading + encoding + 5-signal fusion |
+| Warm search (new query) | ~0.3s | Models cached, encoding only |
+| Cached search (same query) | <1ms | LRU cache hit (query embedding + search result) |
+| Embedding models | ~220MB | Downloaded once, cached in `~/.hedwig-kg/models/` |
+| Database size | ~1.5MB | SQLite + FTS5 + FAISS indices |
+
+### Optimizations
+
+- **FAISS disk persistence** — Vector indices saved to disk, loaded via mmap on search
+- **Query embedding LRU cache** — 256-entry cache eliminates re-encoding for repeated queries
+- **Search result LRU cache** — 128-entry cache for instant repeated search results
+- **Weighted RRF** — Per-signal weights boost semantic signals (1.2×) and reduce community noise (0.6×)
+- **Stopword filtering** — 80+ English stopwords removed from keyword search for better precision
+- **Memory-bounded embedding** — 2GB RSS budget with streaming batches and automatic GC
 
 ## Development
 

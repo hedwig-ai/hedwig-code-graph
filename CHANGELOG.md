@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-04-11
+
+### Added
+- **Cursor IDE integration** (`hedwig-kg cursor install/uninstall`): Creates `.cursor/rules/hedwig-kg.mdc` with alwaysApply rules
+- **Windsurf IDE integration** (`hedwig-kg windsurf install/uninstall`): Creates `.windsurf/rules/hedwig-kg.md` for Cascade
+- **Weighted Reciprocal Rank Fusion**: Per-signal weights (code_vec=1.2, text_vec=1.2, graph=0.8, keyword=1.0, community=0.6) for tunable search quality
+- **Stopword filtering**: 80+ common English stopwords removed from keyword/community search terms for improved FTS5 precision
+- **LRU search result cache** (128 entries): Instant return for repeated queries, auto-cleared on graph rebuild
+- **Query embedding LRU cache** (256 entries): Eliminates re-encoding for identical queries (291ms → 0ms)
+- `extract_search_terms()` public API for reusable stopword-filtered term extraction
+- `clear_search_cache()` and `clear_query_cache()` public APIs
+- `weights` parameter on `hybrid_search()` for runtime signal weight tuning
+
+### Changed
+- FAISS index loading now uses `IO_FLAG_MMAP` for lower RSS and faster cold starts on large indices (with automatic fallback)
+- Pipeline automatically clears search result and query embedding caches after rebuild
+
+### Performance
+- Search performance improved ~46% (5.9s → 3.2s) via FAISS disk persistence and graph expansion caching
+- Query embedding cache hit: 291ms → 0ms (3M+ speedup for repeated queries)
+- FAISS mmap loading reduces memory footprint for large indices
+
 ## [0.1.2] - 2026-04-11
 
 ### Added
@@ -73,5 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI (Python 3.10-3.12, Ubuntu + macOS)
 - CONTRIBUTING.md with development guide
 
-[Unreleased]: https://github.com/hedwig-ai/hedwig-knowledge-graph/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/hedwig-ai/hedwig-knowledge-graph/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/hedwig-ai/hedwig-knowledge-graph/compare/v0.1.2...v0.1.3
+[0.1.2]: https://github.com/hedwig-ai/hedwig-knowledge-graph/compare/v0.1.0...v0.1.2
 [0.1.0]: https://github.com/hedwig-ai/hedwig-knowledge-graph/releases/tag/v0.1.0
