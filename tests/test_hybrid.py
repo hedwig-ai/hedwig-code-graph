@@ -1,6 +1,6 @@
 """Tests for hybrid search and RRF fusion."""
 
-from hedwig_kg.query.hybrid import SearchResult, reciprocal_rank_fusion
+from hedwig_cg.query.hybrid import SearchResult, reciprocal_rank_fusion
 
 
 class TestRRF:

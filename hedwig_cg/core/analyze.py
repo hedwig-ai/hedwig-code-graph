@@ -26,10 +26,10 @@ def analyze(
     pagerank: dict[str, float] | None = None,
     top_k: int = 10,
 ) -> AnalysisResult:
-    """Run structural analysis on the knowledge graph.
+    """Run structural analysis on the code graph.
 
     Args:
-        G: The knowledge graph.
+        G: The code graph.
         pagerank: Pre-computed PageRank scores.
         top_k: Number of top results per category.
 

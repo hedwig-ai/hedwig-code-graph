@@ -12,8 +12,8 @@ from pathlib import Path
 
 import pytest
 
-from hedwig_kg.core.pipeline import run_pipeline
-from hedwig_kg.storage.store import KnowledgeStore
+from hedwig_cg.core.pipeline import run_pipeline
+from hedwig_cg.storage.store import KnowledgeStore
 
 
 @pytest.fixture()
@@ -232,7 +232,7 @@ class TestExportFormats:
     """Test export functionality after a build."""
 
     def test_d3_export(self, sample_project, tmp_path):
-        from hedwig_kg.cli.main import _graph_to_d3
+        from hedwig_cg.cli.main import _graph_to_d3
 
         result = run_pipeline(sample_project, embed=False)
         d3 = _graph_to_d3(result.graph)
@@ -246,7 +246,7 @@ class TestExportFormats:
         assert loaded["metadata"]["node_count"] == d3["metadata"]["node_count"]
 
     def test_viz_html_generation(self, sample_project, tmp_path):
-        from hedwig_kg.cli.main import _build_viz_html, _graph_to_d3
+        from hedwig_cg.cli.main import _build_viz_html, _graph_to_d3
 
         result = run_pipeline(sample_project, embed=False)
         d3 = _graph_to_d3(result.graph)
@@ -260,7 +260,7 @@ class TestCleanup:
 
     def test_clean_removes_db_dir(self, sample_project):
         run_pipeline(sample_project, embed=False)
-        kb_dir = sample_project / ".hedwig-kg"
+        kb_dir = sample_project / ".hedwig-cg"
         assert kb_dir.exists()
 
         shutil.rmtree(kb_dir)

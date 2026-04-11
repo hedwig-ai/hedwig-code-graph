@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from hedwig_kg.core.pipeline import PipelineResult, run_pipeline
-from hedwig_kg.storage.store import KnowledgeStore
+from hedwig_cg.core.pipeline import PipelineResult, run_pipeline
+from hedwig_cg.storage.store import KnowledgeStore
 
 
 def _create_mini_project(tmp_path: Path) -> Path:

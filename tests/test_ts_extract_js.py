@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import pytest
 
-from hedwig_kg.core.ts_extract import _ensure_parser, extract_file_ts
+from hedwig_cg.core.ts_extract import _ensure_parser, extract_file_ts
 
 
 @pytest.fixture(autouse=True)
 def _reset_parsers():
     """Reset cached parsers between tests."""
-    from hedwig_kg.core import ts_extract
+    from hedwig_cg.core import ts_extract
     ts_extract._parsers.clear()
     ts_extract._languages.clear()
 
@@ -18,7 +18,7 @@ def _reset_parsers():
 JS_AVAILABLE = _ensure_parser("javascript")
 
 # Reset after availability check
-from hedwig_kg.core import ts_extract as _ts  # noqa: E402
+from hedwig_cg.core import ts_extract as _ts  # noqa: E402
 
 _ts._parsers.clear()
 _ts._languages.clear()

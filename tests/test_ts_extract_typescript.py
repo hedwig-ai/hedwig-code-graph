@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from hedwig_kg.core.ts_extract import _ensure_parser, extract_file_ts
+from hedwig_cg.core.ts_extract import _ensure_parser, extract_file_ts
 
 
 @pytest.fixture(autouse=True)
@@ -17,7 +17,7 @@ def _skip_if_no_ts_parser():
     if not _ensure_parser("typescript"):
         pytest.skip("tree-sitter-typescript not available")
     # Clear tags_extract cache to avoid cross-test pollution
-    from hedwig_kg.core.tags_extract import _cache
+    from hedwig_cg.core.tags_extract import _cache
     _cache.pop("typescript", None)
 
 

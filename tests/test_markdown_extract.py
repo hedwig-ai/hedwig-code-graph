@@ -1,6 +1,6 @@
 """Tests for markdown document extraction."""
 
-from hedwig_kg.core.extract import extract_file
+from hedwig_cg.core.extract import extract_file
 
 SAMPLE_MD = """\
 # Project Overview
@@ -9,7 +9,7 @@ This is the main documentation.
 
 ## Installation
 
-Run `pip install hedwig-kg` to install.
+Run `pip install hedwig-cg` to install.
 
 ### Requirements
 

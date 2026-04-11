@@ -4,7 +4,7 @@
 import networkx as nx
 import numpy as np
 
-from hedwig_kg.storage.store import KnowledgeStore
+from hedwig_cg.storage.store import KnowledgeStore
 
 
 def _sample_graph():

@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">hedwig-kg</h1>
+  <h1 align="center">hedwig-cg</h1>
   <p align="center">
     "海德薇一定会带着消息回来的"
     <br />
@@ -8,25 +8,25 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/hedwig-ai/hedwig-knowledge-graph/actions"><img src="https://img.shields.io/github/actions/workflow/status/hedwig-ai/hedwig-knowledge-graph/ci.yml?branch=main" alt="CI"></a>
-  <a href="https://pypi.org/project/hedwig-kg/"><img src="https://img.shields.io/pypi/v/hedwig-kg" alt="PyPI"></a>
-  <a href="https://github.com/hedwig-ai/hedwig-knowledge-graph/blob/main/LICENSE"><img src="https://img.shields.io/github/license/hedwig-ai/hedwig-knowledge-graph" alt="License"></a>
+  <a href="https://github.com/hedwig-ai/hedwig-code-graph/actions"><img src="https://img.shields.io/github/actions/workflow/status/hedwig-ai/hedwig-code-graph/ci.yml?branch=main" alt="CI"></a>
+  <a href="https://pypi.org/project/hedwig-cg/"><img src="https://img.shields.io/pypi/v/hedwig-cg" alt="PyPI"></a>
+  <a href="https://github.com/hedwig-ai/hedwig-code-graph/blob/main/LICENSE"><img src="https://img.shields.io/github/license/hedwig-ai/hedwig-code-graph" alt="License"></a>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+">
 </p>
 
 ---
 
-## 为什么选择 hedwig-kg？
+## 为什么选择 hedwig-cg？
 
-hedwig-kg从代码、文档和依赖关系构建统一的知识图谱——让编程代理真正理解你的整个项目，而不仅仅是搜索关键词。安装后，Claude Code就能看到全貌——无需额外的token，无需额外的命令，一切100%本地运行。
+hedwig-cg从代码、文档和依赖关系构建统一的知识图谱——让编程代理真正理解你的整个项目，而不仅仅是搜索关键词。安装后，Claude Code就能看到全貌——无需额外的token，无需额外的命令，一切100%本地运行。
 
-<img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
+<img width="1919" height="991" alt="Code Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 
 ## 快速开始
 
 ```bash
-pip install hedwig-kg
-hedwig-kg claude install
+pip install hedwig-cg
+hedwig-cg claude install
 ```
 
 然后告诉Claude Code：
@@ -41,7 +41,7 @@ hedwig-kg claude install
 
 ### 深度AST提取（17种语言）
 
-hedwig-kg使用[tree-sitter tags.scm](https://tree-sitter.github.io/tree-sitter/4-code-navigation.html)进行通用结构提取——函数、类、方法、调用、import、继承——无需针对每种语言编写自定义代码。
+hedwig-cg使用[tree-sitter tags.scm](https://tree-sitter.github.io/tree-sitter/4-code-navigation.html)进行通用结构提取——函数、类、方法、调用、import、继承——无需针对每种语言编写自定义代码。
 
 | | | | |
 |:---:|:---:|:---:|:---:|
@@ -59,20 +59,20 @@ hedwig-kg使用[tree-sitter tags.scm](https://tree-sitter.github.io/tree-sitter/
 
 ## AI代理集成
 
-hedwig-kg通过一个命令与主要AI编程代理集成：
+hedwig-cg通过一个命令与主要AI编程代理集成：
 
 | 代理 | 安装 | 说明 |
 |------|------|------|
-| **Claude Code** | `hedwig-kg claude install` | Skill + CLAUDE.md + PreToolUse钩子 |
-| **Codex CLI** | `hedwig-kg codex install` | AGENTS.md + PreToolUse钩子 |
-| **Gemini CLI** | `hedwig-kg gemini install` | GEMINI.md + BeforeTool钩子 |
-| **Cursor IDE** | `hedwig-kg cursor install` | `.cursor/rules/`规则文件 |
-| **Windsurf IDE** | `hedwig-kg windsurf install` | `.windsurf/rules/`规则文件 |
-| **Cline** | `hedwig-kg cline install` | `.clinerules`文件 |
-| **Aider CLI** | `hedwig-kg aider install` | CONVENTIONS.md + `.aider.conf.yml` |
-| **MCP服务器** | `claude mcp add hedwig-kg -- hedwig-kg mcp` | Model Context Protocol 5个工具 |
+| **Claude Code** | `hedwig-cg claude install` | Skill + CLAUDE.md + PreToolUse钩子 |
+| **Codex CLI** | `hedwig-cg codex install` | AGENTS.md + PreToolUse钩子 |
+| **Gemini CLI** | `hedwig-cg gemini install` | GEMINI.md + BeforeTool钩子 |
+| **Cursor IDE** | `hedwig-cg cursor install` | `.cursor/rules/`规则文件 |
+| **Windsurf IDE** | `hedwig-cg windsurf install` | `.windsurf/rules/`规则文件 |
+| **Cline** | `hedwig-cg cline install` | `.clinerules`文件 |
+| **Aider CLI** | `hedwig-cg aider install` | CONVENTIONS.md + `.aider.conf.yml` |
+| **MCP服务器** | `claude mcp add hedwig-cg -- hedwig-cg mcp` | Model Context Protocol 5个工具 |
 
-每个`install`会写入上下文文件，并（在支持的平台上）注册工具调用前的钩子。卸载：`hedwig-kg <platform> uninstall`。
+每个`install`会写入上下文文件，并（在支持的平台上）注册工具调用前的钩子。卸载：`hedwig-cg <platform> uninstall`。
 
 ---
 
@@ -98,7 +98,7 @@ hedwig-kg通过一个命令与主要AI编程代理集成：
 
 ## 性能
 
-在hedwig-kg自身代码库上的基准测试（约3,500行，90个文件，1,300个节点）：
+在hedwig-cg自身代码库上的基准测试（约3,500行，90个文件，1,300个节点）：
 
 | 操作 | 时间 |
 |------|------|

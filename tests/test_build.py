@@ -2,8 +2,8 @@
 
 import networkx as nx
 
-from hedwig_kg.core.build import build_graph, compute_pagerank, graph_stats
-from hedwig_kg.core.extract import ExtractedEdge, ExtractedNode, ExtractionResult
+from hedwig_cg.core.build import build_graph, compute_pagerank, graph_stats
+from hedwig_cg.core.extract import ExtractedEdge, ExtractedNode, ExtractionResult
 
 
 def _make_extractions():

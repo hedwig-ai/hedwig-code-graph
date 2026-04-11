@@ -1,4 +1,4 @@
-"""hedwig-kg MCP Server — exposes knowledge graph tools to AI agents.
+"""hedwig-cg MCP Server — exposes code graph tools to AI agents.
 
 Provides 5 tools over the Model Context Protocol (MCP):
 - search: 5-signal HybridRAG search
@@ -9,10 +9,10 @@ Provides 5 tools over the Model Context Protocol (MCP):
 
 Usage:
     # stdio transport (default for Claude Code / Cursor / Windsurf)
-    hedwig-kg mcp
+    hedwig-cg mcp
 
     # Or directly:
-    python -m hedwig_kg.mcp_server
+    python -m hedwig_cg.mcp_server
 """
 
 from __future__ import annotations
@@ -26,9 +26,9 @@ from mcp.server.fastmcp import FastMCP
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP(
-    "hedwig-kg",
+    "hedwig-cg",
     instructions=(
-        "Local-first knowledge graph for code and document search. "
+        "Local-first code graph for code and document search. "
         "START with 'search' — it is the primary tool and handles most queries. "
         "Only use 'node' when you need full details about a specific entity "
         "found in search results. Use 'stats' for a structural overview. "
@@ -47,24 +47,24 @@ _db_path: str | None = None
 
 
 def _get_db_path() -> str:
-    """Resolve the knowledge graph database path."""
+    """Resolve the code graph database path."""
     global _db_path
     if _db_path:
         return _db_path
     # Check environment variable first, then fall back to cwd
-    env_path = os.environ.get("HEDWIG_KG_DB")
+    env_path = os.environ.get("HEDWIG_CG_DB")
     if env_path and Path(env_path).exists():
         _db_path = env_path
         return _db_path
-    # Walk up from cwd looking for .hedwig-kg/knowledge.db
+    # Walk up from cwd looking for .hedwig-cg/knowledge.db
     cwd = Path.cwd()
     for parent in [cwd, *cwd.parents]:
-        candidate = parent / ".hedwig-kg" / "knowledge.db"
+        candidate = parent / ".hedwig-cg" / "knowledge.db"
         if candidate.exists():
             _db_path = str(candidate)
             return _db_path
     # Default to cwd
-    _db_path = str(cwd / ".hedwig-kg" / "knowledge.db")
+    _db_path = str(cwd / ".hedwig-cg" / "knowledge.db")
     return _db_path
 
 
@@ -73,13 +73,13 @@ def _load():
     global _store, _graph
     if _store is not None and _graph is not None:
         return _store, _graph
-    from hedwig_kg.storage.store import KnowledgeStore
+    from hedwig_cg.storage.store import KnowledgeStore
 
     db = _get_db_path()
     if not Path(db).exists():
         raise FileNotFoundError(
-            f"Knowledge graph not found at {db}. "
-            "Run 'hedwig-kg build <dir>' first."
+            f"Code graph not found at {db}. "
+            "Run 'hedwig-cg build <dir>' first."
         )
     _store = KnowledgeStore(db)
     _graph = _store.load_graph()
@@ -103,7 +103,7 @@ def _reload():
 
 @mcp.tool()
 def search(query: str, top_k: int = 10, fast: bool = False) -> str:
-    """Search the knowledge graph. This is the PRIMARY tool — use it first.
+    """Search the code graph. This is the PRIMARY tool — use it first.
 
     Finds functions, classes, modules, and documents by combining semantic
     vector search, keyword matching, graph structure, and community context.
@@ -115,7 +115,7 @@ def search(query: str, top_k: int = 10, fast: bool = False) -> str:
         fast: Use text model only for faster response (default False)
     """
     store, G = _load()
-    from hedwig_kg.query.hybrid import hybrid_search
+    from hedwig_cg.query.hybrid import hybrid_search
 
     results = hybrid_search(query, store, G, top_k=top_k, fast=fast)
     if not results:
@@ -149,7 +149,7 @@ def search(query: str, top_k: int = 10, fast: bool = False) -> str:
 
 @mcp.tool()
 def node(node_id: str) -> str:
-    """Get detailed information about a specific node in the knowledge graph.
+    """Get detailed information about a specific node in the code graph.
 
     Args:
         node_id: Full or partial node ID. Partial matches are supported
@@ -204,12 +204,12 @@ def node(node_id: str) -> str:
 
 @mcp.tool()
 def stats() -> str:
-    """Get knowledge graph statistics.
+    """Get code graph statistics.
 
     Returns node/edge counts, communities, and quality metrics.
     """
     store, G = _load()
-    from hedwig_kg.core.analyze import analyze as analyze_graph
+    from hedwig_cg.core.analyze import analyze as analyze_graph
 
     n_nodes = G.number_of_nodes()
     n_edges = G.number_of_edges()
@@ -231,7 +231,7 @@ def stats() -> str:
     god_nodes = analysis.god_nodes
 
     lines = [
-        "## Knowledge Graph Statistics\n",
+        "## Code Graph Statistics\n",
         f"- **Nodes**: {n_nodes}",
         f"- **Edges**: {n_edges}",
         f"- **Communities**: {len(community_ids)}",
@@ -314,13 +314,13 @@ def communities(search_query: str = "", level: int = -1) -> str:
 
 @mcp.tool()
 def build(directory: str = ".", incremental: bool = True) -> str:
-    """Build or rebuild the knowledge graph from source code.
+    """Build or rebuild the code graph from source code.
 
     Args:
         directory: Directory to analyze (default: current directory).
         incremental: If true, only re-process changed files (default: true).
     """
-    from hedwig_kg.core.pipeline import run_pipeline
+    from hedwig_cg.core.pipeline import run_pipeline
 
     target = Path(directory).resolve()
     if not target.is_dir():

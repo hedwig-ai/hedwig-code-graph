@@ -1,4 +1,4 @@
-"""Pipeline orchestrator — runs the full knowledge graph build pipeline.
+"""Pipeline orchestrator — runs the full code graph build pipeline.
 
 detect → extract → build → embed → cluster → analyze → store
 """
@@ -14,13 +14,13 @@ from pathlib import Path
 
 import networkx as nx
 
-from hedwig_kg.core.analyze import AnalysisResult, analyze
-from hedwig_kg.core.build import build_graph, compute_edge_weights, compute_pagerank
-from hedwig_kg.core.cluster import ClusterResult, hierarchical_cluster
-from hedwig_kg.core.detect import DetectResult, detect
-from hedwig_kg.core.extract import ExtractionResult
-from hedwig_kg.core.ts_extract import extract_file_ts as extract_file
-from hedwig_kg.storage.store import KnowledgeStore
+from hedwig_cg.core.analyze import AnalysisResult, analyze
+from hedwig_cg.core.build import build_graph, compute_edge_weights, compute_pagerank
+from hedwig_cg.core.cluster import ClusterResult, hierarchical_cluster
+from hedwig_cg.core.detect import DetectResult, detect
+from hedwig_cg.core.extract import ExtractionResult
+from hedwig_cg.core.ts_extract import extract_file_ts as extract_file
+from hedwig_cg.storage.store import KnowledgeStore
 
 logger = logging.getLogger(__name__)
 
@@ -57,11 +57,11 @@ def run_pipeline(
     incremental: bool = False,
     lang: str = "auto",
 ) -> PipelineResult:
-    """Run the full knowledge graph build pipeline.
+    """Run the full code graph build pipeline.
 
     Args:
         source_dir: Directory to analyze.
-        output_dir: Where to store the database (default: source_dir/.hedwig-kg).
+        output_dir: Where to store the database (default: source_dir/.hedwig-cg).
         embed: Whether to generate embeddings (requires sentence-transformers).
         model_name: Sentence-transformers model name.
         resolutions: Leiden resolution parameters for hierarchical clustering.
@@ -76,7 +76,7 @@ def run_pipeline(
     """
     source_dir = Path(source_dir).resolve()
     if output_dir is None:
-        output_dir = source_dir / ".hedwig-kg"
+        output_dir = source_dir / ".hedwig-cg"
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -153,7 +153,7 @@ def run_pipeline(
 
     # Stage 3: Build graph
     _start_stage("build")
-    _progress("build", "Building knowledge graph")
+    _progress("build", "Building code graph")
     new_graph = build_graph(result.extractions)
 
     # For incremental builds, merge new extractions into existing graph
@@ -201,7 +201,7 @@ def run_pipeline(
     effective_text_model = "intfloat/multilingual-e5-small"
     if embed:
         try:
-            from hedwig_kg.query.embeddings import (
+            from hedwig_cg.query.embeddings import (
                 CODE_MODEL,
                 TEXT_MODEL,
                 embed_nodes_streaming,
@@ -285,7 +285,7 @@ def run_pipeline(
             result.graph.nodes[node_id]["community_ids"] = comm_ids
 
     # Generate community summaries for search indexing
-    from hedwig_kg.core.cluster import summarize_communities
+    from hedwig_cg.core.cluster import summarize_communities
     summarize_communities(result.graph, result.cluster_result)
     _end_stage("cluster")
     _progress("cluster", "Community summaries generated")
@@ -324,12 +324,12 @@ def run_pipeline(
 
     # Clear search and query embedding caches after rebuild (stale results)
     try:
-        from hedwig_kg.query.hybrid import clear_search_cache
+        from hedwig_cg.query.hybrid import clear_search_cache
         clear_search_cache()
     except ImportError:
         pass
     try:
-        from hedwig_kg.query.embeddings import clear_query_cache
+        from hedwig_cg.query.embeddings import clear_query_cache
         clear_query_cache()
     except ImportError:
         pass
@@ -339,6 +339,6 @@ def run_pipeline(
 
     total = sum(result.stage_timings.values())
     result.stage_timings["total"] = total
-    _progress("done", f"Knowledge base saved to {db_path} ({total:.1f}s total)")
+    _progress("done", f"Code graph saved to {db_path} ({total:.1f}s total)")
 
     return result

@@ -8,8 +8,8 @@ from pathlib import Path
 import networkx as nx
 from click.testing import CliRunner
 
-from hedwig_kg.cli.main import cli
-from hedwig_kg.storage.store import KnowledgeStore
+from hedwig_cg.cli.main import cli
+from hedwig_cg.storage.store import KnowledgeStore
 
 
 def _create_test_project(tmp_path: Path) -> Path:
@@ -33,7 +33,7 @@ def _create_test_project(tmp_path: Path) -> Path:
 
 def _create_test_db(tmp_path: Path) -> Path:
     """Create a pre-built knowledge base for search/stats/export tests."""
-    db_dir = tmp_path / ".hedwig-kg"
+    db_dir = tmp_path / ".hedwig-cg"
     db_dir.mkdir()
     db_path = db_dir / "knowledge.db"
 
@@ -56,7 +56,7 @@ def _create_test_db(tmp_path: Path) -> Path:
                confidence="EXTRACTED")
     store.save_graph(G)
 
-    from hedwig_kg.core.cluster import Community
+    from hedwig_cg.core.cluster import Community
     communities = {
         0: Community(id=0, level=0, resolution=1.0,
                      node_ids=["m::module::app", "m::class::App"],
@@ -76,7 +76,7 @@ class TestCLIHelp:
         runner = CliRunner()
         result = runner.invoke(cli, ["--help"])
         assert result.exit_code == 0
-        assert "hedwig-kg" in result.output
+        assert "hedwig-cg" in result.output
 
     def test_build_help(self):
         runner = CliRunner()
@@ -111,7 +111,7 @@ class TestCLIHelp:
         runner = CliRunner()
         result = runner.invoke(cli, ["--version"])
         assert result.exit_code == 0
-        assert "hedwig-kg" in result.output
+        assert "hedwig-cg" in result.output
 
 
 class TestCLIBuild:
@@ -327,7 +327,7 @@ class TestCLIQuery:
             "query", "--source-dir", str(project_dir),
         ], input=":quit\n")
         assert result.exit_code == 0
-        assert "hedwig-kg query REPL" in result.output
+        assert "hedwig-cg query REPL" in result.output
         assert "Session ended" in result.output
 
     def test_query_search_and_exit(self, tmp_path):
@@ -337,7 +337,7 @@ class TestCLIQuery:
             "query", "--source-dir", str(project_dir),
         ], input="App\nexit\n")
         assert result.exit_code == 0
-        assert "hedwig-kg query REPL" in result.output
+        assert "hedwig-cg query REPL" in result.output
 
     def test_query_stats_command(self, tmp_path):
         project_dir = _create_test_db(tmp_path)
@@ -364,7 +364,7 @@ class TestCLIClean:
 
     def test_clean_removes_db(self, tmp_path):
         project_dir = _create_test_db(tmp_path)
-        kb_dir = project_dir / ".hedwig-kg"
+        kb_dir = project_dir / ".hedwig-cg"
         assert kb_dir.exists()
         runner = CliRunner()
         result = runner.invoke(cli, [
@@ -379,11 +379,11 @@ class TestCLIClean:
             "clean", "--source-dir", str(tmp_path), "--yes",
         ])
         assert result.exit_code == 0
-        assert "No .hedwig-kg/" in result.output
+        assert "No .hedwig-cg/" in result.output
 
     def test_clean_specific_file(self, tmp_path):
         project_dir = _create_test_db(tmp_path)
-        db_file = project_dir / ".hedwig-kg" / "knowledge.db"
+        db_file = project_dir / ".hedwig-cg" / "knowledge.db"
         assert db_file.exists()
         runner = CliRunner()
         result = runner.invoke(cli, [
@@ -446,7 +446,7 @@ class TestClineIntegration:
             rules = Path(".clinerules")
             assert rules.exists()
             content = rules.read_text()
-            assert "hedwig-kg" in content
+            assert "hedwig-cg" in content
             assert "HybridRAG" in content
 
     def test_cline_install_idempotent(self, tmp_path):
@@ -465,7 +465,7 @@ class TestClineIntegration:
             assert result.exit_code == 0
             content = Path(".clinerules").read_text()
             assert "Existing rules" in content
-            assert "hedwig-kg" in content
+            assert "hedwig-cg" in content
 
     def test_cline_uninstall(self, tmp_path):
         runner = CliRunner()

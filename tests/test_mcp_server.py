@@ -96,7 +96,7 @@ def mock_load():
     """Patch _load to return test graph and store."""
     G = _make_graph()
     store = _make_store(G)
-    with patch("hedwig_kg.mcp_server._load", return_value=(store, G)):
+    with patch("hedwig_cg.mcp_server._load", return_value=(store, G)):
         yield store, G
 
 
@@ -105,7 +105,7 @@ def mock_load_empty():
     """Patch _load to return empty graph."""
     G = nx.DiGraph()
     store = _make_store(G)
-    with patch("hedwig_kg.mcp_server._load", return_value=(store, G)):
+    with patch("hedwig_cg.mcp_server._load", return_value=(store, G)):
         yield store, G
 
 
@@ -115,7 +115,7 @@ def mock_load_empty():
 
 class TestSearchTool:
     def test_search_returns_results(self, mock_load):
-        from hedwig_kg.mcp_server import search
+        from hedwig_cg.mcp_server import search
 
         mock_results = [
             SimpleNamespace(
@@ -130,7 +130,7 @@ class TestSearchTool:
                 snippet="class AuthHandler: ...",
             ),
         ]
-        with patch("hedwig_kg.query.hybrid.hybrid_search", return_value=mock_results):
+        with patch("hedwig_cg.query.hybrid.hybrid_search", return_value=mock_results):
             result = search("authentication")
 
         assert "AuthHandler" in result
@@ -139,32 +139,32 @@ class TestSearchTool:
         assert "code_vector" in result
 
     def test_search_no_results(self, mock_load):
-        from hedwig_kg.mcp_server import search
+        from hedwig_cg.mcp_server import search
 
-        with patch("hedwig_kg.query.hybrid.hybrid_search", return_value=[]):
+        with patch("hedwig_cg.query.hybrid.hybrid_search", return_value=[]):
             result = search("nonexistent_query_xyz")
 
         assert "No results found" in result
 
     def test_search_fast_mode(self, mock_load):
-        from hedwig_kg.mcp_server import search
+        from hedwig_cg.mcp_server import search
 
-        with patch("hedwig_kg.query.hybrid.hybrid_search", return_value=[]) as mock_hs:
+        with patch("hedwig_cg.query.hybrid.hybrid_search", return_value=[]) as mock_hs:
             search("test query", fast=True)
             mock_hs.assert_called_once()
             _, kwargs = mock_hs.call_args
             assert kwargs.get("fast") is True
 
     def test_search_custom_top_k(self, mock_load):
-        from hedwig_kg.mcp_server import search
+        from hedwig_cg.mcp_server import search
 
-        with patch("hedwig_kg.query.hybrid.hybrid_search", return_value=[]) as mock_hs:
+        with patch("hedwig_cg.query.hybrid.hybrid_search", return_value=[]) as mock_hs:
             search("test", top_k=5)
             _, kwargs = mock_hs.call_args
             assert kwargs.get("top_k") == 5
 
     def test_search_result_without_end_line(self, mock_load):
-        from hedwig_kg.mcp_server import search
+        from hedwig_cg.mcp_server import search
 
         mock_results = [
             SimpleNamespace(
@@ -179,7 +179,7 @@ class TestSearchTool:
                 snippet=None,
             ),
         ]
-        with patch("hedwig_kg.query.hybrid.hybrid_search", return_value=mock_results):
+        with patch("hedwig_cg.query.hybrid.hybrid_search", return_value=mock_results):
             result = search("func")
 
         # Should show just :10 not :10-10
@@ -187,7 +187,7 @@ class TestSearchTool:
         assert "10-10" not in result
 
     def test_search_result_no_line_numbers(self, mock_load):
-        from hedwig_kg.mcp_server import search
+        from hedwig_cg.mcp_server import search
 
         mock_results = [
             SimpleNamespace(
@@ -202,7 +202,7 @@ class TestSearchTool:
                 snippet=None,
             ),
         ]
-        with patch("hedwig_kg.query.hybrid.hybrid_search", return_value=mock_results):
+        with patch("hedwig_cg.query.hybrid.hybrid_search", return_value=mock_results):
             result = search("readme")
 
         assert "README.md" in result
@@ -215,7 +215,7 @@ class TestSearchTool:
 
 class TestNodeTool:
     def test_node_exact_match(self, mock_load):
-        from hedwig_kg.mcp_server import node
+        from hedwig_cg.mcp_server import node
 
         result = node("auth.py::AuthHandler")
         assert "AuthHandler" in result
@@ -225,19 +225,19 @@ class TestNodeTool:
         assert "login" in result  # outgoing edge label
 
     def test_node_partial_match(self, mock_load):
-        from hedwig_kg.mcp_server import node
+        from hedwig_cg.mcp_server import node
 
         result = node("AuthHandler")
         assert "AuthHandler" in result
 
     def test_node_not_found(self, mock_load):
-        from hedwig_kg.mcp_server import node
+        from hedwig_cg.mcp_server import node
 
         result = node("NonExistentNode12345")
         assert "No node found" in result
 
     def test_node_shows_edges(self, mock_load):
-        from hedwig_kg.mcp_server import node
+        from hedwig_cg.mcp_server import node
 
         result = node("auth.py::AuthHandler")
         assert "Outgoing edges" in result
@@ -245,26 +245,26 @@ class TestNodeTool:
         assert "w=1.00" in result
 
     def test_node_shows_incoming_edges(self, mock_load):
-        from hedwig_kg.mcp_server import node
+        from hedwig_cg.mcp_server import node
 
         result = node("auth.py::AuthHandler")
         assert "Incoming edges" in result
         assert "calls" in result
 
     def test_node_case_insensitive_partial(self, mock_load):
-        from hedwig_kg.mcp_server import node
+        from hedwig_cg.mcp_server import node
 
         result = node("authhandler")
         assert "AuthHandler" in result
 
     def test_node_shows_signature(self, mock_load):
-        from hedwig_kg.mcp_server import node
+        from hedwig_cg.mcp_server import node
 
         result = node("auth.py::AuthHandler.login")
         assert "def login" in result
 
     def test_node_shows_line_numbers(self, mock_load):
-        from hedwig_kg.mcp_server import node
+        from hedwig_cg.mcp_server import node
 
         result = node("auth.py::AuthHandler.login")
         assert "5" in result
@@ -277,9 +277,9 @@ class TestNodeTool:
 
 class TestStatsTool:
     def test_stats_basic(self, mock_load):
-        from hedwig_kg.mcp_server import stats
+        from hedwig_cg.mcp_server import stats
 
-        with patch("hedwig_kg.core.analyze.analyze", return_value=SimpleNamespace(god_nodes=[])):
+        with patch("hedwig_cg.core.analyze.analyze", return_value=SimpleNamespace(god_nodes=[])):
             result = stats()
         assert "3" in result  # 3 nodes
         assert "2" in result  # 2 edges
@@ -288,23 +288,23 @@ class TestStatsTool:
         assert "function" in result
 
     def test_stats_shows_communities(self, mock_load):
-        from hedwig_kg.mcp_server import stats
+        from hedwig_cg.mcp_server import stats
 
-        with patch("hedwig_kg.core.analyze.analyze", return_value=SimpleNamespace(god_nodes=[])):
+        with patch("hedwig_cg.core.analyze.analyze", return_value=SimpleNamespace(god_nodes=[])):
             result = stats()
         assert "Communities" in result
 
     def test_stats_shows_density(self, mock_load):
-        from hedwig_kg.mcp_server import stats
+        from hedwig_cg.mcp_server import stats
 
-        with patch("hedwig_kg.core.analyze.analyze", return_value=SimpleNamespace(god_nodes=[])):
+        with patch("hedwig_cg.core.analyze.analyze", return_value=SimpleNamespace(god_nodes=[])):
             result = stats()
         assert "Density" in result
 
     def test_stats_empty_graph(self, mock_load_empty):
-        from hedwig_kg.mcp_server import stats
+        from hedwig_cg.mcp_server import stats
 
-        with patch("hedwig_kg.core.analyze.analyze", return_value=SimpleNamespace(god_nodes=[])):
+        with patch("hedwig_cg.core.analyze.analyze", return_value=SimpleNamespace(god_nodes=[])):
             result = stats()
         assert "Nodes" in result
         assert "0" in result
@@ -316,7 +316,7 @@ class TestStatsTool:
 
 class TestCommunitiesTool:
     def test_communities_search(self, mock_load):
-        from hedwig_kg.mcp_server import communities
+        from hedwig_cg.mcp_server import communities
 
         result = communities(search_query="auth")
         store, _ = mock_load
@@ -325,7 +325,7 @@ class TestCommunitiesTool:
         assert "Community 0" in result
 
     def test_communities_search_no_results(self, mock_load):
-        from hedwig_kg.mcp_server import communities
+        from hedwig_cg.mcp_server import communities
 
         store, _ = mock_load
         store.community_search.return_value = []
@@ -333,7 +333,7 @@ class TestCommunitiesTool:
         assert "No communities found" in result
 
     def test_communities_list_all(self, mock_load):
-        from hedwig_kg.mcp_server import communities
+        from hedwig_cg.mcp_server import communities
 
         store, _ = mock_load
         # Mock the SQLite query
@@ -348,7 +348,7 @@ class TestCommunitiesTool:
         assert "2 total" in result
 
     def test_communities_list_empty(self, mock_load):
-        from hedwig_kg.mcp_server import communities
+        from hedwig_cg.mcp_server import communities
 
         store, _ = mock_load
         store.conn.execute.return_value.fetchall.return_value = []
@@ -357,7 +357,7 @@ class TestCommunitiesTool:
         assert "No communities found" in result
 
     def test_communities_filter_by_level(self, mock_load):
-        from hedwig_kg.mcp_server import communities
+        from hedwig_cg.mcp_server import communities
 
         store, _ = mock_load
         store.conn.execute.return_value.fetchall.return_value = []
@@ -375,7 +375,7 @@ class TestCommunitiesTool:
 
 class TestBuildTool:
     def test_build_success(self, tmp_path):
-        from hedwig_kg.mcp_server import build
+        from hedwig_cg.mcp_server import build
 
         # Create a minimal project
         src = tmp_path / "proj"
@@ -387,8 +387,8 @@ class TestBuildTool:
             graph=mock_graph,
             detected_files=["hello.py"],
         )
-        with patch("hedwig_kg.core.pipeline.run_pipeline", return_value=mock_result), \
-             patch("hedwig_kg.mcp_server._reload"):
+        with patch("hedwig_cg.core.pipeline.run_pipeline", return_value=mock_result), \
+             patch("hedwig_cg.mcp_server._reload"):
             result = build(str(src))
 
         assert "Build Complete" in result
@@ -396,14 +396,14 @@ class TestBuildTool:
         assert "3" in result  # nodes from mock graph
 
     def test_build_invalid_directory(self):
-        from hedwig_kg.mcp_server import build
+        from hedwig_cg.mcp_server import build
 
         result = build("/nonexistent/path/xyz123")
         assert "Error" in result
         assert "not a valid directory" in result
 
     def test_build_full_mode(self, tmp_path):
-        from hedwig_kg.mcp_server import build
+        from hedwig_cg.mcp_server import build
 
         src = tmp_path / "proj"
         src.mkdir()
@@ -414,8 +414,8 @@ class TestBuildTool:
             graph=mock_graph,
             detected_files=["hello.py"],
         )
-        with patch("hedwig_kg.core.pipeline.run_pipeline", return_value=mock_result) as mock_pipe, \
-             patch("hedwig_kg.mcp_server._reload"):
+        with patch("hedwig_cg.core.pipeline.run_pipeline", return_value=mock_result) as mock_pipe, \
+             patch("hedwig_cg.mcp_server._reload"):
             build(str(src), incremental=False)
             _, kwargs = mock_pipe.call_args
             assert kwargs.get("incremental") is False
@@ -427,44 +427,44 @@ class TestBuildTool:
 
 class TestHelpers:
     def test_get_db_path_env_var(self, tmp_path):
-        import hedwig_kg.mcp_server as mod
+        import hedwig_cg.mcp_server as mod
 
         db_file = tmp_path / "knowledge.db"
         db_file.touch()
         mod._db_path = None  # reset cache
-        with patch.dict("os.environ", {"HEDWIG_KG_DB": str(db_file)}):
+        with patch.dict("os.environ", {"HEDWIG_CG_DB": str(db_file)}):
             result = mod._get_db_path()
             assert result == str(db_file)
         mod._db_path = None  # cleanup
 
     def test_get_db_path_cwd_fallback(self, tmp_path):
-        import hedwig_kg.mcp_server as mod
+        import hedwig_cg.mcp_server as mod
 
         mod._db_path = None
-        # Create .hedwig-kg/knowledge.db in tmp_path
-        (tmp_path / ".hedwig-kg").mkdir()
-        (tmp_path / ".hedwig-kg" / "knowledge.db").touch()
-        with patch("hedwig_kg.mcp_server.Path.cwd", return_value=tmp_path), \
+        # Create .hedwig-cg/knowledge.db in tmp_path
+        (tmp_path / ".hedwig-cg").mkdir()
+        (tmp_path / ".hedwig-cg" / "knowledge.db").touch()
+        with patch("hedwig_cg.mcp_server.Path.cwd", return_value=tmp_path), \
              patch.dict("os.environ", {}, clear=True):
             result = mod._get_db_path()
             assert "knowledge.db" in result
         mod._db_path = None
 
     def test_load_file_not_found(self):
-        import hedwig_kg.mcp_server as mod
+        import hedwig_cg.mcp_server as mod
 
         mod._store = None
         mod._graph = None
         mod._db_path = None
-        with patch("hedwig_kg.mcp_server._get_db_path", return_value="/fake/path/knowledge.db"):
-            with pytest.raises(FileNotFoundError, match="Run 'hedwig-kg build"):
+        with patch("hedwig_cg.mcp_server._get_db_path", return_value="/fake/path/knowledge.db"):
+            with pytest.raises(FileNotFoundError, match="Run 'hedwig-cg build"):
                 mod._load()
 
     def test_reload_clears_cache(self):
-        import hedwig_kg.mcp_server as mod
+        import hedwig_cg.mcp_server as mod
 
         mod._store = "old"
         mod._graph = "old"
-        with patch("hedwig_kg.mcp_server._load", return_value=("new_store", "new_graph")) as mock_l:
+        with patch("hedwig_cg.mcp_server._load", return_value=("new_store", "new_graph")) as mock_l:
             mod._reload()
             assert mod._store is None or mock_l.called

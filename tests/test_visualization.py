@@ -6,7 +6,7 @@ import json
 
 import networkx as nx
 
-from hedwig_kg.cli.main import _build_viz_html, _graph_to_d3
+from hedwig_cg.cli.main import _build_viz_html, _graph_to_d3
 
 
 def _make_graph() -> nx.DiGraph:

@@ -1,6 +1,6 @@
 """Tests for code extraction (regex fallback)."""
 
-from hedwig_kg.core.extract import extract_file
+from hedwig_cg.core.extract import extract_file
 
 
 class TestExtractPython:

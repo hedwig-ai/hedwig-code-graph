@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from hedwig_kg.core.pipeline import run_pipeline
+from hedwig_cg.core.pipeline import run_pipeline
 
 
 def _create_project(tmp_path: Path) -> Path:

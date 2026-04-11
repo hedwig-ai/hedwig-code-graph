@@ -11,14 +11,14 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from hedwig_kg.core.extract import (
+from hedwig_cg.core.extract import (
     ExtractedEdge,
     ExtractedNode,
     ExtractionResult,
     _extract_snippet,
     _make_node_id,
 )
-from hedwig_kg.core.extract import (
+from hedwig_cg.core.extract import (
     extract_file as regex_extract_file,
 )
 
@@ -616,7 +616,7 @@ def extract_file_ts(file_path: str, language: str, content: str | None = None) -
 
     # Priority 1: tags.scm universal extraction
     try:
-        from hedwig_kg.core.tags_extract import extract_file_tags
+        from hedwig_cg.core.tags_extract import extract_file_tags
         tags_result = extract_file_tags(file_path, language, content)
         if tags_result is not None and len(tags_result.nodes) > 1:
             # tags.scm succeeded with meaningful results (> just module node)

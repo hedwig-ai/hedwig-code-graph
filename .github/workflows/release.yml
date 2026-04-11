@@ -29,7 +29,7 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Lint
-        run: ruff check hedwig_kg/
+        run: ruff check hedwig_cg/
 
       - name: Test
         run: pytest --tb=short -q
@@ -75,7 +75,7 @@ jobs:
       - name: Verify wheel
         run: |
           pip install dist/*.whl
-          hedwig-kg --version
+          hedwig-cg --version
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

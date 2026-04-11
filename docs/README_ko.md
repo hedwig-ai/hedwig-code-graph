@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">hedwig-kg</h1>
+  <h1 align="center">hedwig-cg</h1>
   <p align="center">
     "헤드위그는 반드시 소식을 가지고 돌아올 거예요"
     <br />
@@ -8,25 +8,25 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/hedwig-ai/hedwig-knowledge-graph/actions"><img src="https://img.shields.io/github/actions/workflow/status/hedwig-ai/hedwig-knowledge-graph/ci.yml?branch=main" alt="CI"></a>
-  <a href="https://pypi.org/project/hedwig-kg/"><img src="https://img.shields.io/pypi/v/hedwig-kg" alt="PyPI"></a>
-  <a href="https://github.com/hedwig-ai/hedwig-knowledge-graph/blob/main/LICENSE"><img src="https://img.shields.io/github/license/hedwig-ai/hedwig-knowledge-graph" alt="License"></a>
+  <a href="https://github.com/hedwig-ai/hedwig-code-graph/actions"><img src="https://img.shields.io/github/actions/workflow/status/hedwig-ai/hedwig-code-graph/ci.yml?branch=main" alt="CI"></a>
+  <a href="https://pypi.org/project/hedwig-cg/"><img src="https://img.shields.io/pypi/v/hedwig-cg" alt="PyPI"></a>
+  <a href="https://github.com/hedwig-ai/hedwig-code-graph/blob/main/LICENSE"><img src="https://img.shields.io/github/license/hedwig-ai/hedwig-code-graph" alt="License"></a>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+">
 </p>
 
 ---
 
-## 왜 hedwig-kg인가?
+## 왜 hedwig-cg인가?
 
-hedwig-kg는 코드, 문서, 의존성으로부터 하나의 통합된 지식 그래프를 구축합니다 — 코딩 에이전트가 키워드 검색이 아닌, 프로젝트 전체를 진정으로 이해할 수 있게 됩니다. 설치하면 클로드 코드가 전체 그림을 볼 수 있습니다 — 추가적인 토큰도, 추가적인 명령도 필요 없으며, 모든 것이 100% 로컬에서 실행됩니다.
+hedwig-cg는 코드, 문서, 의존성으로부터 하나의 통합된 지식 그래프를 구축합니다 — 코딩 에이전트가 키워드 검색이 아닌, 프로젝트 전체를 진정으로 이해할 수 있게 됩니다. 설치하면 클로드 코드가 전체 그림을 볼 수 있습니다 — 추가적인 토큰도, 추가적인 명령도 필요 없으며, 모든 것이 100% 로컬에서 실행됩니다.
 
-<img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
+<img width="1919" height="991" alt="Code Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 
 ## 빠른 시작
 
 ```bash
-pip install hedwig-kg
-hedwig-kg claude install
+pip install hedwig-cg
+hedwig-cg claude install
 ```
 
 그리고 Claude Code에게 말하세요:
@@ -41,7 +41,7 @@ hedwig-kg claude install
 
 ### 심층 AST 추출 (17개 언어)
 
-hedwig-kg는 [tree-sitter tags.scm](https://tree-sitter.github.io/tree-sitter/4-code-navigation.html)을 사용하여 범용 구조 추출을 수행합니다 — 함수, 클래스, 메서드, 호출, import, 상속 — 언어별 커스텀 코드 없이.
+hedwig-cg는 [tree-sitter tags.scm](https://tree-sitter.github.io/tree-sitter/4-code-navigation.html)을 사용하여 범용 구조 추출을 수행합니다 — 함수, 클래스, 메서드, 호출, import, 상속 — 언어별 커스텀 코드 없이.
 
 | | | | |
 |:---:|:---:|:---:|:---:|
@@ -59,20 +59,20 @@ hedwig-kg는 [tree-sitter tags.scm](https://tree-sitter.github.io/tree-sitter/4-
 
 ## AI 에이전트 통합
 
-hedwig-kg는 주요 AI 코딩 에이전트와 한 명령어로 통합됩니다:
+hedwig-cg는 주요 AI 코딩 에이전트와 한 명령어로 통합됩니다:
 
 | 에이전트 | 설치 | 설명 |
 |---------|------|------|
-| **Claude Code** | `hedwig-kg claude install` | Skill + CLAUDE.md + PreToolUse 훅 |
-| **Codex CLI** | `hedwig-kg codex install` | AGENTS.md + PreToolUse 훅 |
-| **Gemini CLI** | `hedwig-kg gemini install` | GEMINI.md + BeforeTool 훅 |
-| **Cursor IDE** | `hedwig-kg cursor install` | `.cursor/rules/` 규칙 파일 |
-| **Windsurf IDE** | `hedwig-kg windsurf install` | `.windsurf/rules/` 규칙 파일 |
-| **Cline** | `hedwig-kg cline install` | `.clinerules` 파일 |
-| **Aider CLI** | `hedwig-kg aider install` | CONVENTIONS.md + `.aider.conf.yml` |
-| **MCP 서버** | `claude mcp add hedwig-kg -- hedwig-kg mcp` | Model Context Protocol 5개 도구 |
+| **Claude Code** | `hedwig-cg claude install` | Skill + CLAUDE.md + PreToolUse 훅 |
+| **Codex CLI** | `hedwig-cg codex install` | AGENTS.md + PreToolUse 훅 |
+| **Gemini CLI** | `hedwig-cg gemini install` | GEMINI.md + BeforeTool 훅 |
+| **Cursor IDE** | `hedwig-cg cursor install` | `.cursor/rules/` 규칙 파일 |
+| **Windsurf IDE** | `hedwig-cg windsurf install` | `.windsurf/rules/` 규칙 파일 |
+| **Cline** | `hedwig-cg cline install` | `.clinerules` 파일 |
+| **Aider CLI** | `hedwig-cg aider install` | CONVENTIONS.md + `.aider.conf.yml` |
+| **MCP 서버** | `claude mcp add hedwig-cg -- hedwig-cg mcp` | Model Context Protocol 5개 도구 |
 
-각 `install`은 컨텍스트 파일 작성과 (지원하는 플랫폼의 경우) 도구 호출 전 훅 등록을 수행합니다. 제거: `hedwig-kg <platform> uninstall`.
+각 `install`은 컨텍스트 파일 작성과 (지원하는 플랫폼의 경우) 도구 호출 전 훅 등록을 수행합니다. 제거: `hedwig-cg <platform> uninstall`.
 
 ---
 
@@ -98,7 +98,7 @@ hedwig-kg는 주요 AI 코딩 에이전트와 한 명령어로 통합됩니다:
 
 ## 성능
 
-hedwig-kg 자체 코드베이스 기준 벤치마크 (~3,500줄, 90개 파일, 1,300개 노드):
+hedwig-cg 자체 코드베이스 기준 벤치마크 (~3,500줄, 90개 파일, 1,300개 노드):
 
 | 연산 | 시간 |
 |------|------|

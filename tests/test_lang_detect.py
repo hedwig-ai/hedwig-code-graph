@@ -1,6 +1,6 @@
-"""Tests for hedwig_kg.core.lang_detect — Unicode-based language detection."""
+"""Tests for hedwig_cg.core.lang_detect — Unicode-based language detection."""
 
-from hedwig_kg.core.lang_detect import _count_scripts, detect_language
+from hedwig_cg.core.lang_detect import _count_scripts, detect_language
 
 
 class TestCountScripts:

@@ -1,7 +1,7 @@
 """Tests for file detection and classification."""
 
 
-from hedwig_kg.core.detect import EXT_TO_LANG, detect
+from hedwig_cg.core.detect import EXT_TO_LANG, detect
 
 
 class TestDetect:
@@ -38,7 +38,7 @@ class TestDetect:
         assert any("sensitive" in s for s in result.skipped)
 
     def test_respects_ignore_file(self, tmp_path):
-        (tmp_path / ".hedwig-kg-ignore").write_text("vendor\n")
+        (tmp_path / ".hedwig-cg-ignore").write_text("vendor\n")
         vendor = tmp_path / "vendor"
         vendor.mkdir()
         (vendor / "lib.py").write_text("x")

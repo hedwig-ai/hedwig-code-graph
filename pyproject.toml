@@ -3,13 +3,13 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "hedwig-kg"
+name = "hedwig-cg"
 version = "0.3.1"
-description = "Local-first knowledge graph builder with hybrid vector + graph search"
+description = "Local-first code graph builder with hybrid vector + graph search"
 license = "MIT"
 requires-python = ">=3.10"
 authors = [{ name = "labyu" }]
-keywords = ["knowledge-graph", "vector-search", "graphrag", "code-analysis"]
+keywords = ["code-graph", "vector-search", "graphrag", "code-analysis"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -45,9 +45,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/hedwig-ai/hedwig-knowledge-graph"
-Repository = "https://github.com/hedwig-ai/hedwig-knowledge-graph"
-Issues = "https://github.com/hedwig-ai/hedwig-knowledge-graph/issues"
+Homepage = "https://github.com/hedwig-ai/hedwig-code-graph"
+Repository = "https://github.com/hedwig-ai/hedwig-code-graph"
+Issues = "https://github.com/hedwig-ai/hedwig-code-graph/issues"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "pytest-cov", "ruff", "mcp>=1.0"]
@@ -55,10 +55,10 @@ docs = ["pymupdf>=1.24"]
 mcp = ["mcp>=1.0"]
 
 [project.scripts]
-hedwig-kg = "hedwig_kg.cli.main:cli"
+hedwig-cg = "hedwig_cg.cli.main:cli"
 
 [tool.hatch.build.targets.wheel]
-packages = ["hedwig_kg"]
+packages = ["hedwig_cg"]
 
 [tool.ruff]
 line-length = 100
@@ -69,4 +69,4 @@ select = ["E", "F", "I", "W"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=hedwig_kg --cov-report=term-missing"
+addopts = "--cov=hedwig_cg --cov-report=term-missing"

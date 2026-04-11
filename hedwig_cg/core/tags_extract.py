@@ -17,7 +17,7 @@ from typing import Any
 
 from tree_sitter import Language, Parser, Query, QueryCursor
 
-from hedwig_kg.core.extract import (
+from hedwig_cg.core.extract import (
     ExtractedEdge,
     ExtractedNode,
     ExtractionResult,
@@ -392,7 +392,7 @@ def _load_tags_file(pkg_name: str) -> str | None:
 
     Search order:
     1. tree_sitter_{pkg_name}/queries/tags.scm (inside installed package)
-    2. hedwig_kg/queries/{pkg_name}-tags.scm (local custom queries)
+    2. hedwig_cg/queries/{pkg_name}-tags.scm (local custom queries)
     """
     # Try installed package first
     try:

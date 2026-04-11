@@ -22,7 +22,7 @@ import networkx as nx
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from hedwig_kg.storage.store import KnowledgeStore
+    from hedwig_cg.storage.store import KnowledgeStore
 
 
 # --- Stopwords for keyword search filtering ---
@@ -259,7 +259,7 @@ def hybrid_search(
     Args:
         query: Natural language query.
         store: KnowledgeStore with embeddings loaded.
-        G: The knowledge graph.
+        G: The code graph.
         top_k: Number of final results.
         graph_hops: How many hops to expand from vector hits.
         vector_candidates: Number of initial vector candidates.
@@ -286,7 +286,7 @@ def hybrid_search(
     # Stage 1: Vector search
     if fast:
         # Fast mode: text model only (cold start ~0.2s vs ~2.8s)
-        from hedwig_kg.query.embeddings import TEXT_MODEL, embed_query
+        from hedwig_cg.query.embeddings import TEXT_MODEL, embed_query
         effective_text = text_model or TEXT_MODEL
         query_vec = embed_query(query, effective_text)
         text_vector_hits = store.vector_search(
@@ -297,7 +297,7 @@ def hybrid_search(
         )
     else:
         # Full dual-model search
-        from hedwig_kg.query.embeddings import embed_query_dual
+        from hedwig_cg.query.embeddings import embed_query_dual
         query_vecs = embed_query_dual(query, text_model=text_model)
         code_vector_hits = store.vector_search(
             query_vecs["code"], top_k=vector_candidates, model_type="code",

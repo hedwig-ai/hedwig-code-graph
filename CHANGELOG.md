@@ -8,10 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2026-04-11
 
 ### Added
-- **Cursor IDE integration** (`hedwig-kg cursor install/uninstall`): Creates `.cursor/rules/hedwig-kg.mdc` with alwaysApply rules
-- **Windsurf IDE integration** (`hedwig-kg windsurf install/uninstall`): Creates `.windsurf/rules/hedwig-kg.md` for Cascade
+- **Cursor IDE integration** (`hedwig-cg cursor install/uninstall`): Creates `.cursor/rules/hedwig-cg.mdc` with alwaysApply rules
+- **Windsurf IDE integration** (`hedwig-cg windsurf install/uninstall`): Creates `.windsurf/rules/hedwig-cg.md` for Cascade
 - **Cline (VS Code extension) integration** as 8th supported AI agent
-- **`hedwig-kg doctor` command**: 21-point installation health check (Python version, deps, tree-sitter parsers, MCP, embedding models, DB integrity, FAISS indexes)
+- **`hedwig-cg doctor` command**: 21-point installation health check (Python version, deps, tree-sitter parsers, MCP, embedding models, DB integrity, FAISS indexes)
 - **MCP tool descriptions optimized for AI agents**: `search` marked as PRIMARY tool, `communities` marked as "rarely needed", `instructions` guide agents to start with search
 - **AI Agent Interface Design Principle** documented in CLAUDE.md: minimal interface philosophy to prevent hallucination
 - **Weighted Reciprocal Rank Fusion**: Per-signal weights (code_vec=1.0, text_vec=1.0, graph=0.8, keyword=1.5, community=0.7) tuned for optimal search quality
@@ -25,13 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `RELATION_WEIGHTS` dictionary for configurable per-relation expansion priority
 - **Parent class context in embeddings**: Method/constructor/property nodes now include "method of ClassName" in embedding text for better class-membership queries
 - **Query-relevant snippets**: Search results now show the most query-term-dense region of source code instead of blind truncation from the start
-- **MCP Server** (`hedwig-kg mcp`): Model Context Protocol server exposing 5 tools (search, node, stats, communities, build) over stdio transport for universal AI agent integration
+- **MCP Server** (`hedwig-cg mcp`): Model Context Protocol server exposing 5 tools (search, node, stats, communities, build) over stdio transport for universal AI agent integration
 - **Search signal explainability**: Each result now includes per-signal RRF contribution breakdown (code_vector, text_vector, graph, keyword, community) in CLI table and MCP output
 - **JS/TS call graph extraction**: Tree-sitter now extracts function/method calls in JavaScript and TypeScript (previously only Python had call tracking), with JS builtin filtering
 - **Pipeline stage timing**: Build command now displays per-stage wall-clock timing breakdown (detect, extract, build, pagerank, embed, cluster, analyze, store) with total elapsed time
 - **Incremental embedding**: `--incremental` builds now skip re-embedding unchanged nodes by checking existing embeddings in DB, reducing rebuild time by up to 95% (8.7s → 0.4s when no files changed)
 - **Fast search mode**: `--fast` flag uses text model only, skipping code model loading for lower cold-start latency; available in CLI, REPL, and MCP server
-- **REPL model preloading**: `hedwig-kg query` REPL now preloads embedding models in a background thread so first search is faster
+- **REPL model preloading**: `hedwig-cg query` REPL now preloads embedding models in a background thread so first search is faster
 - **Python decorator extraction**: Decorators (`@dataclass`, `@cli.command()`, `@staticmethod`, etc.) are now extracted and stored as node attributes, enriching embeddings for decorator-aware search
 - **Search result line numbers**: Results now include `start_line`/`end_line` in CLI (`file.py:42`), MCP server (`file.py:42-67`), and SearchResult API — enabling AI agents to navigate directly to code
 
@@ -62,25 +62,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Correct HybridRAG signal count from "6-signal" to "5-signal" across all documentation, code comments, and CLAUDE.md (actual RRF receives 5 ranked lists: code vector, text vector, graph, keyword, community)
-- Clarify `hedwig-kg search` as the single primary HybridRAG entry point in skill rules and PreToolUse hook
+- Clarify `hedwig-cg search` as the single primary HybridRAG entry point in skill rules and PreToolUse hook
 
 ## [Unreleased]
 
 ### Added
 - **Community-aware HybridRAG**: 5-signal search (code vector + text vector + graph + keyword + community)
 - **Community summaries**: Auto-generated keyword-rich text from node labels, kinds, docstrings, and file paths
-- **`hedwig-kg communities` CLI command**: List, filter by level, and search communities
+- **`hedwig-cg communities` CLI command**: List, filter by level, and search communities
 - **Markdown document extraction**: Headings become section nodes with hierarchy, internal links become reference edges
 - **Incremental build** (`--incremental`): SHA-256 content hashing skips unchanged files for fast rebuilds
 - **Embedding download UX**: Rich console message on first model download (~80MB)
 - `community_search()` method in KnowledgeStore for summary-based community lookup
 - **D3.js export format** (`--format d3`): Force-directed graph JSON with PageRank-based sizing and kind-based grouping
-- **`hedwig-kg visualize` CLI command**: Self-contained interactive HTML visualization with zoom, search, tooltips, and drag
-- **`hedwig-kg clean` CLI command**: Remove .hedwig-kg/ database directory with confirmation prompt
+- **`hedwig-cg visualize` CLI command**: Self-contained interactive HTML visualization with zoom, search, tooltips, and drag
+- **`hedwig-cg clean` CLI command**: Remove .hedwig-cg/ database directory with confirmation prompt
 - **Graph quality metrics in `stats`**: Density, connected components, average clustering coefficient
 - Comprehensive CLI command tests (communities, search, d3 export, visualize, clean)
 - Comprehensive JavaScript tree-sitter extraction tests (17 tests)
-- **`hedwig-kg query` REPL**: Interactive search session with `:node`, `:stats`, `:quit` commands
+- **`hedwig-cg query` REPL**: Interactive search session with `:node`, `:stats`, `:quit` commands
 - **`--offline` flag for `visualize`**: Inlines D3.js (~280KB) for airgapped/offline environments
 - **TypeScript-specific extraction**: Interfaces (with extends/method signatures), type aliases, enums with member extraction
 - E2E integration tests for full pipeline (build → store → search → incremental → export → clean)
@@ -114,14 +114,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLI commands: `build`, `search`, `stats`, `node`, `export`
 - Graph analysis: PageRank, god node detection, hub analysis, quality metrics
 - File detection for 20+ programming languages
-- `.hedwig-kg-ignore` for excluding files from analysis
+- `.hedwig-cg-ignore` for excluding files from analysis
 - Privacy-first design: 100% local, no cloud services
 - Claude Code skill documentation for AI tool integration
 - Multi-language README (English, Korean, Japanese)
 - GitHub Actions CI (Python 3.10-3.12, Ubuntu + macOS)
 - CONTRIBUTING.md with development guide
 
-[Unreleased]: https://github.com/hedwig-ai/hedwig-knowledge-graph/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/hedwig-ai/hedwig-knowledge-graph/compare/v0.1.2...v0.2.0
-[0.1.2]: https://github.com/hedwig-ai/hedwig-knowledge-graph/compare/v0.1.0...v0.1.2
-[0.1.0]: https://github.com/hedwig-ai/hedwig-knowledge-graph/releases/tag/v0.1.0
+[Unreleased]: https://github.com/hedwig-ai/hedwig-code-graph/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/hedwig-ai/hedwig-code-graph/compare/v0.1.2...v0.2.0
+[0.1.2]: https://github.com/hedwig-ai/hedwig-code-graph/compare/v0.1.0...v0.1.2
+[0.1.0]: https://github.com/hedwig-ai/hedwig-code-graph/releases/tag/v0.1.0

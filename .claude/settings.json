@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Glob|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f .hedwig-cg/knowledge.db ] && echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"hedwig-cg: Code graph available. Use `hedwig-cg --json search \\\"<query>\\\"` (5-signal HybridRAG) instead of grepping raw files. This single command covers vector, graph, keyword, and community search with RRF fusion.\"}}' || true"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh /Users/labyu/.pyenv/versions/3.11.12/lib/python3.11/site-packages/hedwig_cg/scripts/auto_rebuild.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

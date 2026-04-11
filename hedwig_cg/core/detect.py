@@ -119,7 +119,7 @@ def detect(
     result = DetectResult(root=root)
 
     # Load ignore file if present
-    ignore_file = root / ".hedwig-kg-ignore"
+    ignore_file = root / ".hedwig-cg-ignore"
     if ignore_file.exists():
         for line in ignore_file.read_text().splitlines():
             line = line.strip()

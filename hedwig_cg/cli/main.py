@@ -1,10 +1,10 @@
-"""CLI interface for hedwig-kg.
+"""CLI interface for hedwig-cg.
 
 Usage:
-    hedwig-kg build <source_dir> [--output <dir>] [--no-embed] [--model <name>]
-    hedwig-kg search <query> [--db <path>] [--top-k <n>]
-    hedwig-kg stats [--db <path>]
-    hedwig-kg export [--db <path>] [--format json|graphml]
+    hedwig-cg build <source_dir> [--output <dir>] [--no-embed] [--model <name>]
+    hedwig-cg search <query> [--db <path>] [--top-k <n>]
+    hedwig-cg stats [--db <path>]
+    hedwig-cg export [--db <path>] [--format json|graphml]
 """
 
 from __future__ import annotations
@@ -50,12 +50,12 @@ def _json_error(message: str) -> None:
 
 
 @click.group()
-@click.version_option(version=None, prog_name="hedwig-kg", package_name="hedwig-kg")
+@click.version_option(version=None, prog_name="hedwig-cg", package_name="hedwig-cg")
 @click.option("--json", "json_output", is_flag=True, default=False,
               help="Output as JSON (for AI agent consumption). Suppresses all non-JSON output.")
 @click.pass_context
 def cli(ctx, json_output: bool):
-    """hedwig-kg: Local-first knowledge graph with hybrid search."""
+    """hedwig-cg: Local-first code graph with hybrid search."""
     ctx.ensure_object(dict)
     ctx.obj["json"] = json_output
     if json_output:
@@ -81,8 +81,8 @@ def build(
     ctx, source_dir: str, output: str | None, no_embed: bool,
     model: str, max_file_size: int, incremental: bool, lang: str,
 ):
-    """Build knowledge graph from a source directory."""
-    from hedwig_kg.core.pipeline import run_pipeline
+    """Build code graph from a source directory."""
+    from hedwig_cg.core.pipeline import run_pipeline
 
     json_mode = ctx.obj.get("json", False) if ctx.obj else False
 
@@ -176,17 +176,17 @@ def build(
               help="Two-stage query expansion: re-search with neighbor terms for broader recall")
 @click.pass_context
 def search(ctx, query: str, db: str | None, top_k: int, source_dir: str, fast: bool, expand: bool):
-    """Search the knowledge graph with hybrid vector + graph + keyword search."""
-    from hedwig_kg.query.hybrid import expanded_search, hybrid_search
-    from hedwig_kg.storage.store import KnowledgeStore
+    """Search the code graph with hybrid vector + graph + keyword search."""
+    from hedwig_cg.query.hybrid import expanded_search, hybrid_search
+    from hedwig_cg.storage.store import KnowledgeStore
 
     json_mode = ctx.obj.get("json", False) if ctx.obj else False
 
     db_path = _resolve_db(db, source_dir)
     if not db_path:
         if json_mode:
-            _json_error("No knowledge base found. Run 'hedwig-kg build' first.")
-        console.print("[red]No knowledge base found. Run 'hedwig-kg build' first.[/]")
+            _json_error("No knowledge base found. Run 'hedwig-cg build' first.")
+        console.print("[red]No knowledge base found. Run 'hedwig-cg build' first.[/]")
         raise SystemExit(1)
 
     store = KnowledgeStore(db_path)
@@ -295,16 +295,16 @@ def _print_search_results(query: str, results: list) -> None:
 @click.option("--source-dir", type=click.Path(), default=".", help="Source dir")
 @click.pass_context
 def stats(ctx, db: str | None, source_dir: str):
-    """Show knowledge graph statistics."""
-    from hedwig_kg.storage.store import KnowledgeStore
+    """Show code graph statistics."""
+    from hedwig_cg.storage.store import KnowledgeStore
 
     json_mode = ctx.obj.get("json", False) if ctx.obj else False
 
     db_path = _resolve_db(db, source_dir)
     if not db_path:
         if json_mode:
-            _json_error("No knowledge base found. Run 'hedwig-kg build' first.")
-        console.print("[red]No knowledge base found. Run 'hedwig-kg build' first.[/]")
+            _json_error("No knowledge base found. Run 'hedwig-cg build' first.")
+        console.print("[red]No knowledge base found. Run 'hedwig-cg build' first.[/]")
         raise SystemExit(1)
 
     store = KnowledgeStore(db_path)
@@ -392,16 +392,16 @@ def stats(ctx, db: str | None, source_dir: str):
 @click.option("--search", "query", type=str, default=None, help="Search community summaries")
 @click.pass_context
 def communities(ctx, db: str | None, source_dir: str, level: int | None, query: str | None):
-    """List and search communities in the knowledge graph."""
-    from hedwig_kg.storage.store import KnowledgeStore
+    """List and search communities in the code graph."""
+    from hedwig_cg.storage.store import KnowledgeStore
 
     json_mode = ctx.obj.get("json", False) if ctx.obj else False
 
     db_path = _resolve_db(db, source_dir)
     if not db_path:
         if json_mode:
-            _json_error("No knowledge base found. Run 'hedwig-kg build' first.")
-        console.print("[red]No knowledge base found. Run 'hedwig-kg build' first.[/]")
+            _json_error("No knowledge base found. Run 'hedwig-cg build' first.")
+        console.print("[red]No knowledge base found. Run 'hedwig-cg build' first.[/]")
         raise SystemExit(1)
 
     store = KnowledgeStore(db_path)
@@ -492,12 +492,12 @@ def communities(ctx, db: str | None, source_dir: str, level: int | None, query: 
 @click.option("--format", "fmt", type=click.Choice(["json", "graphml", "d3"]), default="json")
 @click.option("--output", "-o", type=click.Path(), default=None)
 def export(db: str | None, source_dir: str, fmt: str, output: str | None):
-    """Export the knowledge graph."""
+    """Export the code graph."""
     import json
 
     import networkx as nx
 
-    from hedwig_kg.storage.store import KnowledgeStore
+    from hedwig_cg.storage.store import KnowledgeStore
 
     db_path = _resolve_db(db, source_dir)
     if not db_path:
@@ -509,11 +509,11 @@ def export(db: str | None, source_dir: str, fmt: str, output: str | None):
 
     if fmt == "d3":
         data = _graph_to_d3(G)
-        out = output or "knowledge_graph_d3.json"
+        out = output or "code_graph_d3.json"
         Path(out).write_text(json.dumps(data, indent=2, default=str))
     elif fmt == "json":
         data = nx.node_link_data(G)
-        out = output or "knowledge_graph.json"
+        out = output or "code_graph.json"
         Path(out).write_text(json.dumps(data, indent=2, default=str))
     elif fmt == "graphml":
         # GraphML doesn't support list attributes, convert them
@@ -522,7 +522,7 @@ def export(db: str | None, source_dir: str, fmt: str, output: str | None):
             for k, v in list(G2.nodes[n].items()):
                 if isinstance(v, (list, dict)):
                     G2.nodes[n][k] = str(v)
-        out = output or "knowledge_graph.graphml"
+        out = output or "code_graph.graphml"
         nx.write_graphml(G2, out)
 
     console.print(f"[green]Exported to {out}[/]")
@@ -588,12 +588,12 @@ def visualize(
     db: str | None, source_dir: str, output: str | None,
     max_nodes: int, offline: bool,
 ):
-    """Generate an interactive HTML visualization of the knowledge graph."""
-    from hedwig_kg.storage.store import KnowledgeStore
+    """Generate an interactive HTML visualization of the code graph."""
+    from hedwig_cg.storage.store import KnowledgeStore
 
     db_path = _resolve_db(db, source_dir)
     if not db_path:
-        console.print("[red]No knowledge base found. Run 'hedwig-kg build' first.[/]")
+        console.print("[red]No knowledge base found. Run 'hedwig-cg build' first.[/]")
         raise SystemExit(1)
 
     store = KnowledgeStore(db_path)
@@ -608,7 +608,7 @@ def visualize(
     d3_data = _graph_to_d3(G)
     html = _build_viz_html(d3_data, offline=offline)
 
-    out = output or "knowledge_graph.html"
+    out = output or "code_graph.html"
     Path(out).write_text(html)
 
     console.print(f"[green]Visualization saved to {out}[/]")
@@ -622,7 +622,7 @@ def visualize(
 
 @cli.command()
 @click.option("--source-dir", type=click.Path(), default=".",
-              help="Source directory whose .hedwig-kg/ to remove")
+              help="Source directory whose .hedwig-cg/ to remove")
 @click.option("--db", type=click.Path(), default=None,
               help="Specific database file to remove")
 @click.option("--yes", "-y", is_flag=True, help="Skip confirmation")
@@ -640,9 +640,9 @@ def clean(source_dir: str, db: str | None, yes: bool):
         target.unlink()
         console.print(f"[green]Removed {target}[/]")
     else:
-        kb_dir = Path(source_dir).resolve() / ".hedwig-kg"
+        kb_dir = Path(source_dir).resolve() / ".hedwig-cg"
         if not kb_dir.exists():
-            console.print("[yellow]No .hedwig-kg/ directory found.[/]")
+            console.print("[yellow]No .hedwig-cg/ directory found.[/]")
             return
         if not yes:
             click.confirm(f"Delete {kb_dir}/?", abort=True)
@@ -655,7 +655,7 @@ def clean(source_dir: str, db: str | None, yes: bool):
 @click.option("--source-dir", type=click.Path(), default=".", help="Source dir")
 @click.option("--top-k", default=80, type=int, help="Number of results per query")
 def query(db: str | None, source_dir: str, top_k: int):
-    """Interactive search REPL for exploring the knowledge graph.
+    """Interactive search REPL for exploring the code graph.
 
     Launches an interactive session where you can run multiple searches
     without reloading the graph. Type 'quit' or 'exit' to leave.
@@ -665,12 +665,12 @@ def query(db: str | None, source_dir: str, top_k: int):
       :stats       - Show graph statistics
       :quit        - Exit the REPL
     """
-    from hedwig_kg.query.hybrid import hybrid_search
-    from hedwig_kg.storage.store import KnowledgeStore
+    from hedwig_cg.query.hybrid import hybrid_search
+    from hedwig_cg.storage.store import KnowledgeStore
 
     db_path = _resolve_db(db, source_dir)
     if not db_path:
-        console.print("[red]No knowledge base found. Run 'hedwig-kg build' first.[/]")
+        console.print("[red]No knowledge base found. Run 'hedwig-cg build' first.[/]")
         raise SystemExit(1)
 
     store = KnowledgeStore(db_path)
@@ -690,21 +690,21 @@ def query(db: str | None, source_dir: str, top_k: int):
     import threading
     def _preload_models():
         try:
-            from hedwig_kg.query.embeddings import CODE_MODEL, TEXT_MODEL, _get_model
+            from hedwig_cg.query.embeddings import CODE_MODEL, TEXT_MODEL, _get_model
             _get_model(CODE_MODEL)
             _get_model(TEXT_MODEL)
         except Exception:
             pass
     threading.Thread(target=_preload_models, daemon=True).start()
 
-    console.print(f"[bold green]hedwig-kg query REPL[/] — "
+    console.print(f"[bold green]hedwig-cg query REPL[/] — "
                   f"{G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
     console.print("[dim]Type a query to search. :quit to exit. :node <id> for details.[/]")
     console.print("[dim]Models loading in background...[/]\n")
 
     while True:
         try:
-            user_input = click.prompt("hedwig-kg", prompt_suffix="> ")
+            user_input = click.prompt("hedwig-cg", prompt_suffix="> ")
         except (EOFError, KeyboardInterrupt):
             break
 
@@ -787,7 +787,7 @@ def _resolve_db(db: str | None, source_dir: str) -> Path | None:
         return p if p.exists() else None
 
     # Default location
-    default = Path(source_dir).resolve() / ".hedwig-kg" / "knowledge.db"
+    default = Path(source_dir).resolve() / ".hedwig-cg" / "knowledge.db"
     if default.exists():
         return default
 
@@ -801,7 +801,7 @@ def _resolve_db(db: str | None, source_dir: str) -> Path | None:
 @click.pass_context
 def show_node(ctx, node_id: str, db: str | None, source_dir: str):
     """Show details of a specific node."""
-    from hedwig_kg.storage.store import KnowledgeStore
+    from hedwig_cg.storage.store import KnowledgeStore
 
     json_mode = ctx.obj.get("json", False) if ctx.obj else False
 
@@ -938,9 +938,9 @@ def claude_install(scope: str | None):
     # --- Priority 1: Install Skill ---
     skill_source = Path(__file__).parent.parent / "skill.md"
     if scope == "user":
-        skill_dir = Path.home() / ".claude" / "skills" / "hedwig-kg"
+        skill_dir = Path.home() / ".claude" / "skills" / "hedwig-cg"
     else:
-        skill_dir = project_root / ".claude" / "skills" / "hedwig-kg"
+        skill_dir = project_root / ".claude" / "skills" / "hedwig-cg"
 
     skill_dir.mkdir(parents=True, exist_ok=True)
     skill_dest = skill_dir / "SKILL.md"
@@ -948,9 +948,9 @@ def claude_install(scope: str | None):
     if skill_source.exists():
         shutil.copy2(skill_source, skill_dest)
         scope_label = (
-            "~/.claude/skills/hedwig-kg/"
+            "~/.claude/skills/hedwig-cg/"
             if scope == "user"
-            else ".claude/skills/hedwig-kg/"
+            else ".claude/skills/hedwig-cg/"
         )
         console.print(
             f"[green]✓ Skill installed[/] → "
@@ -962,34 +962,34 @@ def claude_install(scope: str | None):
     # --- Priority 2: CLAUDE.md + hooks ---
     # 1. Write section to project CLAUDE.md
     claude_md = project_root / "CLAUDE.md"
-    marker = "## hedwig-kg"
+    marker = "## hedwig-cg"
     section = (
-        "\n## hedwig-kg\n\n"
-        "This project has a hedwig-kg knowledge graph at `.hedwig-kg/`.\n\n"
+        "\n## hedwig-cg\n\n"
+        "This project has a hedwig-cg code graph at `.hedwig-cg/`.\n\n"
         "Rules:\n"
-        "- **Always use `hedwig-kg --json search \"<query>\"` as the primary search method.** "
+        "- **Always use `hedwig-cg --json search \"<query>\"` as the primary search method.** "
         "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
         "in a single call — no need to run separate community or keyword searches.\n"
-        "- Before grepping raw files with Glob/Grep, run `hedwig-kg --json search` first. "
-        "Only fall back to Grep if the knowledge graph has no results.\n"
+        "- Before grepping raw files with Glob/Grep, run `hedwig-cg --json search` first. "
+        "Only fall back to Grep if the code graph has no results.\n"
         "- After modifying code files, run "
-        "`hedwig-kg build . --incremental` to keep the graph current\n"
-        "- Use `hedwig-kg communities` (without `--search`) only when you need to "
+        "`hedwig-cg build . --incremental` to keep the graph current\n"
+        "- Use `hedwig-cg communities` (without `--search`) only when you need to "
         "list or browse the community structure, not as a search substitute.\n"
-        "- Use `hedwig-kg stats` for structural overview "
+        "- Use `hedwig-cg stats` for structural overview "
         "(god nodes, communities, density)\n"
     )
 
     if claude_md.exists():
         content = claude_md.read_text()
         if marker in content:
-            console.print("[dim]CLAUDE.md already has hedwig-kg section.[/]")
+            console.print("[dim]CLAUDE.md already has hedwig-cg section.[/]")
         else:
             claude_md.write_text(content + section)
-            console.print("[green]Added hedwig-kg section to CLAUDE.md[/]")
+            console.print("[green]Added hedwig-cg section to CLAUDE.md[/]")
     else:
         claude_md.write_text(section.lstrip("\n"))
-        console.print("[green]Created CLAUDE.md with hedwig-kg section[/]")
+        console.print("[green]Created CLAUDE.md with hedwig-cg section[/]")
 
     # 2. Write PreToolUse hook to .claude/settings.json
     settings_dir = project_root / ".claude"
@@ -1001,10 +1001,10 @@ def claude_install(scope: str | None):
         "hooks": [{
             "type": "command",
             "command": (
-                '[ -f .hedwig-kg/knowledge.db ] && echo '
+                '[ -f .hedwig-cg/knowledge.db ] && echo '
                 '\'{"hookSpecificOutput":{"hookEventName":"PreToolUse",'
-                '"additionalContext":"hedwig-kg: Knowledge graph available. '
-                "Use `hedwig-kg --json search \\\"<query>\\\"` (5-signal HybridRAG) "
+                '"additionalContext":"hedwig-cg: code graph available. '
+                "Use `hedwig-cg --json search \\\"<query>\\\"` (5-signal HybridRAG) "
                 "instead of grepping raw files. This single command covers "
                 "vector, graph, keyword, and community search with RRF fusion."
                 '"}}\' || true'
@@ -1022,11 +1022,11 @@ def claude_install(scope: str | None):
 
     # Check if already installed
     already = any(
-        "hedwig-kg" in json.dumps(h)
+        "hedwig-cg" in json.dumps(h)
         for h in pre_hooks
     )
     if already:
-        console.print("[dim].claude/settings.json already has hedwig-kg PreToolUse hook.[/]")
+        console.print("[dim].claude/settings.json already has hedwig-cg PreToolUse hook.[/]")
     else:
         pre_hooks.append(hook_entry)
         console.print("[green]Added PreToolUse hook to .claude/settings.json[/]")
@@ -1041,10 +1041,10 @@ def claude_install(scope: str | None):
         }],
     }
     stop_hooks = hooks.setdefault("Stop", [])
-    stop_already = any("hedwig-kg" in json.dumps(h) or "auto_rebuild" in json.dumps(h)
+    stop_already = any("hedwig-cg" in json.dumps(h) or "auto_rebuild" in json.dumps(h)
                        for h in stop_hooks)
     if stop_already:
-        console.print("[dim].claude/settings.json already has hedwig-kg Stop hook.[/]")
+        console.print("[dim].claude/settings.json already has hedwig-cg Stop hook.[/]")
     else:
         stop_hooks.append(stop_hook_entry)
         console.print("[green]Added Stop hook for auto-rebuild to .claude/settings.json[/]")
@@ -1052,10 +1052,10 @@ def claude_install(scope: str | None):
     settings_file.write_text(json.dumps(settings, indent=2) + "\n")
 
     console.print()
-    console.print("[bold]Done![/] Claude Code will now use the knowledge graph "
+    console.print("[bold]Done![/] Claude Code will now use the code graph "
                   "when searching this project.")
     console.print("[dim]Graph auto-rebuilds when your session ends.[/]")
-    console.print("[dim]Run 'hedwig-kg claude uninstall' to remove.[/]")
+    console.print("[dim]Run 'hedwig-cg claude uninstall' to remove.[/]")
 
 
 @claude_group.command(name="uninstall")
@@ -1075,16 +1075,16 @@ def claude_uninstall(scope: str):
     # 0. Remove skill
     removed_skill = False
     if scope in ("user", "all"):
-        user_skill = Path.home() / ".claude" / "skills" / "hedwig-kg"
+        user_skill = Path.home() / ".claude" / "skills" / "hedwig-cg"
         if user_skill.exists():
             shutil.rmtree(user_skill)
-            console.print("[green]Removed user-scope skill (~/.claude/skills/hedwig-kg/)[/]")
+            console.print("[green]Removed user-scope skill (~/.claude/skills/hedwig-cg/)[/]")
             removed_skill = True
     if scope in ("project", "all"):
-        proj_skill = project_root / ".claude" / "skills" / "hedwig-kg"
+        proj_skill = project_root / ".claude" / "skills" / "hedwig-cg"
         if proj_skill.exists():
             shutil.rmtree(proj_skill)
-            console.print("[green]Removed project-scope skill (.claude/skills/hedwig-kg/)[/]")
+            console.print("[green]Removed project-scope skill (.claude/skills/hedwig-cg/)[/]")
             removed_skill = True
     if not removed_skill:
         console.print("[dim]No skill found to remove.[/]")
@@ -1096,17 +1096,17 @@ def claude_uninstall(scope: str):
         filtered = []
         skip = False
         for line in lines:
-            if line.strip() == "## hedwig-kg":
+            if line.strip() == "## hedwig-cg":
                 skip = True
                 continue
-            if skip and line.startswith("##") and "hedwig-kg" not in line.lower():
+            if skip and line.startswith("##") and "hedwig-cg" not in line.lower():
                 skip = False
             if skip:
                 continue
             filtered.append(line)
         new_content = "".join(filtered).rstrip("\n") + "\n"
         claude_md.write_text(new_content)
-        console.print("[green]Removed hedwig-kg section from CLAUDE.md[/]")
+        console.print("[green]Removed hedwig-cg section from CLAUDE.md[/]")
 
     # 2. Remove hooks from .claude/settings.json
     settings_file = project_root / ".claude" / "settings.json"
@@ -1117,7 +1117,7 @@ def claude_uninstall(scope: str):
             event_hooks = hooks.get(event, [])
             hooks[event] = [
                 h for h in event_hooks
-                if "hedwig-kg" not in json.dumps(h)
+                if "hedwig-cg" not in json.dumps(h)
                 and "auto_rebuild" not in json.dumps(h)
             ]
             if not hooks[event]:
@@ -1125,9 +1125,9 @@ def claude_uninstall(scope: str):
         if not hooks:
             settings.pop("hooks", None)
         settings_file.write_text(json.dumps(settings, indent=2) + "\n")
-        console.print("[green]Removed hedwig-kg hooks from .claude/settings.json[/]")
+        console.print("[green]Removed hedwig-cg hooks from .claude/settings.json[/]")
 
-    console.print("[dim]hedwig-kg Claude Code integration removed.[/]")
+    console.print("[dim]hedwig-cg Claude Code integration removed.[/]")
 
 
 cli.add_command(claude_group)
@@ -1150,34 +1150,34 @@ def codex_install():
 
     # 1. Write section to project AGENTS.md
     agents_md = project_root / "AGENTS.md"
-    marker = "## hedwig-kg"
+    marker = "## hedwig-cg"
     section = (
-        "\n## hedwig-kg\n\n"
-        "This project has a hedwig-kg knowledge graph at `.hedwig-kg/`.\n\n"
+        "\n## hedwig-cg\n\n"
+        "This project has a hedwig-cg code graph at `.hedwig-cg/`.\n\n"
         "Rules:\n"
-        "- **Always use `hedwig-kg --json search \"<query>\"` as the primary search method.** "
+        "- **Always use `hedwig-cg --json search \"<query>\"` as the primary search method.** "
         "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
         "in a single call — no need to run separate community or keyword searches.\n"
-        "- Before grepping raw files, run `hedwig-kg --json search` first. "
-        "Only fall back to grep if the knowledge graph has no results.\n"
+        "- Before grepping raw files, run `hedwig-cg --json search` first. "
+        "Only fall back to grep if the code graph has no results.\n"
         "- After modifying code files, run "
-        "`hedwig-kg build . --incremental` to keep the graph current\n"
-        "- Use `hedwig-kg communities` (without `--search`) only when you need to "
+        "`hedwig-cg build . --incremental` to keep the graph current\n"
+        "- Use `hedwig-cg communities` (without `--search`) only when you need to "
         "list or browse the community structure, not as a search substitute.\n"
-        "- Use `hedwig-kg stats` for structural overview "
+        "- Use `hedwig-cg stats` for structural overview "
         "(god nodes, communities, density)\n"
     )
 
     if agents_md.exists():
         content = agents_md.read_text()
         if marker in content:
-            console.print("[dim]AGENTS.md already has hedwig-kg section.[/]")
+            console.print("[dim]AGENTS.md already has hedwig-cg section.[/]")
         else:
             agents_md.write_text(content + section)
-            console.print("[green]Added hedwig-kg section to AGENTS.md[/]")
+            console.print("[green]Added hedwig-cg section to AGENTS.md[/]")
     else:
         agents_md.write_text(section.lstrip("\n"))
-        console.print("[green]Created AGENTS.md with hedwig-kg section[/]")
+        console.print("[green]Created AGENTS.md with hedwig-cg section[/]")
 
     # 2. Write PreToolUse hook to .codex/hooks.json
     hooks_dir = project_root / ".codex"
@@ -1189,10 +1189,10 @@ def codex_install():
         "hooks": [{
             "type": "command",
             "command": (
-                '[ -f .hedwig-kg/knowledge.db ] && echo '
+                '[ -f .hedwig-cg/knowledge.db ] && echo '
                 '\'{"hookSpecificOutput":{"hookEventName":"PreToolUse",'
-                '"additionalContext":"hedwig-kg: Knowledge graph available. '
-                "Use `hedwig-kg --json search \\\"<query>\\\"` (5-signal HybridRAG) "
+                '"additionalContext":"hedwig-cg: code graph available. '
+                "Use `hedwig-cg --json search \\\"<query>\\\"` (5-signal HybridRAG) "
                 "instead of grepping raw files. This single command covers "
                 "vector, graph, keyword, and community search with RRF fusion."
                 '"}}\' || true'
@@ -1208,9 +1208,9 @@ def codex_install():
     hooks = hooks_data.setdefault("hooks", {})
     pre_hooks = hooks.setdefault("PreToolUse", [])
 
-    already = any("hedwig-kg" in json.dumps(h) for h in pre_hooks)
+    already = any("hedwig-cg" in json.dumps(h) for h in pre_hooks)
     if already:
-        console.print("[dim].codex/hooks.json already has hedwig-kg PreToolUse hook.[/]")
+        console.print("[dim].codex/hooks.json already has hedwig-cg PreToolUse hook.[/]")
     else:
         pre_hooks.append(hook_entry)
         console.print("[green]Added PreToolUse hook to .codex/hooks.json[/]")
@@ -1227,7 +1227,7 @@ def codex_install():
     stop_hooks = hooks.setdefault("Stop", [])
     stop_already = any("auto_rebuild" in json.dumps(h) for h in stop_hooks)
     if stop_already:
-        console.print("[dim].codex/hooks.json already has hedwig-kg Stop hook.[/]")
+        console.print("[dim].codex/hooks.json already has hedwig-cg Stop hook.[/]")
     else:
         stop_hooks.append(stop_hook_entry)
         console.print("[green]Added Stop hook for auto-rebuild to .codex/hooks.json[/]")
@@ -1235,10 +1235,10 @@ def codex_install():
     hooks_file.write_text(json.dumps(hooks_data, indent=2) + "\n")
 
     console.print()
-    console.print("[bold]Done![/] Codex CLI will now use the knowledge graph "
+    console.print("[bold]Done![/] Codex CLI will now use the code graph "
                   "when working in this project.")
     console.print("[dim]Graph auto-rebuilds when your session ends.[/]")
-    console.print("[dim]Run 'hedwig-kg codex uninstall' to remove.[/]")
+    console.print("[dim]Run 'hedwig-cg codex uninstall' to remove.[/]")
 
 
 @codex_group.command(name="uninstall")
@@ -1255,17 +1255,17 @@ def codex_uninstall():
         filtered = []
         skip = False
         for line in lines:
-            if line.strip() == "## hedwig-kg":
+            if line.strip() == "## hedwig-cg":
                 skip = True
                 continue
-            if skip and line.startswith("##") and "hedwig-kg" not in line.lower():
+            if skip and line.startswith("##") and "hedwig-cg" not in line.lower():
                 skip = False
             if skip:
                 continue
             filtered.append(line)
         new_content = "".join(filtered).rstrip("\n") + "\n"
         agents_md.write_text(new_content)
-        console.print("[green]Removed hedwig-kg section from AGENTS.md[/]")
+        console.print("[green]Removed hedwig-cg section from AGENTS.md[/]")
 
     # 2. Remove hooks from .codex/hooks.json
     hooks_file = project_root / ".codex" / "hooks.json"
@@ -1276,7 +1276,7 @@ def codex_uninstall():
             event_hooks = hooks.get(event, [])
             hooks[event] = [
                 h for h in event_hooks
-                if "hedwig-kg" not in json.dumps(h)
+                if "hedwig-cg" not in json.dumps(h)
                 and "auto_rebuild" not in json.dumps(h)
             ]
             if not hooks[event]:
@@ -1284,9 +1284,9 @@ def codex_uninstall():
         if not hooks:
             hooks_data.pop("hooks", None)
         hooks_file.write_text(json.dumps(hooks_data, indent=2) + "\n")
-        console.print("[green]Removed hedwig-kg hooks from .codex/hooks.json[/]")
+        console.print("[green]Removed hedwig-cg hooks from .codex/hooks.json[/]")
 
-    console.print("[dim]hedwig-kg Codex CLI integration removed.[/]")
+    console.print("[dim]hedwig-cg Codex CLI integration removed.[/]")
 
 
 cli.add_command(codex_group)
@@ -1309,34 +1309,34 @@ def gemini_install():
 
     # 1. Write section to project GEMINI.md
     gemini_md = project_root / "GEMINI.md"
-    marker = "## hedwig-kg"
+    marker = "## hedwig-cg"
     section = (
-        "\n## hedwig-kg\n\n"
-        "This project has a hedwig-kg knowledge graph at `.hedwig-kg/`.\n\n"
+        "\n## hedwig-cg\n\n"
+        "This project has a hedwig-cg code graph at `.hedwig-cg/`.\n\n"
         "Rules:\n"
-        "- **Always use `hedwig-kg --json search \"<query>\"` as the primary search method.** "
+        "- **Always use `hedwig-cg --json search \"<query>\"` as the primary search method.** "
         "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
         "in a single call — no need to run separate community or keyword searches.\n"
-        "- Before reading raw files, run `hedwig-kg --json search` first. "
-        "Only fall back to file reads if the knowledge graph has no results.\n"
+        "- Before reading raw files, run `hedwig-cg --json search` first. "
+        "Only fall back to file reads if the code graph has no results.\n"
         "- After modifying code files, run "
-        "`hedwig-kg build . --incremental` to keep the graph current\n"
-        "- Use `hedwig-kg communities` (without `--search`) only when you need to "
+        "`hedwig-cg build . --incremental` to keep the graph current\n"
+        "- Use `hedwig-cg communities` (without `--search`) only when you need to "
         "list or browse the community structure, not as a search substitute.\n"
-        "- Use `hedwig-kg stats` for structural overview "
+        "- Use `hedwig-cg stats` for structural overview "
         "(god nodes, communities, density)\n"
     )
 
     if gemini_md.exists():
         content = gemini_md.read_text()
         if marker in content:
-            console.print("[dim]GEMINI.md already has hedwig-kg section.[/]")
+            console.print("[dim]GEMINI.md already has hedwig-cg section.[/]")
         else:
             gemini_md.write_text(content + section)
-            console.print("[green]Added hedwig-kg section to GEMINI.md[/]")
+            console.print("[green]Added hedwig-cg section to GEMINI.md[/]")
     else:
         gemini_md.write_text(section.lstrip("\n"))
-        console.print("[green]Created GEMINI.md with hedwig-kg section[/]")
+        console.print("[green]Created GEMINI.md with hedwig-cg section[/]")
 
     # 2. Write BeforeTool hook to .gemini/settings.json
     settings_dir = project_root / ".gemini"
@@ -1348,10 +1348,10 @@ def gemini_install():
         "hooks": [{
             "type": "command",
             "command": (
-                '[ -f .hedwig-kg/knowledge.db ] && echo '
+                '[ -f .hedwig-cg/knowledge.db ] && echo '
                 '\'{"hookSpecificOutput":{"additionalContext":'
-                '"hedwig-kg: Knowledge graph available. '
-                "Use `hedwig-kg --json search \\\"<query>\\\"` (5-signal HybridRAG) "
+                '"hedwig-cg: code graph available. '
+                "Use `hedwig-cg --json search \\\"<query>\\\"` (5-signal HybridRAG) "
                 "instead of reading raw files. This single command covers "
                 "vector, graph, keyword, and community search with RRF fusion."
                 '"}}\' || true'
@@ -1367,9 +1367,9 @@ def gemini_install():
     hooks = settings.setdefault("hooks", {})
     before_hooks = hooks.setdefault("BeforeTool", [])
 
-    already = any("hedwig-kg" in json.dumps(h) for h in before_hooks)
+    already = any("hedwig-cg" in json.dumps(h) for h in before_hooks)
     if already:
-        console.print("[dim].gemini/settings.json already has hedwig-kg BeforeTool hook.[/]")
+        console.print("[dim].gemini/settings.json already has hedwig-cg BeforeTool hook.[/]")
     else:
         before_hooks.append(hook_entry)
         console.print("[green]Added BeforeTool hook to .gemini/settings.json[/]")
@@ -1386,7 +1386,7 @@ def gemini_install():
     session_hooks = hooks.setdefault("SessionEnd", [])
     session_already = any("auto_rebuild" in json.dumps(h) for h in session_hooks)
     if session_already:
-        console.print("[dim].gemini/settings.json already has hedwig-kg SessionEnd hook.[/]")
+        console.print("[dim].gemini/settings.json already has hedwig-cg SessionEnd hook.[/]")
     else:
         session_hooks.append(session_end_entry)
         console.print("[green]Added SessionEnd hook for auto-rebuild to .gemini/settings.json[/]")
@@ -1394,10 +1394,10 @@ def gemini_install():
     settings_file.write_text(json.dumps(settings, indent=2) + "\n")
 
     console.print()
-    console.print("[bold]Done![/] Gemini CLI will now use the knowledge graph "
+    console.print("[bold]Done![/] Gemini CLI will now use the code graph "
                   "when working in this project.")
     console.print("[dim]Graph auto-rebuilds when your session ends.[/]")
-    console.print("[dim]Run 'hedwig-kg gemini uninstall' to remove.[/]")
+    console.print("[dim]Run 'hedwig-cg gemini uninstall' to remove.[/]")
 
 
 @gemini_group.command(name="uninstall")
@@ -1414,17 +1414,17 @@ def gemini_uninstall():
         filtered = []
         skip = False
         for line in lines:
-            if line.strip() == "## hedwig-kg":
+            if line.strip() == "## hedwig-cg":
                 skip = True
                 continue
-            if skip and line.startswith("##") and "hedwig-kg" not in line.lower():
+            if skip and line.startswith("##") and "hedwig-cg" not in line.lower():
                 skip = False
             if skip:
                 continue
             filtered.append(line)
         new_content = "".join(filtered).rstrip("\n") + "\n"
         gemini_md.write_text(new_content)
-        console.print("[green]Removed hedwig-kg section from GEMINI.md[/]")
+        console.print("[green]Removed hedwig-cg section from GEMINI.md[/]")
 
     # 2. Remove hooks from .gemini/settings.json
     settings_file = project_root / ".gemini" / "settings.json"
@@ -1435,7 +1435,7 @@ def gemini_uninstall():
             event_hooks = hooks.get(event, [])
             hooks[event] = [
                 h for h in event_hooks
-                if "hedwig-kg" not in json.dumps(h)
+                if "hedwig-cg" not in json.dumps(h)
                 and "auto_rebuild" not in json.dumps(h)
             ]
             if not hooks[event]:
@@ -1443,9 +1443,9 @@ def gemini_uninstall():
         if not hooks:
             settings.pop("hooks", None)
         settings_file.write_text(json.dumps(settings, indent=2) + "\n")
-        console.print("[green]Removed hedwig-kg hooks from .gemini/settings.json[/]")
+        console.print("[green]Removed hedwig-cg hooks from .gemini/settings.json[/]")
 
-    console.print("[dim]hedwig-kg Gemini CLI integration removed.[/]")
+    console.print("[dim]hedwig-cg Gemini CLI integration removed.[/]")
 
 
 cli.add_command(gemini_group)
@@ -1461,50 +1461,50 @@ def cursor_group():
 
 @cursor_group.command(name="install")
 def cursor_install():
-    """Install per-project Cursor integration (.cursor/rules/hedwig-kg.mdc)."""
+    """Install per-project Cursor integration (.cursor/rules/hedwig-cg.mdc)."""
     project_root = Path.cwd()
 
     rules_dir = project_root / ".cursor" / "rules"
     rules_dir.mkdir(parents=True, exist_ok=True)
-    rules_file = rules_dir / "hedwig-kg.mdc"
+    rules_file = rules_dir / "hedwig-cg.mdc"
 
     rule_content = (
         "---\n"
-        "description: hedwig-kg knowledge graph search rules\n"
+        "description: hedwig-cg code graph search rules\n"
         "globs: **/*\n"
         "alwaysApply: true\n"
         "---\n\n"
-        "# hedwig-kg\n\n"
-        "This project has a hedwig-kg knowledge graph at `.hedwig-kg/`.\n\n"
+        "# hedwig-cg\n\n"
+        "This project has a hedwig-cg code graph at `.hedwig-cg/`.\n\n"
         "Rules:\n"
-        "- **Always use `hedwig-kg --json search \"<query>\"` as the primary search method.** "
+        "- **Always use `hedwig-cg --json search \"<query>\"` as the primary search method.** "
         "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
         "in a single call — no need to run separate community or keyword searches.\n"
-        "- Before grepping raw files, run `hedwig-kg --json search` first. "
-        "Only fall back to grep/find if the knowledge graph has no results.\n"
+        "- Before grepping raw files, run `hedwig-cg --json search` first. "
+        "Only fall back to grep/find if the code graph has no results.\n"
         "- After modifying code files, run "
-        "`hedwig-kg build . --incremental` to keep the graph current.\n"
-        "- Use `hedwig-kg communities` (without `--search`) only when you need to "
+        "`hedwig-cg build . --incremental` to keep the graph current.\n"
+        "- Use `hedwig-cg communities` (without `--search`) only when you need to "
         "list or browse the community structure, not as a search substitute.\n"
-        "- Use `hedwig-kg stats` for structural overview "
+        "- Use `hedwig-cg stats` for structural overview "
         "(god nodes, communities, density).\n"
     )
 
     if rules_file.exists():
         content = rules_file.read_text()
-        if "hedwig-kg" in content:
-            console.print("[dim].cursor/rules/hedwig-kg.mdc already exists.[/]")
+        if "hedwig-cg" in content:
+            console.print("[dim].cursor/rules/hedwig-cg.mdc already exists.[/]")
         else:
             rules_file.write_text(rule_content)
-            console.print("[green]Updated .cursor/rules/hedwig-kg.mdc[/]")
+            console.print("[green]Updated .cursor/rules/hedwig-cg.mdc[/]")
     else:
         rules_file.write_text(rule_content)
-        console.print("[green]Created .cursor/rules/hedwig-kg.mdc[/]")
+        console.print("[green]Created .cursor/rules/hedwig-cg.mdc[/]")
 
     console.print()
-    console.print("[bold]Done![/] Cursor will now see hedwig-kg rules "
+    console.print("[bold]Done![/] Cursor will now see hedwig-cg rules "
                   "when working in this project.")
-    console.print("[dim]Run 'hedwig-kg cursor uninstall' to remove.[/]")
+    console.print("[dim]Run 'hedwig-cg cursor uninstall' to remove.[/]")
 
 
 @cursor_group.command(name="uninstall")
@@ -1512,14 +1512,14 @@ def cursor_uninstall():
     """Remove per-project Cursor integration."""
     project_root = Path.cwd()
 
-    rules_file = project_root / ".cursor" / "rules" / "hedwig-kg.mdc"
+    rules_file = project_root / ".cursor" / "rules" / "hedwig-cg.mdc"
     if rules_file.exists():
         rules_file.unlink()
-        console.print("[green]Removed .cursor/rules/hedwig-kg.mdc[/]")
+        console.print("[green]Removed .cursor/rules/hedwig-cg.mdc[/]")
     else:
-        console.print("[dim]No hedwig-kg Cursor rule file found.[/]")
+        console.print("[dim]No hedwig-cg Cursor rule file found.[/]")
 
-    console.print("[dim]hedwig-kg Cursor integration removed.[/]")
+    console.print("[dim]hedwig-cg Cursor integration removed.[/]")
 
 
 cli.add_command(cursor_group)
@@ -1535,45 +1535,45 @@ def windsurf_group():
 
 @windsurf_group.command(name="install")
 def windsurf_install():
-    """Install per-project Windsurf integration (.windsurf/rules/hedwig-kg.md)."""
+    """Install per-project Windsurf integration (.windsurf/rules/hedwig-cg.md)."""
     project_root = Path.cwd()
 
     rules_dir = project_root / ".windsurf" / "rules"
     rules_dir.mkdir(parents=True, exist_ok=True)
-    rules_file = rules_dir / "hedwig-kg.md"
+    rules_file = rules_dir / "hedwig-cg.md"
 
     rule_content = (
-        "# hedwig-kg\n\n"
-        "This project has a hedwig-kg knowledge graph at `.hedwig-kg/`.\n\n"
+        "# hedwig-cg\n\n"
+        "This project has a hedwig-cg code graph at `.hedwig-cg/`.\n\n"
         "Rules:\n"
-        "- **Always use `hedwig-kg --json search \"<query>\"` as the primary search method.** "
+        "- **Always use `hedwig-cg --json search \"<query>\"` as the primary search method.** "
         "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
         "in a single call — no need to run separate community or keyword searches.\n"
-        "- Before grepping raw files, run `hedwig-kg --json search` first. "
-        "Only fall back to grep/find if the knowledge graph has no results.\n"
+        "- Before grepping raw files, run `hedwig-cg --json search` first. "
+        "Only fall back to grep/find if the code graph has no results.\n"
         "- After modifying code files, run "
-        "`hedwig-kg build . --incremental` to keep the graph current.\n"
-        "- Use `hedwig-kg communities` (without `--search`) only when you need to "
+        "`hedwig-cg build . --incremental` to keep the graph current.\n"
+        "- Use `hedwig-cg communities` (without `--search`) only when you need to "
         "list or browse the community structure, not as a search substitute.\n"
-        "- Use `hedwig-kg stats` for structural overview "
+        "- Use `hedwig-cg stats` for structural overview "
         "(god nodes, communities, density).\n"
     )
 
     if rules_file.exists():
         content = rules_file.read_text()
-        if "hedwig-kg" in content:
-            console.print("[dim].windsurf/rules/hedwig-kg.md already exists.[/]")
+        if "hedwig-cg" in content:
+            console.print("[dim].windsurf/rules/hedwig-cg.md already exists.[/]")
         else:
             rules_file.write_text(rule_content)
-            console.print("[green]Updated .windsurf/rules/hedwig-kg.md[/]")
+            console.print("[green]Updated .windsurf/rules/hedwig-cg.md[/]")
     else:
         rules_file.write_text(rule_content)
-        console.print("[green]Created .windsurf/rules/hedwig-kg.md[/]")
+        console.print("[green]Created .windsurf/rules/hedwig-cg.md[/]")
 
     console.print()
-    console.print("[bold]Done![/] Windsurf Cascade will now see hedwig-kg rules "
+    console.print("[bold]Done![/] Windsurf Cascade will now see hedwig-cg rules "
                   "when working in this project.")
-    console.print("[dim]Run 'hedwig-kg windsurf uninstall' to remove.[/]")
+    console.print("[dim]Run 'hedwig-cg windsurf uninstall' to remove.[/]")
 
 
 @windsurf_group.command(name="uninstall")
@@ -1581,14 +1581,14 @@ def windsurf_uninstall():
     """Remove per-project Windsurf integration."""
     project_root = Path.cwd()
 
-    rules_file = project_root / ".windsurf" / "rules" / "hedwig-kg.md"
+    rules_file = project_root / ".windsurf" / "rules" / "hedwig-cg.md"
     if rules_file.exists():
         rules_file.unlink()
-        console.print("[green]Removed .windsurf/rules/hedwig-kg.md[/]")
+        console.print("[green]Removed .windsurf/rules/hedwig-cg.md[/]")
     else:
-        console.print("[dim]No hedwig-kg Windsurf rule file found.[/]")
+        console.print("[dim]No hedwig-cg Windsurf rule file found.[/]")
 
-    console.print("[dim]hedwig-kg Windsurf integration removed.[/]")
+    console.print("[dim]hedwig-cg Windsurf integration removed.[/]")
 
 
 cli.add_command(windsurf_group)
@@ -1610,39 +1610,39 @@ def cline_install():
     rules_file = project_root / ".clinerules"
 
     rule_content = (
-        "# hedwig-kg\n\n"
-        "This project has a hedwig-kg knowledge graph at `.hedwig-kg/`.\n\n"
+        "# hedwig-cg\n\n"
+        "This project has a hedwig-cg code graph at `.hedwig-cg/`.\n\n"
         "Rules:\n"
-        "- **Always use `hedwig-kg --json search \"<query>\"` as the primary search method.** "
+        "- **Always use `hedwig-cg --json search \"<query>\"` as the primary search method.** "
         "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
         "in a single call — no need to run separate community or keyword searches.\n"
-        "- Before grepping raw files, run `hedwig-kg --json search` first. "
-        "Only fall back to grep/find if the knowledge graph has no results.\n"
+        "- Before grepping raw files, run `hedwig-cg --json search` first. "
+        "Only fall back to grep/find if the code graph has no results.\n"
         "- After modifying code files, run "
-        "`hedwig-kg build . --incremental` to keep the graph current.\n"
-        "- Use `hedwig-kg communities` (without `--search`) only when you need to "
+        "`hedwig-cg build . --incremental` to keep the graph current.\n"
+        "- Use `hedwig-cg communities` (without `--search`) only when you need to "
         "list or browse the community structure, not as a search substitute.\n"
-        "- Use `hedwig-kg stats` for structural overview "
+        "- Use `hedwig-cg stats` for structural overview "
         "(god nodes, communities, density).\n"
     )
 
     if rules_file.exists():
         content = rules_file.read_text()
-        if "hedwig-kg" in content:
-            console.print("[dim].clinerules already contains hedwig-kg rules.[/]")
+        if "hedwig-cg" in content:
+            console.print("[dim].clinerules already contains hedwig-cg rules.[/]")
         else:
             # Append to existing rules
             with open(rules_file, "a") as f:
                 f.write("\n\n" + rule_content)
-            console.print("[green]Appended hedwig-kg rules to .clinerules[/]")
+            console.print("[green]Appended hedwig-cg rules to .clinerules[/]")
     else:
         rules_file.write_text(rule_content)
         console.print("[green]Created .clinerules[/]")
 
     console.print()
-    console.print("[bold]Done![/] Cline will now see hedwig-kg rules "
+    console.print("[bold]Done![/] Cline will now see hedwig-cg rules "
                   "when working in this project.")
-    console.print("[dim]Run 'hedwig-kg cline uninstall' to remove.[/]")
+    console.print("[dim]Run 'hedwig-cg cline uninstall' to remove.[/]")
 
 
 @cline_group.command(name="uninstall")
@@ -1653,32 +1653,32 @@ def cline_uninstall():
     rules_file = project_root / ".clinerules"
     if rules_file.exists():
         content = rules_file.read_text()
-        if "hedwig-kg" in content:
-            # Remove hedwig-kg section
+        if "hedwig-cg" in content:
+            # Remove hedwig-cg section
             lines = content.split("\n")
             filtered = []
             skip = False
             for line in lines:
-                if line.strip() == "# hedwig-kg":
+                if line.strip() == "# hedwig-cg":
                     skip = True
                     continue
-                if skip and line.startswith("# ") and "hedwig-kg" not in line:
+                if skip and line.startswith("# ") and "hedwig-cg" not in line:
                     skip = False
                 if not skip:
                     filtered.append(line)
             new_content = "\n".join(filtered).strip()
             if new_content:
                 rules_file.write_text(new_content + "\n")
-                console.print("[green]Removed hedwig-kg section from .clinerules[/]")
+                console.print("[green]Removed hedwig-cg section from .clinerules[/]")
             else:
                 rules_file.unlink()
-                console.print("[green]Removed .clinerules (was hedwig-kg only)[/]")
+                console.print("[green]Removed .clinerules (was hedwig-cg only)[/]")
         else:
-            console.print("[dim]No hedwig-kg section found in .clinerules.[/]")
+            console.print("[dim]No hedwig-cg section found in .clinerules.[/]")
     else:
         console.print("[dim]No .clinerules file found.[/]")
 
-    console.print("[dim]hedwig-kg Cline integration removed.[/]")
+    console.print("[dim]hedwig-cg Cline integration removed.[/]")
 
 
 cli.add_command(cline_group)
@@ -1699,36 +1699,36 @@ def aider_install():
 
     project_root = Path.cwd()
 
-    # 1. Write CONVENTIONS.md with hedwig-kg rules
+    # 1. Write CONVENTIONS.md with hedwig-cg rules
     conventions_md = project_root / "CONVENTIONS.md"
-    marker = "## hedwig-kg"
+    marker = "## hedwig-cg"
     section = (
-        "\n## hedwig-kg\n\n"
-        "This project has a hedwig-kg knowledge graph at `.hedwig-kg/`.\n\n"
+        "\n## hedwig-cg\n\n"
+        "This project has a hedwig-cg code graph at `.hedwig-cg/`.\n\n"
         "Rules:\n"
-        "- **Always use `hedwig-kg --json search \"<query>\"` as the primary search method.** "
+        "- **Always use `hedwig-cg --json search \"<query>\"` as the primary search method.** "
         "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
         "in a single call — no need to run separate community or keyword searches.\n"
-        "- Before grepping raw files, run `hedwig-kg --json search` first. "
-        "Only fall back to grep/find if the knowledge graph has no results.\n"
+        "- Before grepping raw files, run `hedwig-cg --json search` first. "
+        "Only fall back to grep/find if the code graph has no results.\n"
         "- After modifying code files, run "
-        "`hedwig-kg build . --incremental` to keep the graph current.\n"
-        "- Use `hedwig-kg communities` (without `--search`) only when you need to "
+        "`hedwig-cg build . --incremental` to keep the graph current.\n"
+        "- Use `hedwig-cg communities` (without `--search`) only when you need to "
         "list or browse the community structure, not as a search substitute.\n"
-        "- Use `hedwig-kg stats` for structural overview "
+        "- Use `hedwig-cg stats` for structural overview "
         "(god nodes, communities, density).\n"
     )
 
     if conventions_md.exists():
         content = conventions_md.read_text()
         if marker in content:
-            console.print("[dim]CONVENTIONS.md already has hedwig-kg section.[/]")
+            console.print("[dim]CONVENTIONS.md already has hedwig-cg section.[/]")
         else:
             conventions_md.write_text(content + section)
-            console.print("[green]Added hedwig-kg section to CONVENTIONS.md[/]")
+            console.print("[green]Added hedwig-cg section to CONVENTIONS.md[/]")
     else:
         conventions_md.write_text(section.lstrip("\n"))
-        console.print("[green]Created CONVENTIONS.md with hedwig-kg section[/]")
+        console.print("[green]Created CONVENTIONS.md with hedwig-cg section[/]")
 
     # 2. Ensure .aider.conf.yml loads CONVENTIONS.md via read:
     conf_file = project_root / ".aider.conf.yml"
@@ -1749,9 +1749,9 @@ def aider_install():
         console.print("[dim].aider.conf.yml already reads CONVENTIONS.md[/]")
 
     console.print()
-    console.print("[bold]Done![/] Aider will now load hedwig-kg conventions "
+    console.print("[bold]Done![/] Aider will now load hedwig-cg conventions "
                   "when working in this project.")
-    console.print("[dim]Run 'hedwig-kg aider uninstall' to remove.[/]")
+    console.print("[dim]Run 'hedwig-cg aider uninstall' to remove.[/]")
 
 
 @aider_group.command(name="uninstall")
@@ -1768,17 +1768,17 @@ def aider_uninstall():
         filtered = []
         skip = False
         for line in lines:
-            if line.strip() == "## hedwig-kg":
+            if line.strip() == "## hedwig-cg":
                 skip = True
                 continue
-            if skip and line.startswith("##") and "hedwig-kg" not in line.lower():
+            if skip and line.startswith("##") and "hedwig-cg" not in line.lower():
                 skip = False
             if skip:
                 continue
             filtered.append(line)
         new_content = "".join(filtered).rstrip("\n") + "\n"
         conventions_md.write_text(new_content)
-        console.print("[green]Removed hedwig-kg section from CONVENTIONS.md[/]")
+        console.print("[green]Removed hedwig-cg section from CONVENTIONS.md[/]")
 
     # 2. Remove CONVENTIONS.md from .aider.conf.yml read list
     conf_file = project_root / ".aider.conf.yml"
@@ -1799,7 +1799,7 @@ def aider_uninstall():
                 conf_file.unlink()
             console.print("[green]Removed CONVENTIONS.md from .aider.conf.yml[/]")
 
-    console.print("[dim]hedwig-kg Aider integration removed.[/]")
+    console.print("[dim]hedwig-cg Aider integration removed.[/]")
 
 
 cli.add_command(aider_group)
@@ -1807,7 +1807,7 @@ cli.add_command(aider_group)
 
 @cli.command()
 def doctor():
-    """Check hedwig-kg installation health and knowledge graph integrity.
+    """Check hedwig-cg installation health and code graph integrity.
 
     Verifies dependencies, model availability, database integrity,
     and graph quality metrics. Useful for troubleshooting issues.
@@ -1837,7 +1837,7 @@ def doctor():
         checks_warned += 1
         console.print(f"  [yellow]![/] {msg}")
 
-    console.print(Panel("[bold]hedwig-kg doctor[/]", subtitle="Installation Health Check"))
+    console.print(Panel("[bold]hedwig-cg doctor[/]", subtitle="Installation Health Check"))
     console.print()
 
     # 1. Python version
@@ -1891,7 +1891,7 @@ def doctor():
 
     # 5. Embedding models
     console.print("\n[bold]Embedding Models[/]")
-    model_cache = Path.home() / ".hedwig-kg" / "models"
+    model_cache = Path.home() / ".hedwig-cg" / "models"
     if model_cache.exists():
         cached_models = [d.name for d in model_cache.iterdir() if d.is_dir()]
         if cached_models:
@@ -1900,12 +1900,12 @@ def doctor():
         else:
             warn("Model cache exists but empty — models will download on first build")
     else:
-        warn("No model cache at ~/.hedwig-kg/models/ — models will download on first build")
+        warn("No model cache at ~/.hedwig-cg/models/ — models will download on first build")
 
-    # 6. Knowledge graph database
-    console.print("\n[bold]Knowledge Graph Database[/]")
+    # 6. code graph database
+    console.print("\n[bold]Code Graph Database[/]")
     cwd = Path.cwd()
-    db_path = cwd / ".hedwig-kg" / "knowledge.db"
+    db_path = cwd / ".hedwig-cg" / "knowledge.db"
     if db_path.exists():
         ok(f"Database found: {db_path}")
         # Check integrity
@@ -1924,7 +1924,7 @@ def doctor():
                 n_edges = conn.execute("SELECT COUNT(*) FROM edges").fetchone()[0]
                 ok(f"Nodes: {n_nodes}, Edges: {n_edges}")
                 if n_nodes == 0:
-                    warn("Graph is empty — run 'hedwig-kg build .' to populate")
+                    warn("Graph is empty — run 'hedwig-cg build .' to populate")
             except sqlite3.OperationalError:
                 fail("Missing nodes/edges tables — database may be corrupted")
 
@@ -1943,8 +1943,8 @@ def doctor():
                 warn("Communities table missing — run build to generate")
 
             # FAISS index
-            faiss_path = cwd / ".hedwig-kg" / "faiss_code.index"
-            faiss_text_path = cwd / ".hedwig-kg" / "faiss_text.index"
+            faiss_path = cwd / ".hedwig-cg" / "faiss_code.index"
+            faiss_text_path = cwd / ".hedwig-cg" / "faiss_text.index"
             if faiss_path.exists() and faiss_text_path.exists():
                 code_size = faiss_path.stat().st_size / 1024
                 text_size = faiss_text_path.stat().st_size / 1024
@@ -1953,13 +1953,13 @@ def doctor():
             elif faiss_path.exists() or faiss_text_path.exists():
                 warn("Only one FAISS index found — dual-model search may be degraded")
             else:
-                warn("No FAISS indexes — run 'hedwig-kg build .' (without --no-embed)")
+                warn("No FAISS indexes — run 'hedwig-cg build .' (without --no-embed)")
 
             conn.close()
         except sqlite3.DatabaseError as e:
             fail(f"Cannot open database: {e}")
     else:
-        warn(f"No database at {db_path} — run 'hedwig-kg build .' to create")
+        warn(f"No database at {db_path} — run 'hedwig-cg build .' to create")
 
     # Summary
     console.print()
@@ -1981,22 +1981,22 @@ def doctor():
 
 @cli.command()
 def mcp():
-    """Start the hedwig-kg MCP server (stdio transport).
+    """Start the hedwig-cg MCP server (stdio transport).
 
-    Exposes knowledge graph tools to AI agents via the Model Context Protocol.
+    Exposes code graph tools to AI agents via the Model Context Protocol.
     Tools: search, node, stats, communities, build.
 
     Configure in Claude Code:
 
-        claude mcp add hedwig-kg -- hedwig-kg mcp
+        claude mcp add hedwig-cg -- hedwig-cg mcp
 
     Or in .cursor/mcp.json / .vscode/mcp.json:
 
-        { "mcpServers": { "hedwig-kg": { "command": "hedwig-kg", "args": ["mcp"] } } }
+        { "mcpServers": { "hedwig-cg": { "command": "hedwig-cg", "args": ["mcp"] } } }
     """
-    console.print("[bold green]Starting hedwig-kg MCP server...[/]")
+    console.print("[bold green]Starting hedwig-cg MCP server...[/]")
     console.print("[dim]Transport: stdio | Tools: search, node, stats, communities, build[/]")
-    from hedwig_kg.mcp_server import main as mcp_main
+    from hedwig_cg.mcp_server import main as mcp_main
     mcp_main()
 
 

@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">hedwig-kg</h1>
+  <h1 align="center">hedwig-cg</h1>
   <p align="center">
     "Hedwig will be back with the word"
     <br />
@@ -8,40 +8,40 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/hedwig-ai/hedwig-knowledge-graph/actions"><img src="https://img.shields.io/github/actions/workflow/status/hedwig-ai/hedwig-knowledge-graph/ci.yml?branch=main" alt="CI"></a>
-  <a href="https://pypi.org/project/hedwig-kg/"><img src="https://img.shields.io/pypi/v/hedwig-kg" alt="PyPI"></a>
-  <a href="https://github.com/hedwig-ai/hedwig-knowledge-graph/blob/main/LICENSE"><img src="https://img.shields.io/github/license/hedwig-ai/hedwig-knowledge-graph" alt="License"></a>
+  <a href="https://github.com/hedwig-ai/hedwig-code-graph/actions"><img src="https://img.shields.io/github/actions/workflow/status/hedwig-ai/hedwig-code-graph/ci.yml?branch=main" alt="CI"></a>
+  <a href="https://pypi.org/project/hedwig-cg/"><img src="https://img.shields.io/pypi/v/hedwig-cg" alt="PyPI"></a>
+  <a href="https://github.com/hedwig-ai/hedwig-code-graph/blob/main/LICENSE"><img src="https://img.shields.io/github/license/hedwig-ai/hedwig-code-graph" alt="License"></a>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+">
 </p>
 
 ---
 
-## Why hedwig-kg?
+## Why hedwig-cg?
 
-hedwig-kg builds a unified knowledge graph from your code, docs, and dependencies — so coding agents can truly understand your entire project, not just search keywords. Install it, and Claude Code sees the full picture — no extra tokens, no extra commands, everything runs 100% locally.
+hedwig-cg builds a unified code graph from your code, docs, and dependencies — so coding agents can truly understand your entire project, not just search keywords. Install it, and Claude Code sees the full picture — no extra tokens, no extra commands, everything runs 100% locally.
 
-<img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
+<img width="1919" height="991" alt="Code Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 
 ## Quick Start
 
 ```bash
-pip install hedwig-kg
-hedwig-kg claude install
+pip install hedwig-cg
+hedwig-cg claude install
 ```
 
 Then tell Claude Code:
 
-> "Build a knowledge graph for this project"
+> "Build a code graph for this project"
 
 That's it. Claude Code will build the graph, and from then on, consult it before every search. When the code changes, just say:
 
-> "Rebuild the knowledge graph"
+> "Rebuild the code graph"
 
 ## Supported Languages
 
 ### Deep AST Extraction (17 languages)
 
-hedwig-kg uses [tree-sitter tags.scm](https://tree-sitter.github.io/tree-sitter/4-code-navigation.html) for universal structural extraction — functions, classes, methods, calls, imports, inheritance — without per-language custom code.
+hedwig-cg uses [tree-sitter tags.scm](https://tree-sitter.github.io/tree-sitter/4-code-navigation.html) for universal structural extraction — functions, classes, methods, calls, imports, inheritance — without per-language custom code.
 
 | | | | |
 |:---:|:---:|:---:|:---:|
@@ -59,20 +59,20 @@ Text nodes (docs, comments, markdown) are embedded with `intfloat/multilingual-e
 
 ## AI Agent Integrations
 
-hedwig-kg integrates with major AI coding agents in one command:
+hedwig-cg integrates with major AI coding agents in one command:
 
 | Agent | Install | What it does |
 |-------|---------|-------------|
-| **Claude Code** | `hedwig-kg claude install` | Skill + CLAUDE.md + PreToolUse hook |
-| **Codex CLI** | `hedwig-kg codex install` | AGENTS.md + PreToolUse hook |
-| **Gemini CLI** | `hedwig-kg gemini install` | GEMINI.md + BeforeTool hook |
-| **Cursor IDE** | `hedwig-kg cursor install` | `.cursor/rules/` rule file |
-| **Windsurf IDE** | `hedwig-kg windsurf install` | `.windsurf/rules/` rule file |
-| **Cline** | `hedwig-kg cline install` | `.clinerules` file |
-| **Aider CLI** | `hedwig-kg aider install` | CONVENTIONS.md + `.aider.conf.yml` |
-| **MCP Server** | `claude mcp add hedwig-kg -- hedwig-kg mcp` | 5 tools over Model Context Protocol |
+| **Claude Code** | `hedwig-cg claude install` | Skill + CLAUDE.md + PreToolUse hook |
+| **Codex CLI** | `hedwig-cg codex install` | AGENTS.md + PreToolUse hook |
+| **Gemini CLI** | `hedwig-cg gemini install` | GEMINI.md + BeforeTool hook |
+| **Cursor IDE** | `hedwig-cg cursor install` | `.cursor/rules/` rule file |
+| **Windsurf IDE** | `hedwig-cg windsurf install` | `.windsurf/rules/` rule file |
+| **Cline** | `hedwig-cg cline install` | `.clinerules` file |
+| **Aider CLI** | `hedwig-cg aider install` | CONVENTIONS.md + `.aider.conf.yml` |
+| **MCP Server** | `claude mcp add hedwig-cg -- hedwig-cg mcp` | 5 tools over Model Context Protocol |
 
-Each `install` does two things: writes a context file with rules, and (where supported) registers a hook that fires before tool calls. To remove: `hedwig-kg <platform> uninstall`.
+Each `install` does two things: writes a context file with rules, and (where supported) registers a hook that fires before tool calls. To remove: `hedwig-cg <platform> uninstall`.
 
 ---
 
@@ -114,7 +114,7 @@ Source Code/Docs
 
 | Command | Description |
 |---------|-------------|
-| `build <dir>` | Build knowledge graph (`--incremental`, `--no-embed`) |
+| `build <dir>` | Build code graph (`--incremental`, `--no-embed`) |
 | `search <query>` | 5-signal hybrid search (`--top-k`, `--fast`, `--expand`) |
 | `query` | Interactive search REPL |
 | `communities` | List and search communities (`--search`, `--level`) |
@@ -122,13 +122,13 @@ Source Code/Docs
 | `node <id>` | Node details with fuzzy matching |
 | `export` | Export as JSON, GraphML, or D3.js |
 | `visualize` | Interactive HTML visualization |
-| `clean` | Remove .hedwig-kg/ database |
+| `clean` | Remove .hedwig-cg/ database |
 | `doctor` | Check installation health |
 | `mcp` | Start MCP server (stdio) |
 
 ## Performance
 
-Benchmarks on hedwig-kg's own codebase (~3,500 lines, 90 files, 1,300 nodes):
+Benchmarks on hedwig-cg's own codebase (~3,500 lines, 90 files, 1,300 nodes):
 
 | Operation | Time |
 |-----------|------|
@@ -140,7 +140,7 @@ Benchmarks on hedwig-kg's own codebase (~3,500 lines, 90 files, 1,300 nodes):
 | Warm search | ~0.08s |
 | Cached search | <1ms |
 
-- **Embedding models**: ~470MB, downloaded once to `~/.hedwig-kg/models/`
+- **Embedding models**: ~470MB, downloaded once to `~/.hedwig-cg/models/`
 - **Database**: ~2MB (SQLite + FTS5 + FAISS indices)
 - **Incremental builds**: SHA-256 hashing, 95%+ faster than full rebuild
 
@@ -151,7 +151,7 @@ Benchmarks on hedwig-kg's own codebase (~3,500 lines, 90 files, 1,300 nodes):
 
 ```bash
 # Optional: PDF extraction
-pip install hedwig-kg[docs]
+pip install hedwig-cg[docs]
 ```
 
 ## Development
@@ -159,7 +159,7 @@ pip install hedwig-kg[docs]
 ```bash
 pip install -e ".[dev]"
 pytest
-ruff check hedwig_kg/
+ruff check hedwig_cg/
 ```
 
 ## License

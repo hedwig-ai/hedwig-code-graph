@@ -41,7 +41,7 @@ def hierarchical_cluster(
     """Run multi-resolution Leiden clustering to build a hierarchy.
 
     Args:
-        G: The knowledge graph.
+        G: The code graph.
         resolutions: List of resolution parameters (low=coarse, high=fine).
         min_community_size: Minimum nodes per community.
 
@@ -181,7 +181,7 @@ def summarize_communities(
     and file paths. This enables community-level search without an LLM.
 
     Args:
-        G: The knowledge graph.
+        G: The code graph.
         cluster_result: Clustering output to enrich.
         max_keywords: Max keywords to extract per community.
 

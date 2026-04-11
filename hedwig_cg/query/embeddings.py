@@ -1,4 +1,4 @@
-"""Embedding generation for knowledge graph nodes.
+"""Embedding generation for code graph nodes.
 
 Dual-model architecture:
 - Code nodes (function, class, method, module) → BAAI/bge-small-en-v1.5
@@ -53,15 +53,15 @@ SKIP_KINDS = frozenset({"external", "directory"})
 # Memory budget: 2 GB max for embeddings pipeline
 _MEMORY_LIMIT_BYTES = 2 * 1024 * 1024 * 1024
 
-# Model cache directory: ~/.hedwig-kg/models/
-_MODEL_CACHE_DIR = Path.home() / ".hedwig-kg" / "models"
+# Model cache directory: ~/.hedwig-cg/models/
+_MODEL_CACHE_DIR = Path.home() / ".hedwig-cg" / "models"
 
 # Lazy-loaded model cache (keyed by model name)
 _models: dict[str, object] = {}
 
 
 def _get_model(model_name: str):
-    """Lazy-load sentence-transformers model, caching to ~/.hedwig-kg/models/."""
+    """Lazy-load sentence-transformers model, caching to ~/.hedwig-cg/models/."""
     if model_name not in _models:
         from sentence_transformers import SentenceTransformer
 
@@ -82,7 +82,7 @@ def _get_model(model_name: str):
                 from rich.console import Console
                 Console(stderr=True).print(
                     f"[yellow]⬇ Downloading embedding model '{model_name}' "
-                    f"(first time only, saved to ~/.hedwig-kg/models/)...[/yellow]"
+                    f"(first time only, saved to ~/.hedwig-cg/models/)...[/yellow]"
                 )
             except ImportError:
                 pass

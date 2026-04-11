@@ -10,7 +10,7 @@ from pathlib import PurePosixPath
 
 import networkx as nx
 
-from hedwig_kg.core.extract import ExtractedEdge, ExtractionResult
+from hedwig_cg.core.extract import ExtractedEdge, ExtractionResult
 
 
 def build_graph(extractions: list[ExtractionResult]) -> nx.DiGraph:
@@ -166,7 +166,7 @@ def compute_edge_weights(
     weight = 0.4 * semantic + 0.3 * confidence + 0.2 * proximity + 0.1 * bidirectional
 
     Args:
-        G: The knowledge graph (modified in-place).
+        G: The code graph (modified in-place).
         embeddings: Optional node_id -> embedding vector mapping for semantic similarity.
     """
     import numpy as np
@@ -220,7 +220,7 @@ def compute_pagerank(
     """Compute PageRank importance scores for all nodes.
 
     Args:
-        G: The knowledge graph.
+        G: The code graph.
         personalization: Optional per-node bias (e.g., recency weighting).
 
     Returns:

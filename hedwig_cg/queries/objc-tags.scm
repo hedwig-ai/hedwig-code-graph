@@ -1,4 +1,4 @@
-; Objective-C tags.scm — custom for hedwig-kg
+; Objective-C tags.scm — custom for hedwig-cg
 
 (class_interface
   (identifier) @name) @definition.class

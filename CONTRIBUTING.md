@@ -1,13 +1,13 @@
-# Contributing to hedwig-kg
+# Contributing to hedwig-cg
 
-Thank you for your interest in contributing to hedwig-kg! This guide will help you get started.
+Thank you for your interest in contributing to hedwig-cg! This guide will help you get started.
 
 ## Development Setup
 
 ```bash
 # Clone the repository
-git clone https://github.com/hedwig-ai/hedwig-knowledge-graph.git
-cd hedwig-knowledge-graph
+git clone https://github.com/hedwig-ai/hedwig-code-graph.git
+cd hedwig-code-graph
 
 # Create a virtual environment
 python -m venv .venv
@@ -54,7 +54,7 @@ ruff format .
 ## Project Structure
 
 ```
-hedwig_kg/
+hedwig_cg/
 ├── cli/          # Click-based CLI interface
 ├── core/         # Pipeline stages (detect, extract, build, cluster, analyze)
 ├── query/        # Hybrid search engine (vector + graph + keyword + RRF)
@@ -94,7 +94,7 @@ detect → extract → build → embed → cluster → analyze → store
 
 ## Reporting Issues
 
-- Use [GitHub Issues](https://github.com/hedwig-ai/hedwig-knowledge-graph/issues) for bug reports and feature requests.
+- Use [GitHub Issues](https://github.com/hedwig-ai/hedwig-code-graph/issues) for bug reports and feature requests.
 - Include reproduction steps for bugs.
 - Mention your Python version and OS.
 

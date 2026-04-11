@@ -2,7 +2,7 @@
 
 import networkx as nx
 
-from hedwig_kg.core.cluster import (
+from hedwig_cg.core.cluster import (
     ClusterResult,
     Community,
     community_label,
@@ -106,7 +106,7 @@ class TestCommunitySummary:
 class TestCommunitySearch:
     def test_community_search_in_pipeline(self, tmp_path):
         """Integration test: build pipeline produces community summaries."""
-        from hedwig_kg.core.pipeline import run_pipeline
+        from hedwig_cg.core.pipeline import run_pipeline
 
         src = tmp_path / "src"
         src.mkdir()
