@@ -684,17 +684,54 @@ def _auto_rebuild_command() -> str:
 
 @cli.group(name="claude")
 def claude_group():
-    """Manage per-project Claude Code integration."""
+    """Manage Claude Code integration (skill + CLAUDE.md + hooks)."""
     pass
 
 
 @claude_group.command(name="install")
-def claude_install():
-    """Install per-project Claude Code integration (CLAUDE.md + PreToolUse hook)."""
+@click.option(
+    "--scope",
+    type=click.Choice(["user", "project"], case_sensitive=False),
+    default=None,
+    help="Install scope: 'user' (global ~/.claude/skills/) or 'project' (.claude/skills/). "
+         "If omitted, you will be prompted to choose.",
+)
+def claude_install(scope: str | None):
+    """Install Claude Code integration.
+
+    Priority order: 1) Skill registration  2) CLAUDE.md + hooks  3) MCP (already available via 'hedwig-kg mcp')
+    """
     import json
+    import shutil
 
     project_root = Path.cwd()
 
+    # --- Prompt for scope if not provided ---
+    if scope is None:
+        console.print("[bold]Select installation scope:[/]")
+        console.print("  [cyan]1)[/] user    — Global (~/.claude/skills/). Available in ALL projects.")
+        console.print("  [cyan]2)[/] project — Local (.claude/skills/). Available only in THIS project.")
+        choice = click.prompt("Choose scope", type=click.Choice(["1", "2", "user", "project"]), default="1")
+        scope = "user" if choice in ("1", "user") else "project"
+
+    # --- Priority 1: Install Skill ---
+    skill_source = Path(__file__).parent.parent / "skill.md"
+    if scope == "user":
+        skill_dir = Path.home() / ".claude" / "skills" / "hedwig-kg"
+    else:
+        skill_dir = project_root / ".claude" / "skills" / "hedwig-kg"
+
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    skill_dest = skill_dir / "SKILL.md"
+
+    if skill_source.exists():
+        shutil.copy2(skill_source, skill_dest)
+        scope_label = "~/.claude/skills/hedwig-kg/" if scope == "user" else ".claude/skills/hedwig-kg/"
+        console.print(f"[green]✓ Skill installed[/] → {scope_label}SKILL.md ({scope} scope)")
+    else:
+        console.print("[yellow]⚠ Skill source not found, skipping skill registration.[/]")
+
+    # --- Priority 2: CLAUDE.md + hooks ---
     # 1. Write section to project CLAUDE.md
     claude_md = project_root / "CLAUDE.md"
     marker = "## hedwig-kg"
@@ -794,11 +831,35 @@ def claude_install():
 
 
 @claude_group.command(name="uninstall")
-def claude_uninstall():
-    """Remove per-project Claude Code integration."""
+@click.option(
+    "--scope",
+    type=click.Choice(["user", "project", "all"], case_sensitive=False),
+    default="all",
+    help="Uninstall scope: 'user', 'project', or 'all' (default).",
+)
+def claude_uninstall(scope: str):
+    """Remove Claude Code integration (skill + CLAUDE.md + hooks)."""
     import json
+    import shutil
 
     project_root = Path.cwd()
+
+    # 0. Remove skill
+    removed_skill = False
+    if scope in ("user", "all"):
+        user_skill = Path.home() / ".claude" / "skills" / "hedwig-kg"
+        if user_skill.exists():
+            shutil.rmtree(user_skill)
+            console.print("[green]Removed user-scope skill (~/.claude/skills/hedwig-kg/)[/]")
+            removed_skill = True
+    if scope in ("project", "all"):
+        proj_skill = project_root / ".claude" / "skills" / "hedwig-kg"
+        if proj_skill.exists():
+            shutil.rmtree(proj_skill)
+            console.print("[green]Removed project-scope skill (.claude/skills/hedwig-kg/)[/]")
+            removed_skill = True
+    if not removed_skill:
+        console.print("[dim]No skill found to remove.[/]")
 
     # 1. Remove section from CLAUDE.md
     claude_md = project_root / "CLAUDE.md"

@@ -1,11 +1,11 @@
 ---
 name: hedwig-kg
-description: Local-first knowledge graph builder with 5-signal HybridRAG search (dual vector + graph + keyword + community). Use when analyzing codebases, searching for code architecture, exploring dependencies, or building knowledge graphs from source code and documents.
+description: Local-first knowledge graph builder with 5-signal HybridRAG search (dual vector + graph + keyword + community → RRF fusion). Use when analyzing codebases, searching for code architecture, exploring dependencies, or building knowledge graphs from source code and documents.
 ---
 
 # hedwig-kg
 
-Build knowledge graphs from source code and documents. Search with 5-signal HybridRAG fusion (code vector + text vector + graph traversal + FTS5 keyword + community matching). 100% local — no cloud APIs.
+Build knowledge graphs from source code and documents. Search with 5-signal HybridRAG fusion (code vector + text vector + graph traversal + FTS5 keyword + community matching → RRF). Dual embedding models: `BAAI/bge-small-en-v1.5` for code, `all-MiniLM-L6-v2` for text. 100% local — no cloud APIs.
 
 ## Quick Start
 
@@ -16,87 +16,52 @@ python3 -c "import hedwig_kg" 2>/dev/null || pip install hedwig-kg
 # Build knowledge graph from current directory
 hedwig-kg build .
 
-# Search the knowledge graph
+# Search the knowledge graph (PRIMARY command)
 hedwig-kg search "authentication handler"
 ```
 
-## Core Patterns
+## Core Commands
 
-### Build and Rebuild
+### Search (PRIMARY — use this first)
+
+```bash
+# 5-signal HybridRAG search — covers vector, graph, keyword, community
+hedwig-kg search "database connection pool"
+
+# More results
+hedwig-kg search "error handling" --top-k 20
+
+# Fast mode (text model only, lower latency)
+hedwig-kg search "auth" --fast
+```
+
+### Build
 
 ```bash
 # Full build (first time)
 hedwig-kg build .
 
-# Incremental rebuild (skips unchanged files via SHA-256 hash)
+# Incremental rebuild (skips unchanged files)
 hedwig-kg build . --incremental
-
-# Build without embeddings (faster, keyword-only search)
-hedwig-kg build . --no-embed
 ```
 
-### Search
+### Inspect
 
 ```bash
-# 5-signal HybridRAG search
-hedwig-kg search "database connection pool"
-
-# More results
-hedwig-kg search "error handling" --top-k 20
-```
-
-### Explore Structure
-
-```bash
-# Graph statistics (density, components, clustering)
+# Graph statistics
 hedwig-kg stats
 
-# Community exploration
-hedwig-kg communities
-hedwig-kg communities --search "auth"
-
-# Node details (supports fuzzy matching)
+# Node details (supports partial matching)
 hedwig-kg node "AuthHandler"
-
-# Interactive REPL (graph stays loaded for fast queries)
-hedwig-kg query
-```
-
-### Export and Visualize
-
-```bash
-# Export formats
-hedwig-kg export --format json
-hedwig-kg export --format d3
-
-# Interactive HTML visualization
-hedwig-kg visualize
-hedwig-kg visualize --max-nodes 300 --offline
 ```
 
 ## Rules
 
-- Check `.hedwig-kg/knowledge.db` before grepping raw files — use `hedwig-kg search` for graph-aware results.
+- **Always use `hedwig-kg search "<query>"` as the primary search method.** It runs 5-signal HybridRAG in a single call — no need for separate searches.
+- Before grepping raw files with Glob/Grep, run `hedwig-kg search` first. Only fall back to Grep if the knowledge graph has no results.
 - Run `hedwig-kg build . --incremental` after modifying code files to keep the graph current.
-- Use `hedwig-kg communities --search "<topic>"` for high-level architecture understanding.
 - Use `hedwig-kg stats` for structural overview (god nodes, communities, density).
-
-## Commands Reference
-
-| Command | Description |
-|---------|-------------|
-| `hedwig-kg build <dir>` | Build knowledge graph (`--incremental`, `--no-embed`) |
-| `hedwig-kg search <query>` | 5-signal HybridRAG search (`--top-k`) |
-| `hedwig-kg communities` | List/search communities (`--search`, `--level`) |
-| `hedwig-kg stats` | Graph statistics with quality metrics |
-| `hedwig-kg node <id>` | Node details with fuzzy matching |
-| `hedwig-kg export` | Export as JSON, GraphML, D3.js |
-| `hedwig-kg visualize` | Interactive HTML visualization (`--offline`) |
-| `hedwig-kg query` | Interactive search REPL |
-| `hedwig-kg clean` | Remove .hedwig-kg/ database |
-| `hedwig-kg install` | Register /hedwig-kg slash command globally |
-| `hedwig-kg claude install` | Per-project CLAUDE.md + PreToolUse hook |
 
 ## Output
 
-Knowledge base: `<project>/.hedwig-kg/knowledge.db` (SQLite + FTS5 + FAISS vector index).
+Knowledge base: `<project>/.hedwig-kg/knowledge.db` (SQLite + FTS5 + dual FAISS vector indices).
