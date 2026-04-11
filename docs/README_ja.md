@@ -18,9 +18,7 @@
 
 ## なぜ hedwig-kg なのか？
 
-コーディングエージェントはキーワードで検索します——`payment_service.py`は見つけますが、同じドメインにある`fraud_detector.py`、`policy.yaml`、`test_chargeback.py`は見逃します。hedwig-kgはコード、ドキュメント、設定、テストを関係性で結ぶ知識グラフを構築します。エージェントがキーワードマッチではなく、全体の文脈を把握できるようになります。
-
-すべて100%ローカルで実行されます。クラウドサービス不要、データが外部に出ることはありません。
+hedwig-kgはtree-sitter AST抽出（17言語）でソースコードを解析し、NetworkX上に知識グラフを構築、5シグナルハイブリッド検索——デュアルベクトル（コード＋テキスト）、グラフ拡張、FTS5キーワード、コミュニティ要約——を加重RRFで統合して提供します。エージェントは単一のエンドポイントでコード、ドキュメント、設定、テストを横断したランキング結果を取得できます。すべてSQLite + FAISS + sentence-transformersベースで100%ローカル実行——クラウドサービス不要、データが外部に出ることはありません。
 
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 

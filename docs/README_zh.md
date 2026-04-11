@@ -18,9 +18,7 @@
 
 ## 为什么选择 hedwig-kg？
 
-编程代理通过关键词搜索——能找到`payment_service.py`，却会错过同一领域中的`fraud_detector.py`、`policy.yaml`和`test_chargeback.py`。hedwig-kg构建知识图谱，通过关系将代码、文档、配置和测试连接起来。代理能看到完整的上下文，而不仅仅是关键词匹配。
-
-一切100%在本地运行。无需云服务，数据不会离开你的机器。
+hedwig-kg通过tree-sitter AST提取（17种语言）分析源代码，在NetworkX上构建知识图谱，提供5信号混合搜索——双向量（代码+文本）、图扩展、FTS5关键词、社区摘要——通过加权RRF融合。代理查询单一端点，即可获得跨代码、文档、配置和测试的排序结果。一切基于SQLite + FAISS + sentence-transformers 100%本地运行——无需云服务，数据不会离开你的机器。
 
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 

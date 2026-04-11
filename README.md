@@ -18,9 +18,7 @@
 
 ## Why hedwig-kg?
 
-Coding agents search by keywords — they find `payment_service.py` but miss `fraud_detector.py`, `policy.yaml`, and `test_chargeback.py` in the same domain. hedwig-kg builds a knowledge graph that connects code, docs, configs, and tests by their relationships. Agents see the full context, not just keyword matches.
-
-Everything runs 100% locally. No cloud services, no data leaves your machine.
+hedwig-kg analyzes source code with tree-sitter AST extraction (17 languages), builds a knowledge graph on NetworkX, and provides 5-signal hybrid search — dual vector (code + text), graph expansion, FTS5 keyword, and community summary — fused via weighted RRF. Agents query one endpoint and get ranked results across code, docs, configs, and tests. Everything runs 100% locally on SQLite + FAISS + sentence-transformers — no cloud services, no data leaves your machine.
 
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 

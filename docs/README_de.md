@@ -18,9 +18,7 @@
 
 ## Warum hedwig-kg?
 
-Coding-Agents suchen nach Schluesselwoertern — sie finden `payment_service.py`, aber uebersehen `fraud_detector.py`, `policy.yaml` und `test_chargeback.py` in derselben Domaene. hedwig-kg erstellt einen Knowledge Graph, der Code, Dokumentation, Konfiguration und Tests durch ihre Beziehungen verbindet. Agents sehen den vollstaendigen Kontext, nicht nur Keyword-Treffer.
-
-Alles laeuft 100% lokal. Keine Cloud-Dienste, keine Daten verlassen Ihren Rechner.
+hedwig-kg analysiert Quellcode mit tree-sitter AST-Extraktion (17 Sprachen), erstellt einen Knowledge Graph auf NetworkX und bietet 5-Signal-Hybridsuche — Dual-Vektor (Code + Text), Graph-Expansion, FTS5-Keyword und Community-Zusammenfassung — fusioniert durch gewichtetes RRF. Agents fragen einen Endpunkt ab und erhalten gerankte Ergebnisse ueber Code, Dokumentation, Konfiguration und Tests. Alles laeuft 100% lokal auf SQLite + FAISS + sentence-transformers — keine Cloud-Dienste, keine Daten verlassen Ihren Rechner.
 
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 

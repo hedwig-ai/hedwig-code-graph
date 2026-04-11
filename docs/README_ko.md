@@ -18,9 +18,7 @@
 
 ## 왜 hedwig-kg인가?
 
-코딩 에이전트는 키워드로 검색합니다 — `payment_service.py`는 찾지만, 같은 도메인에 있는 `fraud_detector.py`, `policy.yaml`, `test_chargeback.py`는 놓칩니다. hedwig-kg는 코드, 문서, 설정, 테스트를 관계로 연결하는 지식 그래프를 만듭니다. 에이전트가 키워드 매칭이 아닌 전체 맥락을 볼 수 있게 됩니다.
-
-모든 것이 100% 로컬에서 실행됩니다. 클라우드 서비스 없이, 데이터가 외부로 나가지 않습니다.
+hedwig-kg는 tree-sitter AST 추출(17개 언어)로 소스 코드를 분석하고, NetworkX 위에 지식 그래프를 구축하며, 5-signal 하이브리드 검색 — 듀얼 벡터(코드 + 텍스트), 그래프 확장, FTS5 키워드, 커뮤니티 요약 — 을 가중 RRF로 융합하여 제공합니다. 에이전트는 하나의 엔드포인트로 코드, 문서, 설정, 테스트를 아우르는 랭킹된 결과를 받습니다. 모든 것이 SQLite + FAISS + sentence-transformers 기반으로 100% 로컬에서 실행되며, 클라우드 서비스 없이 데이터가 외부로 나가지 않습니다.
 
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 
