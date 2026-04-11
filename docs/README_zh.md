@@ -18,15 +18,15 @@
 
 ## 为什么选择 hedwig-kg？
 
-你是一名软件工程师。当你想到支付领域的开发时，会想到什么？也许是"Paddle"或"Stripe"。
+用Claude Code开发时，你是否感觉到某些不对劲的地方？
 
-但像Claude Code这样的工具无法自然地找到相关代码——它们甚至不知道如何寻找。语义连接根本不存在。对Claude来说，"Payment"和"Stripe"生活在完全不同的世界里。
+比如，在开发支付领域时，我们自然会联想到信用卡、Stripe、钱——这些概念直觉地联系在一起。
 
-所以它只能做唯一知道的事情——一遍又一遍地grep"Payment"这个词。
+但编程代理看不到这些联系。它只是反复搜索"Payment"这个词。对它来说，"Payment"和"Card"是完全不相关的。
 
-**hedwig-kg**解决了这个问题。它从代码库构建知识图谱——函数、类、import、调用图、继承、社区——并像人类思考的方式一样进行语义搜索。
+为了弥合这个差距，我构建了一个通过创建知识图谱为知识赋予意义的产品——让编程代理能够像人类一样推理。
 
-当你问"找找支付相关的代码"时，即使代码中没有"payment"这个词，它也能找到`StripeClient`、`checkout_handler`和`WebhookController`。
+有了它，Claude Code可以更直观地探索代码库，节省token，甚至发现以前找不到的代码。
 
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 

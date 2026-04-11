@@ -18,15 +18,15 @@
 
 ## Why hedwig-kg?
 
-You're a software engineer. When you think about building in the payments domain, what comes to mind? Maybe "Paddle" or "Stripe."
+Have you ever felt something slightly off when developing with Claude Code?
 
-But tools like Claude Code don't naturally surface relevant code — and they don't even know how to look for it. The semantic connection simply doesn't exist. To Claude, "Payment" and "Stripe" live in entirely separate worlds.
+For example, when building a payment domain, we naturally think of cards, Stripe, money — related concepts that come together intuitively.
 
-So it keeps doing the only thing it knows how to do — grepping for the word "Payment," over and over again.
+But a coding agent doesn't see those connections. It simply searches for the word "Payment" over and over. To it, "Payment" and "Card" are completely separate.
 
-**hedwig-kg** fixes this. It builds a knowledge graph from your codebase — functions, classes, imports, call graphs, inheritance, communities — and searches it semantically, more like how humans actually think.
+To bridge that gap, I built a product that adds meaning to knowledge by creating a knowledge graph — so coding agents can reason more like humans.
 
-When you ask "find payment-related code," it finds `StripeClient`, `checkout_handler`, and `WebhookController` — even though none of them contain the word "payment."
+With it, Claude Code can explore codebases more intuitively, save tokens, and even uncover code it would have otherwise missed.
 
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 

@@ -18,15 +18,15 @@
 
 ## Warum hedwig-kg?
 
-Sie sind Softwareentwickler. Wenn Sie an die Entwicklung im Zahlungsbereich denken, was faellt Ihnen ein? Vielleicht "Paddle" oder "Stripe".
+Haben Sie beim Entwickeln mit Claude Code schon einmal etwas Seltsames bemerkt?
 
-Aber Tools wie Claude Code koennen relevanten Code nicht natuerlich finden — sie wissen nicht einmal, wie sie danach suchen sollen. Die semantische Verbindung existiert einfach nicht. Fuer Claude leben "Payment" und "Stripe" in voellig verschiedenen Welten.
+Wenn wir beispielsweise im Zahlungsbereich entwickeln, denken wir natuerlich an Karten, Stripe, Geld — verwandte Konzepte, die intuitiv zusammengehoeren.
 
-Also macht es das Einzige, was es kann — immer wieder nach dem Wort "Payment" greppen.
+Aber ein Coding-Agent sieht diese Verbindungen nicht. Er sucht einfach immer wieder nach dem Wort "Payment". Fuer ihn sind "Payment" und "Card" voellig getrennte Begriffe.
 
-**hedwig-kg** loest dieses Problem. Es baut einen Knowledge Graph aus Ihrer Codebasis — Funktionen, Klassen, Imports, Call-Graphen, Vererbung, Communities — und sucht semantisch, aehnlich wie Menschen denken.
+Um diese Luecke zu schliessen, habe ich ein Produkt entwickelt, das Wissen durch die Erstellung eines Knowledge Graphs mit Bedeutung versieht — damit Coding-Agents aehnlich wie Menschen denken koennen.
 
-Wenn Sie fragen "Finde zahlungsbezogenen Code", findet es `StripeClient`, `checkout_handler` und `WebhookController` — auch wenn keines davon das Wort "Payment" enthaelt.
+Damit kann Claude Code Codebasen intuitiver erkunden, Tokens sparen und sogar Code entdecken, der sonst uebersehen worden waere.
 
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 
