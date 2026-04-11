@@ -16,6 +16,9 @@
 
 ---
 
+<img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
+
+
 **hedwig-kg** builds knowledge graphs from source code and documents, then provides **4-signal HybridRAG search** that fuses vector similarity, graph traversal, keyword matching, and community summaries. Everything runs **100% locally** — no cloud APIs, no data leaves your machine.
 
 ## Integration with AI Coding Agents
