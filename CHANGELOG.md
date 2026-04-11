@@ -5,12 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.3] - 2026-04-11
+## [0.2.0] - 2026-04-11
 
 ### Added
 - **Cursor IDE integration** (`hedwig-kg cursor install/uninstall`): Creates `.cursor/rules/hedwig-kg.mdc` with alwaysApply rules
 - **Windsurf IDE integration** (`hedwig-kg windsurf install/uninstall`): Creates `.windsurf/rules/hedwig-kg.md` for Cascade
-- **Weighted Reciprocal Rank Fusion**: Per-signal weights (code_vec=1.2, text_vec=1.2, graph=0.8, keyword=1.0, community=0.6) for tunable search quality
+- **Cline (VS Code extension) integration** as 8th supported AI agent
+- **`hedwig-kg doctor` command**: 21-point installation health check (Python version, deps, tree-sitter parsers, MCP, embedding models, DB integrity, FAISS indexes)
+- **MCP tool descriptions optimized for AI agents**: `search` marked as PRIMARY tool, `communities` marked as "rarely needed", `instructions` guide agents to start with search
+- **AI Agent Interface Design Principle** documented in CLAUDE.md: minimal interface philosophy to prevent hallucination
+- **Weighted Reciprocal Rank Fusion**: Per-signal weights (code_vec=1.0, text_vec=1.0, graph=0.8, keyword=1.5, community=0.7) tuned for optimal search quality
 - **Stopword filtering**: 80+ common English stopwords removed from keyword/community search terms for improved FTS5 precision
 - **LRU search result cache** (128 entries): Instant return for repeated queries, auto-cleared on graph rebuild
 - **Query embedding LRU cache** (256 entries): Eliminates re-encoding for identical queries (291ms → 0ms)
@@ -35,11 +39,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README updated with real benchmarks (9.5s full build, 0.4s incremental, 0.08s warm search), new features (fast search, line numbers, decorator extraction, incremental embedding), and revised optimizations list
 - FAISS index loading now uses `IO_FLAG_MMAP` for lower RSS and faster cold starts on large indices (with automatic fallback)
 - Pipeline automatically clears search result and query embedding caches after rebuild
+- RRF keyword weight boosted from 1.0 → 1.5 so exact-match code entities rank higher
+- Graph expansion seeds increased from top-5 to top-8 for broader graph signal coverage
+
+### Fixed
+- **CI failure**: Added `mcp>=1.0` to dev dependencies and `pytest.importorskip("mcp")` guard for graceful skip
+- **MCP stats tool**: Fixed `compute_god_nodes` (non-existent) → `analyze()` from analyze module returning `AnalysisResult.god_nodes`
+- **Fast mode variable shadowing**: `code_vector_hits` was incorrectly overwritten with text-model results
 
 ### Performance
 - Search performance improved ~46% (5.9s → 3.2s) via FAISS disk persistence and graph expansion caching
 - Query embedding cache hit: 291ms → 0ms (3M+ speedup for repeated queries)
 - FAISS mmap loading reduces memory footprint for large indices
+- Warm search: 0.02s, cached search: 0.006s (986 nodes / 2091 edges)
 
 ## [0.1.2] - 2026-04-11
 
@@ -109,7 +121,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI (Python 3.10-3.12, Ubuntu + macOS)
 - CONTRIBUTING.md with development guide
 
-[Unreleased]: https://github.com/hedwig-ai/hedwig-knowledge-graph/compare/v0.1.3...HEAD
-[0.1.3]: https://github.com/hedwig-ai/hedwig-knowledge-graph/compare/v0.1.2...v0.1.3
+[Unreleased]: https://github.com/hedwig-ai/hedwig-knowledge-graph/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/hedwig-ai/hedwig-knowledge-graph/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/hedwig-ai/hedwig-knowledge-graph/compare/v0.1.0...v0.1.2
 [0.1.0]: https://github.com/hedwig-ai/hedwig-knowledge-graph/releases/tag/v0.1.0
