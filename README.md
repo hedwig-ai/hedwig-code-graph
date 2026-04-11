@@ -69,11 +69,19 @@ hedwig-kg windsurf install
 
 Creates `.windsurf/rules/hedwig-kg.md` rule file. Windsurf Cascade will automatically apply hedwig-kg search rules when working in your project.
 
+### Aider CLI
+
+```bash
+hedwig-kg aider install
+```
+
+Creates `CONVENTIONS.md` with hedwig-kg rules + adds it to `.aider.conf.yml` read list. Aider will automatically load knowledge graph conventions.
+
 ### How It Works
 
 Each `install` command does two things:
 
-1. **Context file** — Adds a `## hedwig-kg` section to the platform's context file (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`) or rule file (`.cursor/rules/`, `.windsurf/rules/`) with rules for using the knowledge graph
+1. **Context file** — Adds a `## hedwig-kg` section to the platform's context file (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `CONVENTIONS.md`) or rule file (`.cursor/rules/`, `.windsurf/rules/`) with rules for using the knowledge graph
 2. **Hook** — For platforms that support it (Claude Code, Codex, Gemini), registers a lightweight shell hook that fires before tool calls, reminding the agent to use `hedwig-kg search` instead of grepping raw files
 
 To remove: `hedwig-kg <platform> uninstall`
@@ -118,6 +126,7 @@ hedwig-kg codex install      # Codex CLI
 hedwig-kg gemini install     # Gemini CLI
 hedwig-kg cursor install     # Cursor IDE
 hedwig-kg windsurf install   # Windsurf IDE
+hedwig-kg aider install      # Aider CLI
 ```
 
 ### 4. Keep It Updated
@@ -184,6 +193,7 @@ Source Code/Docs
 | `gemini install` | Gemini CLI integration |
 | `cursor install` | Cursor IDE integration |
 | `windsurf install` | Windsurf IDE integration |
+| `aider install` | Aider CLI integration |
 
 ## Key Features
 
@@ -192,7 +202,7 @@ Source Code/Docs
 - **Tree-sitter AST Extraction** — Python, JavaScript, TypeScript with call graph analysis
 - **Hierarchical Communities** — Multi-resolution Leiden clustering with auto-generated summaries
 - **Incremental Builds** — SHA-256 content hashing skips unchanged files
-- **5 AI Agent Integrations** — Claude Code, Codex CLI, Gemini CLI, Cursor IDE, Windsurf IDE
+- **6 AI Agent Integrations** — Claude Code, Codex CLI, Gemini CLI, Cursor IDE, Windsurf IDE, Aider CLI
 - **100% Local** — SQLite + FTS5 + FAISS, no cloud APIs
 - **20+ Languages** — File detection for Python, JS/TS, Java, Go, Rust, C/C++, Ruby, and more
 

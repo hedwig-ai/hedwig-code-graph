@@ -1262,5 +1262,126 @@ def windsurf_uninstall():
 cli.add_command(windsurf_group)
 
 
+# --- Aider integration ---
+
+@cli.group(name="aider")
+def aider_group():
+    """Manage per-project Aider CLI integration."""
+    pass
+
+
+@aider_group.command(name="install")
+def aider_install():
+    """Install per-project Aider integration (CONVENTIONS.md + .aider.conf.yml)."""
+    import yaml
+
+    project_root = Path.cwd()
+
+    # 1. Write CONVENTIONS.md with hedwig-kg rules
+    conventions_md = project_root / "CONVENTIONS.md"
+    marker = "## hedwig-kg"
+    section = (
+        "\n## hedwig-kg\n\n"
+        "This project has a hedwig-kg knowledge graph at `.hedwig-kg/`.\n\n"
+        "Rules:\n"
+        "- **Always use `hedwig-kg search \"<query>\"` as the primary search method.** "
+        "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
+        "in a single call — no need to run separate community or keyword searches.\n"
+        "- Before grepping raw files, run `hedwig-kg search` first. "
+        "Only fall back to grep/find if the knowledge graph has no results.\n"
+        "- After modifying code files, run "
+        "`hedwig-kg build . --incremental` to keep the graph current.\n"
+        "- Use `hedwig-kg communities` (without `--search`) only when you need to "
+        "list or browse the community structure, not as a search substitute.\n"
+        "- Use `hedwig-kg stats` for structural overview "
+        "(god nodes, communities, density).\n"
+    )
+
+    if conventions_md.exists():
+        content = conventions_md.read_text()
+        if marker in content:
+            console.print("[dim]CONVENTIONS.md already has hedwig-kg section.[/]")
+        else:
+            conventions_md.write_text(content + section)
+            console.print("[green]Added hedwig-kg section to CONVENTIONS.md[/]")
+    else:
+        conventions_md.write_text(section.lstrip("\n"))
+        console.print("[green]Created CONVENTIONS.md with hedwig-kg section[/]")
+
+    # 2. Ensure .aider.conf.yml loads CONVENTIONS.md via read:
+    conf_file = project_root / ".aider.conf.yml"
+    if conf_file.exists():
+        conf = yaml.safe_load(conf_file.read_text()) or {}
+    else:
+        conf = {}
+
+    read_list = conf.get("read", [])
+    if isinstance(read_list, str):
+        read_list = [read_list]
+    if "CONVENTIONS.md" not in read_list:
+        read_list.append("CONVENTIONS.md")
+        conf["read"] = read_list
+        conf_file.write_text(yaml.dump(conf, default_flow_style=False))
+        console.print("[green]Added CONVENTIONS.md to .aider.conf.yml read list[/]")
+    else:
+        console.print("[dim].aider.conf.yml already reads CONVENTIONS.md[/]")
+
+    console.print()
+    console.print("[bold]Done![/] Aider will now load hedwig-kg conventions "
+                  "when working in this project.")
+    console.print("[dim]Run 'hedwig-kg aider uninstall' to remove.[/]")
+
+
+@aider_group.command(name="uninstall")
+def aider_uninstall():
+    """Remove per-project Aider integration."""
+    import yaml
+
+    project_root = Path.cwd()
+
+    # 1. Remove section from CONVENTIONS.md
+    conventions_md = project_root / "CONVENTIONS.md"
+    if conventions_md.exists():
+        lines = conventions_md.read_text().splitlines(keepends=True)
+        filtered = []
+        skip = False
+        for line in lines:
+            if line.strip() == "## hedwig-kg":
+                skip = True
+                continue
+            if skip and line.startswith("##") and "hedwig-kg" not in line.lower():
+                skip = False
+            if skip:
+                continue
+            filtered.append(line)
+        new_content = "".join(filtered).rstrip("\n") + "\n"
+        conventions_md.write_text(new_content)
+        console.print("[green]Removed hedwig-kg section from CONVENTIONS.md[/]")
+
+    # 2. Remove CONVENTIONS.md from .aider.conf.yml read list
+    conf_file = project_root / ".aider.conf.yml"
+    if conf_file.exists():
+        conf = yaml.safe_load(conf_file.read_text()) or {}
+        read_list = conf.get("read", [])
+        if isinstance(read_list, str):
+            read_list = [read_list]
+        if "CONVENTIONS.md" in read_list:
+            read_list.remove("CONVENTIONS.md")
+            if read_list:
+                conf["read"] = read_list
+            else:
+                conf.pop("read", None)
+            if conf:
+                conf_file.write_text(yaml.dump(conf, default_flow_style=False))
+            else:
+                conf_file.unlink()
+            console.print("[green]Removed CONVENTIONS.md from .aider.conf.yml[/]")
+
+    console.print("[dim]hedwig-kg Aider integration removed.[/]")
+
+
+cli.add_command(aider_group)
+
+
 if __name__ == "__main__":
     cli()

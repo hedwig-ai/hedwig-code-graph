@@ -47,6 +47,8 @@ feedbacks/
 .codex/
 AGENTS.md
 GEMINI.md
+CONVENTIONS.md
+.aider.conf.yml
 
 # OMC state
 .omc/
