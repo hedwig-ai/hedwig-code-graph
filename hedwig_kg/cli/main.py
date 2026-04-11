@@ -19,11 +19,47 @@ from rich.table import Table
 console = Console()
 
 
+def _suppress_library_logs():
+    """Suppress noisy library logs for JSON output mode."""
+    import logging
+    import os
+    import warnings
+
+    warnings.filterwarnings("ignore")
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
+    # Disable tqdm progress bars (used by sentence-transformers "Loading weights")
+    os.environ["TQDM_DISABLE"] = "1"
+    for name in [
+        "sentence_transformers", "transformers", "torch", "huggingface_hub",
+        "filelock", "urllib3", "tqdm", "fsspec",
+    ]:
+        logging.getLogger(name).setLevel(logging.CRITICAL)
+
+
+def _json_out(data) -> None:
+    """Print JSON to stdout (no Rich formatting)."""
+    import json
+    click.echo(json.dumps(data, indent=2, default=str))
+
+
+def _json_error(message: str) -> None:
+    """Print error as JSON and exit with code 1."""
+    import json
+    click.echo(json.dumps({"error": message}))
+    raise SystemExit(1)
+
+
 @click.group()
 @click.version_option(version=None, prog_name="hedwig-kg", package_name="hedwig-kg")
-def cli():
+@click.option("--json", "json_output", is_flag=True, default=False,
+              help="Output as JSON (for AI agent consumption). Suppresses all non-JSON output.")
+@click.pass_context
+def cli(ctx, json_output: bool):
     """hedwig-kg: Local-first knowledge graph with hybrid search."""
-    pass
+    ctx.ensure_object(dict)
+    ctx.obj["json"] = json_output
+    if json_output:
+        _suppress_library_logs()
 
 
 @cli.command()
@@ -35,34 +71,61 @@ def cli():
               help="Override embedding model (default: dual-model, code=bge-small + text=MiniLM)")
 @click.option("--max-file-size", default=1_000_000, type=int, help="Max file size in bytes")
 @click.option("--incremental", is_flag=True, help="Skip unchanged files (faster rebuilds)")
+@click.pass_context
 def build(
-    source_dir: str, output: str | None, no_embed: bool,
+    ctx, source_dir: str, output: str | None, no_embed: bool,
     model: str, max_file_size: int, incremental: bool,
 ):
     """Build knowledge graph from a source directory."""
     from hedwig_kg.core.pipeline import run_pipeline
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Starting...", total=None)
+    json_mode = ctx.obj.get("json", False) if ctx.obj else False
 
-        def on_progress(stage: str, detail: str):
-            progress.update(task, description=f"[cyan]{stage}[/]: {detail}")
-
+    if json_mode:
         result = run_pipeline(
             source_dir=source_dir,
             output_dir=output,
             embed=not no_embed,
             model_name=model,
             max_file_size=max_file_size,
-            on_progress=on_progress,
+            on_progress=None,
             incremental=incremental,
         )
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Starting...", total=None)
 
-    # Summary
+            def on_progress(stage: str, detail: str):
+                progress.update(task, description=f"[cyan]{stage}[/]: {detail}")
+
+            result = run_pipeline(
+                source_dir=source_dir,
+                output_dir=output,
+                embed=not no_embed,
+                model_name=model,
+                max_file_size=max_file_size,
+                on_progress=on_progress,
+                incremental=incremental,
+            )
+
+    if json_mode:
+        _json_out({
+            "files_detected": len(result.detect_result.files) if result.detect_result else 0,
+            "files_skipped": len(result.detect_result.skipped) if result.detect_result else 0,
+            "nodes": result.graph.number_of_nodes() if result.graph else 0,
+            "edges": result.graph.number_of_edges() if result.graph else 0,
+            "communities": len(result.cluster_result.communities) if result.cluster_result else 0,
+            "embeddings": result.embeddings_count,
+            "database": result.db_path,
+            "stage_timings": result.stage_timings or {},
+        })
+        return
+
+    # Summary (Rich mode)
     console.print()
     table = Table(title="Build Summary")
     table.add_column("Metric", style="bold")
@@ -102,13 +165,18 @@ def build(
               help="Source dir (to find default DB)")
 @click.option("--fast", is_flag=True, default=False,
               help="Fast mode: text model only (lower latency, slightly reduced accuracy)")
-def search(query: str, db: str | None, top_k: int, source_dir: str, fast: bool):
+@click.pass_context
+def search(ctx, query: str, db: str | None, top_k: int, source_dir: str, fast: bool):
     """Search the knowledge graph with hybrid vector + graph + keyword search."""
     from hedwig_kg.query.hybrid import hybrid_search
     from hedwig_kg.storage.store import KnowledgeStore
 
+    json_mode = ctx.obj.get("json", False) if ctx.obj else False
+
     db_path = _resolve_db(db, source_dir)
     if not db_path:
+        if json_mode:
+            _json_error("No knowledge base found. Run 'hedwig-kg build' first.")
         console.print("[red]No knowledge base found. Run 'hedwig-kg build' first.[/]")
         raise SystemExit(1)
 
@@ -116,6 +184,10 @@ def search(query: str, db: str | None, top_k: int, source_dir: str, fast: bool):
     G = store.load_graph()
 
     if G.number_of_nodes() == 0:
+        if json_mode:
+            _json_out([])
+            store.close()
+            return
         console.print("[yellow]Knowledge base is empty.[/]")
         store.close()
         return
@@ -124,9 +196,30 @@ def search(query: str, db: str | None, top_k: int, source_dir: str, fast: bool):
     try:
         store.build_vector_index()
     except Exception:
-        console.print("[dim]Vector index not available, keyword search only.[/]")
+        if not json_mode:
+            console.print("[dim]Vector index not available, keyword search only.[/]")
 
     results = hybrid_search(query, store, G, top_k=top_k, fast=fast)
+
+    if json_mode:
+        _json_out([
+            {
+                "node_id": r.node_id,
+                "label": r.label,
+                "kind": r.kind,
+                "file_path": r.file_path,
+                "start_line": r.start_line,
+                "end_line": getattr(r, "end_line", None),
+                "score": r.score,
+                "snippet": getattr(r, "snippet", None),
+                "signal_contributions": r.signal_contributions,
+                "neighbors": r.neighbors,
+            }
+            for r in results
+        ])
+        store.close()
+        return
+
     _print_search_results(query, results)
     store.close()
 
@@ -178,17 +271,68 @@ def _print_search_results(query: str, results: list) -> None:
 @cli.command()
 @click.option("--db", type=click.Path(), default=None, help="Path to knowledge.db")
 @click.option("--source-dir", type=click.Path(), default=".", help="Source dir")
-def stats(db: str | None, source_dir: str):
+@click.pass_context
+def stats(ctx, db: str | None, source_dir: str):
     """Show knowledge graph statistics."""
     from hedwig_kg.storage.store import KnowledgeStore
 
+    json_mode = ctx.obj.get("json", False) if ctx.obj else False
+
     db_path = _resolve_db(db, source_dir)
     if not db_path:
+        if json_mode:
+            _json_error("No knowledge base found. Run 'hedwig-kg build' first.")
         console.print("[red]No knowledge base found. Run 'hedwig-kg build' first.[/]")
         raise SystemExit(1)
 
     store = KnowledgeStore(db_path)
     G = store.load_graph()
+
+    # Node kinds
+    kinds: dict[str, int] = {}
+    for _, data in G.nodes(data=True):
+        k = data.get("kind", "unknown")
+        kinds[k] = kinds.get(k, 0) + 1
+
+    # Edge confidence
+    conf: dict[str, int] = {}
+    for _, _, data in G.edges(data=True):
+        c = data.get("confidence", "EXTRACTED")
+        conf[c] = conf.get(c, 0) + 1
+
+    import networkx as nx
+
+    density = None
+    components = None
+    avg_clustering = None
+    if G.number_of_nodes() > 0:
+        density = nx.density(G)
+        undirected = G.to_undirected()
+        components = nx.number_connected_components(undirected)
+        try:
+            avg_clustering = nx.average_clustering(undirected)
+        except Exception:
+            pass
+
+    comm_count = store.conn.execute("SELECT COUNT(*) FROM communities").fetchone()[0]
+    emb_count = store.conn.execute("SELECT COUNT(*) FROM embeddings").fetchone()[0]
+
+    if json_mode:
+        _json_out({
+            "nodes": G.number_of_nodes(),
+            "edges": G.number_of_edges(),
+            "node_kinds": kinds,
+            "edge_confidence": conf,
+            "density": density,
+            "connected_components": components,
+            "avg_clustering_coeff": avg_clustering,
+            "communities": comm_count,
+            "embeddings": emb_count,
+            "database": str(db_path),
+            "source": store.get_meta("source_dir", "unknown"),
+        })
+        store.close()
+        return
 
     table = Table(title="Knowledge Base Statistics")
     table.add_column("Metric", style="bold")
@@ -197,47 +341,21 @@ def stats(db: str | None, source_dir: str):
     table.add_row("Nodes", str(G.number_of_nodes()))
     table.add_row("Edges", str(G.number_of_edges()))
 
-    # Node kinds
-    kinds: dict[str, int] = {}
-    for _, data in G.nodes(data=True):
-        k = data.get("kind", "unknown")
-        kinds[k] = kinds.get(k, 0) + 1
     for k, v in sorted(kinds.items(), key=lambda x: -x[1]):
         table.add_row(f"  {k}", str(v))
 
-    # Edge confidence
-    conf: dict[str, int] = {}
-    for _, _, data in G.edges(data=True):
-        c = data.get("confidence", "EXTRACTED")
-        conf[c] = conf.get(c, 0) + 1
     for c, v in sorted(conf.items()):
         table.add_row(f"  {c} edges", str(v))
 
-    # Graph quality metrics
-    import networkx as nx
-
-    if G.number_of_nodes() > 0:
-        density = nx.density(G)
+    if density is not None:
         table.add_row("Density", f"{density:.4f}")
-
-        undirected = G.to_undirected()
-        components = nx.number_connected_components(undirected)
+    if components is not None:
         table.add_row("Connected components", str(components))
+    if avg_clustering is not None:
+        table.add_row("Avg clustering coeff", f"{avg_clustering:.4f}")
 
-        try:
-            avg_clustering = nx.average_clustering(undirected)
-            table.add_row("Avg clustering coeff", f"{avg_clustering:.4f}")
-        except Exception:
-            pass
-
-    # Communities
-    comm_count = store.conn.execute("SELECT COUNT(*) FROM communities").fetchone()[0]
     table.add_row("Communities", str(comm_count))
-
-    # Embeddings
-    emb_count = store.conn.execute("SELECT COUNT(*) FROM embeddings").fetchone()[0]
     table.add_row("Embeddings", str(emb_count))
-
     table.add_row("Database", str(db_path))
     table.add_row("Source", store.get_meta("source_dir", "unknown"))
 
@@ -250,12 +368,17 @@ def stats(db: str | None, source_dir: str):
 @click.option("--source-dir", type=click.Path(), default=".", help="Source dir")
 @click.option("--level", type=int, default=None, help="Filter by hierarchy level")
 @click.option("--search", "query", type=str, default=None, help="Search community summaries")
-def communities(db: str | None, source_dir: str, level: int | None, query: str | None):
+@click.pass_context
+def communities(ctx, db: str | None, source_dir: str, level: int | None, query: str | None):
     """List and search communities in the knowledge graph."""
     from hedwig_kg.storage.store import KnowledgeStore
 
+    json_mode = ctx.obj.get("json", False) if ctx.obj else False
+
     db_path = _resolve_db(db, source_dir)
     if not db_path:
+        if json_mode:
+            _json_error("No knowledge base found. Run 'hedwig-kg build' first.")
         console.print("[red]No knowledge base found. Run 'hedwig-kg build' first.[/]")
         raise SystemExit(1)
 
@@ -264,6 +387,20 @@ def communities(db: str | None, source_dir: str, level: int | None, query: str |
     if query:
         terms = [t.lower() for t in query.split() if len(t) > 2]
         results = store.community_search(terms, top_k=10)
+        if json_mode:
+            _json_out([
+                {
+                    "community_id": r["community_id"],
+                    "level": r["level"],
+                    "node_count": len(r["node_ids"]),
+                    "score": r["score"],
+                    "summary": r["summary"],
+                    "node_ids": r["node_ids"],
+                }
+                for r in results
+            ])
+            store.close()
+            return
         if not results:
             console.print("[yellow]No matching communities found.[/]")
             store.close()
@@ -291,6 +428,19 @@ def communities(db: str | None, source_dir: str, level: int | None, query: str |
             params.append(level)
         sql += " ORDER BY level, id"
         rows = store.conn.execute(sql, params).fetchall()
+
+        if json_mode:
+            _json_out([
+                {
+                    "id": row["id"],
+                    "level": row["level"],
+                    "resolution": row["resolution"],
+                    "summary": row["summary"],
+                }
+                for row in rows
+            ])
+            store.close()
+            return
 
         if not rows:
             console.print("[yellow]No communities found.[/]")
@@ -626,12 +776,17 @@ def _resolve_db(db: str | None, source_dir: str) -> Path | None:
 @click.argument("node_id")
 @click.option("--db", type=click.Path(), default=None)
 @click.option("--source-dir", type=click.Path(), default=".")
-def show_node(node_id: str, db: str | None, source_dir: str):
+@click.pass_context
+def show_node(ctx, node_id: str, db: str | None, source_dir: str):
     """Show details of a specific node."""
     from hedwig_kg.storage.store import KnowledgeStore
 
+    json_mode = ctx.obj.get("json", False) if ctx.obj else False
+
     db_path = _resolve_db(db, source_dir)
     if not db_path:
+        if json_mode:
+            _json_error("No knowledge base found.")
         console.print("[red]No knowledge base found.[/]")
         raise SystemExit(1)
 
@@ -642,14 +797,48 @@ def show_node(node_id: str, db: str | None, source_dir: str):
         # Try fuzzy match
         matches = [n for n in G.nodes() if node_id.lower() in n.lower()]
         if not matches:
+            if json_mode:
+                _json_error(f"Node '{node_id}' not found.")
             console.print(f"[red]Node '{node_id}' not found.[/]")
             store.close()
             return
         node_id = matches[0]
-        if len(matches) > 1:
+        if len(matches) > 1 and not json_mode:
             console.print(f"[yellow]Multiple matches, showing: {node_id}[/]")
 
     data = G.nodes[node_id]
+
+    if json_mode:
+        _json_out({
+            "node_id": node_id,
+            "label": data.get("label", node_id),
+            "kind": data.get("kind", ""),
+            "file_path": data.get("file_path", ""),
+            "start_line": data.get("start_line"),
+            "pagerank": data.get("pagerank", 0),
+            "signature": data.get("signature"),
+            "outgoing": [
+                {
+                    "target": target,
+                    "target_label": G.nodes[target].get("label", target) if target in G else target,
+                    "relation": edata.get("relation", ""),
+                    "confidence": edata.get("confidence", ""),
+                }
+                for _, target, edata in G.out_edges(node_id, data=True)
+            ],
+            "incoming": [
+                {
+                    "source": source,
+                    "source_label": G.nodes[source].get("label", source) if source in G else source,
+                    "relation": edata.get("relation", ""),
+                    "confidence": edata.get("confidence", ""),
+                }
+                for source, _, edata in G.in_edges(node_id, data=True)
+            ],
+        })
+        store.close()
+        return
+
     console.print(f"\n[bold]{data.get('label', node_id)}[/] ({data.get('kind', '')})")
     console.print(f"  File: {data.get('file_path', '')}")
     console.print(f"  Line: {data.get('start_line', '')}")

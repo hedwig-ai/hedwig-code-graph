@@ -32,10 +32,11 @@ pip install hedwig-kg
 ### Claude Code
 
 ```bash
-hedwig-kg claude install
+hedwig-kg claude install --scope user     # Global (~/.claude/skills/) — available in ALL projects
+hedwig-kg claude install --scope project  # Local (.claude/skills/) — this project only
 ```
 
-Writes `CLAUDE.md` section + `.claude/settings.json` PreToolUse hook. Claude Code will consult the knowledge graph before every Glob/Grep operation.
+Installs in priority order: 1) **Skill** (SKILL.md) 2) CLAUDE.md section 3) PreToolUse hook. Claude Code will consult the knowledge graph before every Glob/Grep operation.
 
 ### OpenAI Codex CLI
 
@@ -208,12 +209,14 @@ Source Code/Docs
 
 1. **Code Vector Search** — Query embedded with `BAAI/bge-small-en-v1.5`, searches code nodes via FAISS
 2. **Text Vector Search** — Query embedded with `all-MiniLM-L6-v2`, searches document nodes via FAISS
-3. **Graph Expansion** — Weight-aware BFS from top vector hits using edge quality (semantic similarity × confidence × relation type: `calls`=1.0, `imports`=0.7, `contains`=0.3)
+3. **Graph Expansion** — Weight-aware BFS from top vector hits using edge quality (semantic similarity × confidence × relation type: `calls`/`inherits`/`extends`=1.0, `imports`=0.7, `references`=0.6, `defines`=0.5, `contains`=0.3)
 4. **Keyword Search** — FTS5 full-text search with BM25 ranking and 80+ stopword filtering
 5. **Community Search** — Match query against auto-generated community summaries, boost member nodes
-6. **Weighted RRF Fusion** — Reciprocal Rank Fusion with per-signal weights (code=1.2×, text=1.2×, graph=0.8×, keyword=1.0×, community=0.6×) and **per-result signal breakdown** for full explainability
+6. **Weighted RRF Fusion** — Reciprocal Rank Fusion with per-signal weights (code=1.0×, text=1.0×, graph=0.8×, keyword=1.5×, community=0.7×) and **per-result signal breakdown** for full explainability
 
 ## CLI Reference
+
+**Global flag:** `--json` outputs structured JSON for all commands (for AI agent consumption, suppresses all library noise).
 
 | Command | Description |
 |---------|-------------|
@@ -226,6 +229,7 @@ Source Code/Docs
 | `export` | Export as JSON, GraphML, or D3.js |
 | `visualize` | Interactive HTML visualization (`--max-nodes`, `--offline`) |
 | `clean` | Remove .hedwig-kg/ database |
+| `doctor` | Check installation health, dependencies, DB integrity |
 | `mcp` | Start MCP server (stdio) — 5 tools for AI agents |
 | `claude install` | Claude Code integration |
 | `codex install` | Codex CLI integration |

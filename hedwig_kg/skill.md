@@ -7,6 +7,8 @@ description: Local-first knowledge graph builder with 5-signal HybridRAG search 
 
 Build knowledge graphs from source code and documents. Search with 5-signal HybridRAG fusion (code vector + text vector + graph traversal + FTS5 keyword + community matching → RRF). Dual embedding models: `BAAI/bge-small-en-v1.5` for code, `all-MiniLM-L6-v2` for text. 100% local — no cloud APIs.
 
+**IMPORTANT: Always use `--json` flag.** All commands return structured JSON that you can parse directly. No Rich formatting, no model download logs — clean JSON only.
+
 ## Quick Start
 
 ```bash
@@ -14,10 +16,10 @@ Build knowledge graphs from source code and documents. Search with 5-signal Hybr
 python3 -c "import hedwig_kg" 2>/dev/null || pip install hedwig-kg
 
 # Build knowledge graph from current directory
-hedwig-kg build .
+hedwig-kg --json build .
 
 # Search the knowledge graph (PRIMARY command)
-hedwig-kg search "authentication handler"
+hedwig-kg --json search "authentication handler"
 ```
 
 ## Core Commands
@@ -25,42 +27,49 @@ hedwig-kg search "authentication handler"
 ### Search (PRIMARY — use this first)
 
 ```bash
-# 5-signal HybridRAG search — covers vector, graph, keyword, community
-hedwig-kg search "database connection pool"
+# 5-signal HybridRAG search — returns JSON array with file_path, start_line, end_line, score, snippet
+hedwig-kg --json search "database connection pool"
 
 # More results
-hedwig-kg search "error handling" --top-k 20
+hedwig-kg --json search "error handling" --top-k 20
 
 # Fast mode (text model only, lower latency)
-hedwig-kg search "auth" --fast
+hedwig-kg --json search "auth" --fast
+```
+
+Response format:
+```json
+[{"node_id": "...", "label": "AuthHandler", "kind": "class", "file_path": "src/auth.py", "start_line": 10, "end_line": 45, "score": 0.031, "snippet": "...", "signal_contributions": {...}, "neighbors": [...]}]
 ```
 
 ### Build
 
 ```bash
 # Full build (first time)
-hedwig-kg build .
+hedwig-kg --json build .
 
 # Incremental rebuild (skips unchanged files)
-hedwig-kg build . --incremental
+hedwig-kg --json build . --incremental
 ```
 
 ### Inspect
 
 ```bash
 # Graph statistics
-hedwig-kg stats
+hedwig-kg --json stats
 
-# Node details (supports partial matching)
-hedwig-kg node "AuthHandler"
+# Node details with edges (supports partial matching)
+hedwig-kg --json node "AuthHandler"
 ```
 
 ## Rules
 
-- **Always use `hedwig-kg search "<query>"` as the primary search method.** It runs 5-signal HybridRAG in a single call — no need for separate searches.
-- Before grepping raw files with Glob/Grep, run `hedwig-kg search` first. Only fall back to Grep if the knowledge graph has no results.
-- Run `hedwig-kg build . --incremental` after modifying code files to keep the graph current.
-- Use `hedwig-kg stats` for structural overview (god nodes, communities, density).
+- **Always use `--json` flag** so output is machine-parseable. Without it, output is human-readable Rich tables.
+- **Always use `hedwig-kg --json search "<query>"` as the primary search method.** It runs 5-signal HybridRAG in a single call — no need for separate searches.
+- Before grepping raw files with Glob/Grep, run `hedwig-kg --json search` first. Only fall back to Grep if the knowledge graph has no results.
+- Search results include `file_path` and `start_line`/`end_line` — use these to read the relevant code directly.
+- Run `hedwig-kg --json build . --incremental` after modifying code files to keep the graph current.
+- Errors return `{"error": "message"}` — check for this key in the response.
 
 ## Output
 
