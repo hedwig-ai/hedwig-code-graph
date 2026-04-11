@@ -1,82 +1,56 @@
 ---
 name: hedwig-kg
-description: Local-first knowledge graph builder with 5-signal HybridRAG search (dual vector + graph + keyword + community → RRF fusion). Use when analyzing codebases, searching for code architecture, exploring dependencies, or building knowledge graphs from source code and documents.
+description: Local-first knowledge graph builder with 5-signal HybridRAG search. Use when analyzing codebases, searching for code architecture, exploring dependencies, or building knowledge graphs from source code and documents.
 ---
 
 # hedwig-kg
 
-Build knowledge graphs from source code and documents. Search with 5-signal HybridRAG fusion (code vector + text vector + graph traversal + FTS5 keyword + community matching → RRF). Dual embedding models: `BAAI/bge-small-en-v1.5` for code, `all-MiniLM-L6-v2` for text. 100% local — no cloud APIs.
+Builds knowledge graphs from source code and documents. Searches with 5-signal HybridRAG (code vector + text vector + graph traversal + FTS5 keyword + community → RRF fusion). Supports 17 languages with deep AST extraction. 100% local.
 
-**IMPORTANT: Always use `--json` flag.** All commands return structured JSON that you can parse directly. No Rich formatting, no model download logs — clean JSON only.
+**IMPORTANT: Always use `--json` flag.**
 
-## Quick Start
-
-```bash
-# Ensure hedwig-kg is available
-python3 -c "import hedwig_kg" 2>/dev/null || pip install hedwig-kg
-
-# Build knowledge graph from current directory
-hedwig-kg --json build .
-
-# Search the knowledge graph (PRIMARY command)
-hedwig-kg --json search "authentication handler"
-```
-
-## Core Commands
-
-### Search (PRIMARY — use this first)
+## Search (PRIMARY — use this first)
 
 ```bash
-# 5-signal HybridRAG search (default: 15 results)
+# 5-signal HybridRAG search (default: 80 results)
 hedwig-kg --json search "database connection pool"
+
+# Fast mode (text model only, lower cold-start latency)
+hedwig-kg --json search "auth" --fast
+
+# Expanded search (two-stage query expansion for broader recall)
+hedwig-kg --json search "payment billing" --expand
 
 # Custom result count
 hedwig-kg --json search "error handling" --top-k 30
-
-# Fast mode (text model only, lower latency)
-hedwig-kg --json search "auth" --fast
 ```
 
-Response format:
+Response (~140 bytes/result, compact JSON):
 ```json
-[{"node_id": "...", "label": "AuthHandler", "kind": "class", "file_path": "src/auth.py", "start_line": 10, "end_line": 45, "score": 0.031, "snippet": "...", "signal_contributions": {...}, "neighbors": [...]}]
+[{"label":"build_graph","kind":"function","file":"hedwig_kg/core/build.py","lines":[15,95],"score":0.073,"sig":"(extractions: list) -> nx.DiGraph","doc":"Build graph from extractions."}]
 ```
 
-### Build
+- `file` + `lines`: Use to read the code directly
+- `sig` / `doc`: Omitted when empty
+- `score`: Higher = more relevant
+
+## Build
 
 ```bash
-# Full build (first time) — auto-detects language from text nodes
-hedwig-kg --json build .
-
-# Incremental rebuild (skips unchanged files)
-hedwig-kg --json build . --incremental
-
-# Force multilingual mode (for non-English codebases: Japanese, Korean, Chinese, etc.)
-hedwig-kg --json build . --lang multilingual
+hedwig-kg --json build .                # Full build
+hedwig-kg --json build . --incremental  # Only changed files
 ```
 
-Language modes: `auto` (default, detects from text nodes), `en` (English-only models), `multilingual` (100+ languages via multilingual-e5-small).
-Search automatically uses the correct model based on the language set during build.
-
-### Inspect
+## Inspect
 
 ```bash
-# Graph statistics
-hedwig-kg --json stats
-
-# Node details with edges (supports partial matching)
-hedwig-kg --json node "AuthHandler"
+hedwig-kg --json stats                  # Graph overview
+hedwig-kg --json node "AuthHandler"     # Node details (partial match)
 ```
 
 ## Rules
 
-- **Always use `--json` flag** so output is machine-parseable. Without it, output is human-readable Rich tables.
-- **Always use `hedwig-kg --json search "<query>"` as the primary search method.** It runs 5-signal HybridRAG in a single call — no need for separate searches.
-- Before grepping raw files with Glob/Grep, run `hedwig-kg --json search` first. Only fall back to Grep if the knowledge graph has no results.
-- Search results include `file_path` and `start_line`/`end_line` — use these to read the relevant code directly.
-- Run `hedwig-kg --json build . --incremental` after modifying code files to keep the graph current.
-- Errors return `{"error": "message"}` — check for this key in the response.
-
-## Output
-
-Knowledge base: `<project>/.hedwig-kg/knowledge.db` (SQLite + FTS5 + dual FAISS vector indices).
+- **Always search before grepping.** `hedwig-kg --json search` covers vector, graph, keyword, and community in one call.
+- Use `file` and `lines` from results to read code — don't rely on search output alone.
+- Run `hedwig-kg --json build . --incremental` after code changes.
+- Errors return `{"error": "message"}`.
