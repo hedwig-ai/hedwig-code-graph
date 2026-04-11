@@ -225,31 +225,20 @@ All data is stored in a single SQLite database at `<source_dir>/.hedwig-kg/knowl
 
 ## Integration with AI Coding Tools
 
-hedwig-kg is designed to work well with AI coding assistants like Claude Code, GitHub Copilot, and other LLM-powered tools. See [docs/claude-code-skill.md](docs/claude-code-skill.md) for the full integration guide.
+hedwig-kg integrates with Claude Code, OpenAI Codex CLI, and Google Gemini CLI.
 
-**Quick setup** — add this to your project's `CLAUDE.md`:
+```bash
+# Claude Code — global /hedwig-kg slash command
+hedwig-kg install
 
-```markdown
-## Knowledge Graph
-This project uses hedwig-kg for code intelligence.
+# Per-project integration (writes CLAUDE.md + PreToolUse hook)
+hedwig-kg claude install
 
-# Build the knowledge graph (run once or after major changes)
-hedwig-kg build .
+# OpenAI Codex CLI (writes AGENTS.md + .codex/hooks.json)
+hedwig-kg codex install
 
-# Incremental rebuild (fast, skips unchanged files)
-hedwig-kg build . --incremental
-
-# Search for relevant code (4-signal HybridRAG)
-hedwig-kg search "your query here"
-
-# Interactive exploration (multiple queries, graph stays loaded)
-hedwig-kg query
-
-# Explore communities for high-level architecture understanding
-hedwig-kg communities --search "authentication"
-
-# View graph statistics and quality metrics
-hedwig-kg stats
+# Google Gemini CLI (writes GEMINI.md + .gemini/settings.json)
+hedwig-kg gemini install
 ```
 
 ## Development

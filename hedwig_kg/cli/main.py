@@ -632,88 +632,6 @@ def show_node(node_id: str, db: str | None, source_dir: str):
     store.close()
 
 
-@cli.command()
-def install():
-    """Install hedwig-kg as a global Claude Code skill (/hedwig-kg slash command)."""
-    import shutil
-
-    skill_src = Path(__file__).parent.parent / "skill.md"
-    if not skill_src.exists():
-        console.print("[red]skill.md not found in package.[/]")
-        raise SystemExit(1)
-
-    # Determine Claude skills directory
-    claude_dir = Path.home() / ".claude"
-    skills_dir = claude_dir / "skills" / "hedwig-kg"
-    skills_dir.mkdir(parents=True, exist_ok=True)
-
-    # Copy skill file
-    dest = skills_dir / "SKILL.md"
-    shutil.copy2(skill_src, dest)
-    console.print(f"[green]Skill installed:[/] {dest}")
-
-    # Append to global CLAUDE.md if not already present
-    claude_md = claude_dir / "CLAUDE.md"
-    marker = "# hedwig-kg"
-    skill_block = (
-        "\n# hedwig-kg\n"
-        "- **hedwig-kg** (`~/.claude/skills/hedwig-kg/SKILL.md`) "
-        "- local-first knowledge graph builder. Trigger: `/hedwig-kg`\n"
-        "When the user types `/hedwig-kg`, invoke the Skill tool with "
-        '`skill: "hedwig-kg"` before doing anything else.\n'
-    )
-
-    if claude_md.exists():
-        content = claude_md.read_text()
-        if marker in content:
-            console.print("[dim]Already registered in ~/.claude/CLAUDE.md[/]")
-        else:
-            claude_md.write_text(content + skill_block)
-            console.print("[green]Registered /hedwig-kg in ~/.claude/CLAUDE.md[/]")
-    else:
-        claude_md.write_text(skill_block)
-        console.print("[green]Created ~/.claude/CLAUDE.md with /hedwig-kg skill[/]")
-
-    console.print()
-    console.print("[bold]Usage:[/] Type [cyan]/hedwig-kg[/] in Claude Code to use the skill.")
-
-
-@cli.command()
-def uninstall():
-    """Remove hedwig-kg global Claude Code skill."""
-    import shutil
-
-    claude_dir = Path.home() / ".claude"
-    skills_dir = claude_dir / "skills" / "hedwig-kg"
-
-    # Remove skill directory
-    if skills_dir.exists():
-        shutil.rmtree(skills_dir)
-        console.print("[green]Removed skill directory.[/]")
-    else:
-        console.print("[dim]Skill directory not found.[/]")
-
-    # Remove from CLAUDE.md
-    claude_md = claude_dir / "CLAUDE.md"
-    if claude_md.exists():
-        lines = claude_md.read_text().splitlines(keepends=True)
-        filtered = []
-        skip = False
-        for line in lines:
-            if line.strip() == "# hedwig-kg":
-                skip = True
-                continue
-            if skip and line.startswith("#") and "hedwig-kg" not in line.lower():
-                skip = False
-            if skip:
-                continue
-            filtered.append(line)
-        claude_md.write_text("".join(filtered))
-        console.print("[green]Removed /hedwig-kg from ~/.claude/CLAUDE.md[/]")
-
-    console.print("[dim]hedwig-kg skill uninstalled.[/]")
-
-
 @cli.group(name="claude")
 def claude_group():
     """Manage per-project Claude Code integration."""
@@ -847,6 +765,272 @@ def claude_uninstall():
 
 
 cli.add_command(claude_group)
+
+
+# --- Codex CLI integration ---
+
+@cli.group(name="codex")
+def codex_group():
+    """Manage per-project OpenAI Codex CLI integration."""
+    pass
+
+
+@codex_group.command(name="install")
+def codex_install():
+    """Install per-project Codex CLI integration (AGENTS.md + hooks.json)."""
+    import json
+
+    project_root = Path.cwd()
+
+    # 1. Write section to project AGENTS.md
+    agents_md = project_root / "AGENTS.md"
+    marker = "## hedwig-kg"
+    section = (
+        "\n## hedwig-kg\n\n"
+        "This project has a hedwig-kg knowledge graph at `.hedwig-kg/`.\n\n"
+        "Rules:\n"
+        "- Before answering architecture or codebase questions, "
+        "run `hedwig-kg search \"<query>\"` for graph-aware results\n"
+        "- Use `hedwig-kg stats` for structural overview "
+        "(god nodes, communities, density)\n"
+        "- After modifying code files, run "
+        "`hedwig-kg build . --incremental` to keep the graph current\n"
+        "- Use `hedwig-kg communities --search \"<topic>\"` "
+        "for high-level architecture understanding\n"
+    )
+
+    if agents_md.exists():
+        content = agents_md.read_text()
+        if marker in content:
+            console.print("[dim]AGENTS.md already has hedwig-kg section.[/]")
+        else:
+            agents_md.write_text(content + section)
+            console.print("[green]Added hedwig-kg section to AGENTS.md[/]")
+    else:
+        agents_md.write_text(section.lstrip("\n"))
+        console.print("[green]Created AGENTS.md with hedwig-kg section[/]")
+
+    # 2. Write PreToolUse hook to .codex/hooks.json
+    hooks_dir = project_root / ".codex"
+    hooks_dir.mkdir(parents=True, exist_ok=True)
+    hooks_file = hooks_dir / "hooks.json"
+
+    hook_entry = {
+        "matcher": "Bash",
+        "hooks": [{
+            "type": "command",
+            "command": (
+                '[ -f .hedwig-kg/knowledge.db ] && echo '
+                '\'{"hookSpecificOutput":{"hookEventName":"PreToolUse",'
+                '"additionalContext":"hedwig-kg: Knowledge graph available. '
+                "Consider running `hedwig-kg search` for graph-aware results "
+                'before grepping raw files."}}\' || true'
+            ),
+        }],
+    }
+
+    if hooks_file.exists():
+        hooks_data = json.loads(hooks_file.read_text())
+    else:
+        hooks_data = {}
+
+    hooks = hooks_data.setdefault("hooks", {})
+    pre_hooks = hooks.setdefault("PreToolUse", [])
+
+    already = any("hedwig-kg" in json.dumps(h) for h in pre_hooks)
+    if already:
+        console.print("[dim].codex/hooks.json already has hedwig-kg hook.[/]")
+    else:
+        pre_hooks.append(hook_entry)
+        hooks_file.write_text(json.dumps(hooks_data, indent=2) + "\n")
+        console.print("[green]Added PreToolUse hook to .codex/hooks.json[/]")
+
+    console.print()
+    console.print("[bold]Done![/] Codex CLI will now use the knowledge graph "
+                  "when working in this project.")
+    console.print("[dim]Run 'hedwig-kg codex uninstall' to remove.[/]")
+
+
+@codex_group.command(name="uninstall")
+def codex_uninstall():
+    """Remove per-project Codex CLI integration."""
+    import json
+
+    project_root = Path.cwd()
+
+    # 1. Remove section from AGENTS.md
+    agents_md = project_root / "AGENTS.md"
+    if agents_md.exists():
+        lines = agents_md.read_text().splitlines(keepends=True)
+        filtered = []
+        skip = False
+        for line in lines:
+            if line.strip() == "## hedwig-kg":
+                skip = True
+                continue
+            if skip and line.startswith("##") and "hedwig-kg" not in line.lower():
+                skip = False
+            if skip:
+                continue
+            filtered.append(line)
+        new_content = "".join(filtered).rstrip("\n") + "\n"
+        agents_md.write_text(new_content)
+        console.print("[green]Removed hedwig-kg section from AGENTS.md[/]")
+
+    # 2. Remove hook from .codex/hooks.json
+    hooks_file = project_root / ".codex" / "hooks.json"
+    if hooks_file.exists():
+        hooks_data = json.loads(hooks_file.read_text())
+        hooks = hooks_data.get("hooks", {})
+        pre_hooks = hooks.get("PreToolUse", [])
+        hooks["PreToolUse"] = [
+            h for h in pre_hooks
+            if "hedwig-kg" not in json.dumps(h)
+        ]
+        if not hooks["PreToolUse"]:
+            del hooks["PreToolUse"]
+        if not hooks:
+            del hooks_data["hooks"]
+        hooks_file.write_text(json.dumps(hooks_data, indent=2) + "\n")
+        console.print("[green]Removed PreToolUse hook from .codex/hooks.json[/]")
+
+    console.print("[dim]hedwig-kg Codex CLI integration removed.[/]")
+
+
+cli.add_command(codex_group)
+
+
+# --- Gemini CLI integration ---
+
+@cli.group(name="gemini")
+def gemini_group():
+    """Manage per-project Google Gemini CLI integration."""
+    pass
+
+
+@gemini_group.command(name="install")
+def gemini_install():
+    """Install per-project Gemini CLI integration (GEMINI.md + BeforeTool hook)."""
+    import json
+
+    project_root = Path.cwd()
+
+    # 1. Write section to project GEMINI.md
+    gemini_md = project_root / "GEMINI.md"
+    marker = "## hedwig-kg"
+    section = (
+        "\n## hedwig-kg\n\n"
+        "This project has a hedwig-kg knowledge graph at `.hedwig-kg/`.\n\n"
+        "Rules:\n"
+        "- Before answering architecture or codebase questions, "
+        "run `hedwig-kg search \"<query>\"` for graph-aware results\n"
+        "- Use `hedwig-kg stats` for structural overview "
+        "(god nodes, communities, density)\n"
+        "- After modifying code files, run "
+        "`hedwig-kg build . --incremental` to keep the graph current\n"
+        "- Use `hedwig-kg communities --search \"<topic>\"` "
+        "for high-level architecture understanding\n"
+    )
+
+    if gemini_md.exists():
+        content = gemini_md.read_text()
+        if marker in content:
+            console.print("[dim]GEMINI.md already has hedwig-kg section.[/]")
+        else:
+            gemini_md.write_text(content + section)
+            console.print("[green]Added hedwig-kg section to GEMINI.md[/]")
+    else:
+        gemini_md.write_text(section.lstrip("\n"))
+        console.print("[green]Created GEMINI.md with hedwig-kg section[/]")
+
+    # 2. Write BeforeTool hook to .gemini/settings.json
+    settings_dir = project_root / ".gemini"
+    settings_dir.mkdir(parents=True, exist_ok=True)
+    settings_file = settings_dir / "settings.json"
+
+    hook_entry = {
+        "matcher": "read_file",
+        "hooks": [{
+            "type": "command",
+            "command": (
+                '[ -f .hedwig-kg/knowledge.db ] && echo '
+                '\'{"hookSpecificOutput":{"additionalContext":'
+                '"hedwig-kg: Knowledge graph available. '
+                "Consider running `hedwig-kg search` for graph-aware results "
+                'before reading raw files."}}\' || true'
+            ),
+        }],
+    }
+
+    if settings_file.exists():
+        settings = json.loads(settings_file.read_text())
+    else:
+        settings = {}
+
+    hooks = settings.setdefault("hooks", {})
+    before_hooks = hooks.setdefault("BeforeTool", [])
+
+    already = any("hedwig-kg" in json.dumps(h) for h in before_hooks)
+    if already:
+        console.print("[dim].gemini/settings.json already has hedwig-kg hook.[/]")
+    else:
+        before_hooks.append(hook_entry)
+        settings_file.write_text(json.dumps(settings, indent=2) + "\n")
+        console.print("[green]Added BeforeTool hook to .gemini/settings.json[/]")
+
+    console.print()
+    console.print("[bold]Done![/] Gemini CLI will now use the knowledge graph "
+                  "when working in this project.")
+    console.print("[dim]Run 'hedwig-kg gemini uninstall' to remove.[/]")
+
+
+@gemini_group.command(name="uninstall")
+def gemini_uninstall():
+    """Remove per-project Gemini CLI integration."""
+    import json
+
+    project_root = Path.cwd()
+
+    # 1. Remove section from GEMINI.md
+    gemini_md = project_root / "GEMINI.md"
+    if gemini_md.exists():
+        lines = gemini_md.read_text().splitlines(keepends=True)
+        filtered = []
+        skip = False
+        for line in lines:
+            if line.strip() == "## hedwig-kg":
+                skip = True
+                continue
+            if skip and line.startswith("##") and "hedwig-kg" not in line.lower():
+                skip = False
+            if skip:
+                continue
+            filtered.append(line)
+        new_content = "".join(filtered).rstrip("\n") + "\n"
+        gemini_md.write_text(new_content)
+        console.print("[green]Removed hedwig-kg section from GEMINI.md[/]")
+
+    # 2. Remove hook from .gemini/settings.json
+    settings_file = project_root / ".gemini" / "settings.json"
+    if settings_file.exists():
+        settings = json.loads(settings_file.read_text())
+        hooks = settings.get("hooks", {})
+        before_hooks = hooks.get("BeforeTool", [])
+        hooks["BeforeTool"] = [
+            h for h in before_hooks
+            if "hedwig-kg" not in json.dumps(h)
+        ]
+        if not hooks["BeforeTool"]:
+            del hooks["BeforeTool"]
+        if not hooks:
+            del settings["hooks"]
+        settings_file.write_text(json.dumps(settings, indent=2) + "\n")
+        console.print("[green]Removed BeforeTool hook from .gemini/settings.json[/]")
+
+    console.print("[dim]hedwig-kg Gemini CLI integration removed.[/]")
+
+
+cli.add_command(gemini_group)
 
 
 if __name__ == "__main__":
