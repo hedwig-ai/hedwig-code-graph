@@ -1,7 +1,7 @@
 <p align="center">
   <h1 align="center">hedwig-kg</h1>
   <p align="center">
-    Local-First Knowledge Graph Builder fuer AI Coding Agents
+    "Hedwig wird mit der Nachricht zurueckkommen"
     <br />
     <a href="#schnellstart">Schnellstart</a> · <a href="#unterstuetzte-sprachen">Sprachen</a> · <a href="#ai-agent-integrationen">Integrationen</a> · <a href="#architektur">Architektur</a> · <a href="../README.md">English</a> · <a href="README_ko.md">한국어</a> · <a href="README_ja.md">日本語</a> · <a href="README_zh.md">中文</a>
   </p>
@@ -18,13 +18,9 @@
 
 ## Warum hedwig-kg?
 
-Haben Sie beim Entwickeln mit Claude Code schon einmal das Gefuehl gehabt, dass etwas fehlt?
+Coding-Agents suchen nach Schluesselwoertern — sie finden `payment_service.py`, aber uebersehen `fraud_detector.py`, `policy.yaml` und `test_chargeback.py` in derselben Domaene. hedwig-kg erstellt einen Knowledge Graph, der Code, Dokumentation, Konfiguration und Tests durch ihre Beziehungen verbindet. Agents sehen den vollstaendigen Kontext, nicht nur Keyword-Treffer.
 
-Wenn wir ein Zahlungssystem bauen, sehen wir natuerlich das Gesamtbild — Kartenvalidierung, Rueckerstattungsrichtlinien, PCI-Compliance als eine Domaene. Aber wenn Sie einen Coding-Agent bitten, "die Rueckerstattungslogik zu beheben", findet er nur `refund_service.py`. Die Rueckerstattungslimits in `policy.yaml`, die Kartennetzwerk-Regeln in `docs/payment-rules.md`, der zugehoerige Test in `test_chargeback.py` — keine dieser Dateien enthaelt das Wort "refund" und bleibt unsichtbar.
-
-Mit einem Knowledge Graph aendert sich das. Er verbindet Code, Dokumentation, Konfiguration und Tests durch Domaenen-Beziehungen — nicht nur durch Schluesselwoerter. Der Agent erfasst den vollstaendigen Kontext.
-
-Mit hedwig-kg erkunden Coding-Agents Codebasen wie Menschen — sie folgen Zusammenhaengen ueber Dateien, Schichten und Formate hinweg. Weniger Tokens, bessere Ergebnisse, und bisher uebersehener Code wird gefunden.
+Alles laeuft 100% lokal. Keine Cloud-Dienste, keine Daten verlassen Ihren Rechner.
 
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 

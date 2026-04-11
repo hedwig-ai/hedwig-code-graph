@@ -1,7 +1,7 @@
 <p align="center">
   <h1 align="center">hedwig-kg</h1>
   <p align="center">
-    Local-first knowledge graph builder for AI coding agents
+    "Hedwig will be back with the word"
     <br />
     <a href="#quick-start">Quick Start</a> · <a href="#supported-languages">Languages</a> · <a href="#ai-agent-integrations">Integrations</a> · <a href="#architecture">Architecture</a> · <a href="docs/README_ko.md">한국어</a> · <a href="docs/README_ja.md">日本語</a> · <a href="docs/README_zh.md">中文</a> · <a href="docs/README_de.md">Deutsch</a>
   </p>
@@ -18,13 +18,9 @@
 
 ## Why hedwig-kg?
 
-Have you ever felt something slightly off when developing with Claude Code?
+Coding agents search by keywords — they find `payment_service.py` but miss `fraud_detector.py`, `policy.yaml`, and `test_chargeback.py` in the same domain. hedwig-kg builds a knowledge graph that connects code, docs, configs, and tests by their relationships. Agents see the full context, not just keyword matches.
 
-When we build a payment system, we naturally see the full picture — card validation, refund policies, PCI compliance all part of one domain. But when you ask a coding agent to "fix the refund logic," it finds `refund_service.py` and stops there. The refund limits defined in `policy.yaml`, the card network rules documented in `docs/payment-rules.md`, the related test in `test_chargeback.py` — none of these contain the word "refund," so they stay invisible.
-
-A knowledge graph changes that. It connects code, docs, configs, and tests by domain relationships — not just keywords. The agent sees the full context, just like you do.
-
-With hedwig-kg, coding agents explore codebases the way humans think — following connections across files, layers, and formats. Fewer tokens, better results, and code that would have been missed gets found.
+Everything runs 100% locally. No cloud services, no data leaves your machine.
 
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 

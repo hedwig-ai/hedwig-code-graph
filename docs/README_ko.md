@@ -1,7 +1,7 @@
 <p align="center">
   <h1 align="center">hedwig-kg</h1>
   <p align="center">
-    AI 코딩 에이전트를 위한 로컬 우선 지식 그래프 빌더
+    "헤드위그는 반드시 소식을 가지고 돌아올 거예요"
     <br />
     <a href="#빠른-시작">빠른 시작</a> · <a href="#지원-언어">언어</a> · <a href="#ai-에이전트-통합">통합</a> · <a href="#아키텍처">아키텍처</a> · <a href="../README.md">English</a> · <a href="README_ja.md">日本語</a> · <a href="README_zh.md">中文</a> · <a href="README_de.md">Deutsch</a>
   </p>
@@ -18,13 +18,9 @@
 
 ## 왜 hedwig-kg인가?
 
-클로드 코드로 개발할 때, 뭔가 아쉬운 점 느끼지 않으셨나요?
+코딩 에이전트는 키워드로 검색합니다 — `payment_service.py`는 찾지만, 같은 도메인에 있는 `fraud_detector.py`, `policy.yaml`, `test_chargeback.py`는 놓칩니다. hedwig-kg는 코드, 문서, 설정, 테스트를 관계로 연결하는 지식 그래프를 만듭니다. 에이전트가 키워드 매칭이 아닌 전체 맥락을 볼 수 있게 됩니다.
 
-결제 시스템을 만들 때, 우리는 자연스럽게 전체 맥락을 봅니다 — 카드 검증, 환불 정책, PCI 컴플라이언스가 하나의 도메인이죠. 하지만 코딩 에이전트에게 "환불 로직 수정해줘"라고 하면? `refund_service.py`만 찾고 끝입니다. 환불 한도가 정의된 `policy.yaml`, 카드사별 규칙이 적힌 `docs/payment-rules.md`, 관련 테스트 `test_chargeback.py`는 파일명에 "refund"가 없으니 시야에 들어오지 않습니다.
-
-지식 그래프가 있으면 달라집니다. 코드, 문서, 설정, 테스트를 키워드가 아닌 도메인 관계로 연결합니다. 에이전트도 전체 맥락을 볼 수 있게 됩니다.
-
-hedwig-kg를 쓰면 코딩 에이전트가 키워드 매칭이 아닌, 사람처럼 파일과 계층을 넘나들며 탐색합니다. 토큰은 줄고, 결과는 좋아지고, 기존에 찾지 못하던 코드까지 발견합니다.
+모든 것이 100% 로컬에서 실행됩니다. 클라우드 서비스 없이, 데이터가 외부로 나가지 않습니다.
 
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 

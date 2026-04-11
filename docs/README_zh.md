@@ -1,7 +1,7 @@
 <p align="center">
   <h1 align="center">hedwig-kg</h1>
   <p align="center">
-    面向AI编程代理的本地优先知识图谱构建器
+    "海德薇一定会带着消息回来的"
     <br />
     <a href="#快速开始">快速开始</a> · <a href="#支持的语言">语言</a> · <a href="#ai代理集成">集成</a> · <a href="#架构">架构</a> · <a href="../README.md">English</a> · <a href="README_ko.md">한국어</a> · <a href="README_ja.md">日本語</a> · <a href="README_de.md">Deutsch</a>
   </p>
@@ -18,13 +18,9 @@
 
 ## 为什么选择 hedwig-kg？
 
-用Claude Code开发时，你是否觉得少了点什么？
+编程代理通过关键词搜索——能找到`payment_service.py`，却会错过同一领域中的`fraud_detector.py`、`policy.yaml`和`test_chargeback.py`。hedwig-kg构建知识图谱，通过关系将代码、文档、配置和测试连接起来。代理能看到完整的上下文，而不仅仅是关键词匹配。
 
-构建支付系统时，我们自然会看到全貌——卡片验证、退款策略、PCI合规性都属于同一个领域。但当你让编程代理"修复退款逻辑"时，它只找到`refund_service.py`就停了。退款限额定义在`policy.yaml`里，卡组织规则写在`docs/payment-rules.md`里，相关测试在`test_chargeback.py`里——这些文件名都不包含"refund"，所以完全不在视野内。
-
-有了知识图谱就不同了。它通过领域关系而非关键词将代码、文档、配置和测试连接起来。代理也能看到完整的上下文。
-
-使用hedwig-kg，编程代理不再只是匹配关键词，而是像人类一样跨文件、跨层级进行探索。更少的token，更好的结果，以前找不到的代码也能被发现。
+一切100%在本地运行。无需云服务，数据不会离开你的机器。
 
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 
