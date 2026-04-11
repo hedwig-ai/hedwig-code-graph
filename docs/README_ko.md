@@ -20,11 +20,11 @@
 
 클로드 코드로 개발할 때, 뭔가 아쉬운 점 느끼지 않으셨나요?
 
-결제 시스템을 만들 때, 우리는 자연스럽게 전체 맥락을 봅니다 — 카드, 청구, 환불, 사기 탐지가 하나의 흐름으로 연결되어 있죠. 하지만 코딩 에이전트는 "Payment"를 검색해서 `payment_service.py`만 찾습니다. 같은 트랜잭션 흐름에 있는 `fraud_detector.py`나 `billing_engine.py`는 파일명에 "payment"가 없으니 보이지 않습니다.
+결제 시스템을 만들 때, 우리는 자연스럽게 전체 맥락을 봅니다 — 카드 검증, 환불 정책, PCI 컴플라이언스가 하나의 도메인이죠. 하지만 코딩 에이전트에게 "환불 로직 수정해줘"라고 하면? `refund_service.py`만 찾고 끝입니다. 환불 한도가 정의된 `policy.yaml`, 카드사별 규칙이 적힌 `docs/payment-rules.md`, 관련 테스트 `test_chargeback.py`는 파일명에 "refund"가 없으니 시야에 들어오지 않습니다.
 
-지식 그래프가 있으면 달라집니다. `PaymentService` → `CardValidator` → `FraudDetector` → `BillingEngine` — 코드 간의 관계를 따라가며 에이전트도 전체 맥락을 볼 수 있게 됩니다.
+지식 그래프가 있으면 달라집니다. 코드, 문서, 설정, 테스트를 키워드가 아닌 도메인 관계로 연결합니다. 에이전트도 전체 맥락을 볼 수 있게 됩니다.
 
-hedwig-kg를 쓰면 코딩 에이전트가 키워드 매칭이 아닌, 사람처럼 연결고리를 따라 탐색합니다. 토큰은 줄고, 결과는 좋아지고, 기존에 찾지 못하던 코드까지 발견합니다.
+hedwig-kg를 쓰면 코딩 에이전트가 키워드 매칭이 아닌, 사람처럼 파일과 계층을 넘나들며 탐색합니다. 토큰은 줄고, 결과는 좋아지고, 기존에 찾지 못하던 코드까지 발견합니다.
 
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 

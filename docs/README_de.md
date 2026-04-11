@@ -20,11 +20,11 @@
 
 Haben Sie beim Entwickeln mit Claude Code schon einmal das Gefuehl gehabt, dass etwas fehlt?
 
-Wenn wir ein Zahlungssystem bauen, sehen wir natuerlich das Gesamtbild — Karten, Abrechnung, Rueckerstattungen und Betrugserkennung als zusammenhaengender Ablauf. Aber ein Coding-Agent sucht nach "Payment" und findet nur `payment_service.py`. `fraud_detector.py` und `billing_engine.py` im selben Transaktionsfluss werden uebersehen, weil ihre Dateinamen kein "payment" enthalten.
+Wenn wir ein Zahlungssystem bauen, sehen wir natuerlich das Gesamtbild — Kartenvalidierung, Rueckerstattungsrichtlinien, PCI-Compliance als eine Domaene. Aber wenn Sie einen Coding-Agent bitten, "die Rueckerstattungslogik zu beheben", findet er nur `refund_service.py`. Die Rueckerstattungslimits in `policy.yaml`, die Kartennetzwerk-Regeln in `docs/payment-rules.md`, der zugehoerige Test in `test_chargeback.py` — keine dieser Dateien enthaelt das Wort "refund" und bleibt unsichtbar.
 
-Mit einem Knowledge Graph aendert sich das. `PaymentService` → `CardValidator` → `FraudDetector` → `BillingEngine` — der Agent folgt den Beziehungen zwischen Code-Elementen und kann den vollstaendigen Kontext erfassen.
+Mit einem Knowledge Graph aendert sich das. Er verbindet Code, Dokumentation, Konfiguration und Tests durch Domaenen-Beziehungen — nicht nur durch Schluesselwoerter. Der Agent erfasst den vollstaendigen Kontext.
 
-Mit hedwig-kg erkunden Coding-Agents Codebasen wie Menschen — sie folgen Zusammenhaengen statt nur Schluesselwoerter abzugleichen. Weniger Tokens, bessere Ergebnisse, und bisher uebersehener Code wird gefunden.
+Mit hedwig-kg erkunden Coding-Agents Codebasen wie Menschen — sie folgen Zusammenhaengen ueber Dateien, Schichten und Formate hinweg. Weniger Tokens, bessere Ergebnisse, und bisher uebersehener Code wird gefunden.
 
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 

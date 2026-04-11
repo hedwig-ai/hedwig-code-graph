@@ -20,11 +20,11 @@
 
 用Claude Code开发时，你是否觉得少了点什么？
 
-构建支付系统时，我们自然会看到全貌——卡片、账单、退款、欺诈检测作为一个完整的流程相互关联。但编程代理只会搜索"Payment"，找到`payment_service.py`。同一事务流中的`fraud_detector.py`和`billing_engine.py`，因为文件名不包含"payment"，所以完全被忽略。
+构建支付系统时，我们自然会看到全貌——卡片验证、退款策略、PCI合规性都属于同一个领域。但当你让编程代理"修复退款逻辑"时，它只找到`refund_service.py`就停了。退款限额定义在`policy.yaml`里，卡组织规则写在`docs/payment-rules.md`里，相关测试在`test_chargeback.py`里——这些文件名都不包含"refund"，所以完全不在视野内。
 
-有了知识图谱就不同了。`PaymentService` → `CardValidator` → `FraudDetector` → `BillingEngine`——代理沿着代码间的关系追踪，能够看到完整的上下文。
+有了知识图谱就不同了。它通过领域关系而非关键词将代码、文档、配置和测试连接起来。代理也能看到完整的上下文。
 
-使用hedwig-kg，编程代理不再只是匹配关键词，而是像人类一样沿着关联进行探索。更少的token，更好的结果，以前找不到的代码也能被发现。
+使用hedwig-kg，编程代理不再只是匹配关键词，而是像人类一样跨文件、跨层级进行探索。更少的token，更好的结果，以前找不到的代码也能被发现。
 
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 

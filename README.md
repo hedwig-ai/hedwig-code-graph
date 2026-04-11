@@ -20,11 +20,11 @@
 
 Have you ever felt something slightly off when developing with Claude Code?
 
-When we build a payment system, we naturally see the full picture — cards, billing, refunds, fraud detection all connected as one flow. But a coding agent just searches for "Payment" and finds `payment_service.py`. It never reaches `fraud_detector.py` or `billing_engine.py`, because those filenames don't contain the word "payment."
+When we build a payment system, we naturally see the full picture — card validation, refund policies, PCI compliance all part of one domain. But when you ask a coding agent to "fix the refund logic," it finds `refund_service.py` and stops there. The refund limits defined in `policy.yaml`, the card network rules documented in `docs/payment-rules.md`, the related test in `test_chargeback.py` — none of these contain the word "refund," so they stay invisible.
 
-A knowledge graph changes that. It maps the relationships between code — so the agent can follow `PaymentService` → `CardValidator` → `FraudDetector` → `BillingEngine` and see the full context, just like you do.
+A knowledge graph changes that. It connects code, docs, configs, and tests by domain relationships — not just keywords. The agent sees the full context, just like you do.
 
-With hedwig-kg, coding agents explore codebases the way humans think — following connections, not just matching keywords. Fewer tokens, better results, and code that would have been missed gets found.
+With hedwig-kg, coding agents explore codebases the way humans think — following connections across files, layers, and formats. Fewer tokens, better results, and code that would have been missed gets found.
 
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 
