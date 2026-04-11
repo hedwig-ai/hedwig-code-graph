@@ -5,10 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-04-11
+
+### Added
+- **Chinese (简体中文) README** (`docs/README_zh.md`)
+- **German (Deutsch) README** (`docs/README_de.md`)
+- Cross-language navigation links across all 5 README variants (en, ko, ja, zh, de)
+
+### Fixed
+- Correct HybridRAG signal count from "6-signal" to "5-signal" across all documentation, code comments, and CLAUDE.md (actual RRF receives 5 ranked lists: code vector, text vector, graph, keyword, community)
+- Clarify `hedwig-kg search` as the single primary HybridRAG entry point in skill rules and PreToolUse hook
+
 ## [Unreleased]
 
 ### Added
-- **Community-aware HybridRAG**: 4-signal search (vector + graph + keyword + community), up from 3 signals
+- **Community-aware HybridRAG**: 5-signal search (code vector + text vector + graph + keyword + community)
 - **Community summaries**: Auto-generated keyword-rich text from node labels, kinds, docstrings, and file paths
 - **`hedwig-kg communities` CLI command**: List, filter by level, and search communities
 - **Markdown document extraction**: Headings become section nodes with hierarchy, internal links become reference edges
@@ -49,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - HybridRAG search engine combining vector similarity, graph traversal, and FTS5 keyword matching with RRF fusion
 - Tree-sitter AST extraction for Python, JavaScript, TypeScript with regex fallback
 - Hierarchical Leiden community detection at multiple resolutions (0.25, 0.5, 1.0, 2.0)
-- Local embeddings via sentence-transformers (all-MiniLM-L6-v2)
+- Local embeddings via sentence-transformers (nomic-ai/nomic-embed-code)
 - FAISS vector index for cosine similarity search
 - SQLite + FTS5 full-text search with BM25 ranking
 - CLI commands: `build`, `search`, `stats`, `node`, `export`
