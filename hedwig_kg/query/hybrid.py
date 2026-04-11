@@ -105,6 +105,69 @@ def reciprocal_rank_fusion(
 DEFAULT_WEIGHTS = [1.2, 1.2, 0.8, 1.0, 0.6]
 
 
+# --- Relation-type weights for graph expansion ---
+# Edges representing direct code relationships (calls, inherits) are more
+# semantically valuable for expansion than structural containment edges.
+RELATION_WEIGHTS: dict[str, float] = {
+    "calls": 1.0,
+    "inherits": 1.0,
+    "extends": 1.0,
+    "imports": 0.7,
+    "references": 0.6,
+    "defines": 0.5,
+    "contains": 0.3,
+}
+_DEFAULT_RELATION_WEIGHT = 0.5
+
+
+def _weighted_expand(
+    G: nx.DiGraph,
+    seed: str,
+    seed_score: float,
+    max_hops: int,
+    seen: set[str],
+    out: list[tuple[str, float]],
+) -> None:
+    """BFS expansion that weights edges by relation type and stored weight.
+
+    Instead of treating all edges uniformly, this multiplies the propagated
+    score by ``edge_weight * relation_weight`` so that high-confidence,
+    semantically similar, structurally important edges propagate more score
+    to their neighbors.
+    """
+    # BFS frontier: list of (node_id, accumulated_score, hops_remaining)
+    frontier: list[tuple[str, float, int]] = [(seed, seed_score, max_hops)]
+
+    while frontier:
+        node_id, score, hops = frontier.pop(0)
+        if node_id in seen:
+            continue
+        seen.add(node_id)
+        out.append((node_id, score))
+
+        if hops <= 0:
+            continue
+
+        # Expand both successors and predecessors (treat as undirected)
+        neighbors: list[tuple[str, dict]] = []
+        for _, nbr, data in G.out_edges(node_id, data=True):
+            neighbors.append((nbr, data))
+        for nbr, _, data in G.in_edges(node_id, data=True):
+            neighbors.append((nbr, data))
+
+        for nbr, edata in neighbors:
+            if nbr in seen:
+                continue
+            # Edge weight from compute_edge_weights (semantic+confidence+proximity)
+            edge_w = edata.get("weight", 0.5)
+            # Relation-type boost
+            rel = edata.get("relation", "")
+            rel_w = RELATION_WEIGHTS.get(rel, _DEFAULT_RELATION_WEIGHT)
+            # Propagated score decays by edge quality
+            nbr_score = score * edge_w * rel_w
+            frontier.append((nbr, nbr_score, hops - 1))
+
+
 def extract_search_terms(query: str) -> list[str]:
     """Extract meaningful search terms by filtering stopwords and short tokens."""
     return [
@@ -163,26 +226,20 @@ def hybrid_search(
         code_vector_hits + text_vector_hits, key=lambda x: x[1], reverse=True,
     )[:vector_candidates]
 
-    # Stage 2: Graph expansion from vector hits
-    # Convert to undirected once (avoids O(N) copy per iteration)
-    G_undirected = G.to_undirected(as_view=True)
+    # Stage 2: Weight-aware graph expansion from vector hits
+    # Traverses edges using computed weights (semantic + confidence + proximity)
+    # so high-quality edges (CALLS, INHERITS with high similarity) are preferred
+    # over low-quality edges (AMBIGUOUS imports to external nodes).
     graph_hits: list[tuple[str, float]] = []
     expanded_nodes: set[str] = set()
     for node_id, vscore in vector_hits[:5]:  # Expand top 5
         if not G.has_node(node_id):
             continue
         try:
-            ego = nx.ego_graph(G_undirected, node_id, radius=graph_hops)
-            for neighbor in ego.nodes():
-                if neighbor not in expanded_nodes:
-                    expanded_nodes.add(neighbor)
-                    # Score decays with distance via BFS depth
-                    try:
-                        dist = nx.shortest_path_length(G_undirected, node_id, neighbor)
-                    except nx.NetworkXNoPath:
-                        dist = graph_hops
-                    gscore = vscore * (1.0 / (1 + dist))
-                    graph_hits.append((neighbor, gscore))
+            _weighted_expand(
+                G, node_id, vscore, graph_hops,
+                expanded_nodes, graph_hits,
+            )
         except Exception:
             logger.debug("Graph expansion failed for %s", node_id, exc_info=True)
             continue

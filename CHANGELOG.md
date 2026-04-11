@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `extract_search_terms()` public API for reusable stopword-filtered term extraction
 - `clear_search_cache()` and `clear_query_cache()` public APIs
 - `weights` parameter on `hybrid_search()` for runtime signal weight tuning
+- **Weight-aware graph expansion**: BFS traversal now uses edge weights (semantic similarity + confidence + proximity) and relation-type weights (`calls`/`inherits`=1.0, `imports`=0.7, `defines`=0.5, `contains`=0.3) instead of uniform hop distance
+- `RELATION_WEIGHTS` dictionary for configurable per-relation expansion priority
 
 ### Changed
 - FAISS index loading now uses `IO_FLAG_MMAP` for lower RSS and faster cold starts on large indices (with automatic fallback)
