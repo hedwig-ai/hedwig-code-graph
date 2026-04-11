@@ -699,7 +699,7 @@ def claude_group():
 def claude_install(scope: str | None):
     """Install Claude Code integration.
 
-    Priority order: 1) Skill registration  2) CLAUDE.md + hooks  3) MCP (already available via 'hedwig-kg mcp')
+    Priority: 1) Skill  2) CLAUDE.md + hooks  3) MCP
     """
     import json
     import shutil
@@ -709,9 +709,19 @@ def claude_install(scope: str | None):
     # --- Prompt for scope if not provided ---
     if scope is None:
         console.print("[bold]Select installation scope:[/]")
-        console.print("  [cyan]1)[/] user    — Global (~/.claude/skills/). Available in ALL projects.")
-        console.print("  [cyan]2)[/] project — Local (.claude/skills/). Available only in THIS project.")
-        choice = click.prompt("Choose scope", type=click.Choice(["1", "2", "user", "project"]), default="1")
+        console.print(
+            "  [cyan]1)[/] user    — Global (~/.claude/skills/)."
+            " Available in ALL projects."
+        )
+        console.print(
+            "  [cyan]2)[/] project — Local (.claude/skills/)."
+            " Available only in THIS project."
+        )
+        choice = click.prompt(
+            "Choose scope",
+            type=click.Choice(["1", "2", "user", "project"]),
+            default="1",
+        )
         scope = "user" if choice in ("1", "user") else "project"
 
     # --- Priority 1: Install Skill ---
@@ -726,8 +736,15 @@ def claude_install(scope: str | None):
 
     if skill_source.exists():
         shutil.copy2(skill_source, skill_dest)
-        scope_label = "~/.claude/skills/hedwig-kg/" if scope == "user" else ".claude/skills/hedwig-kg/"
-        console.print(f"[green]✓ Skill installed[/] → {scope_label}SKILL.md ({scope} scope)")
+        scope_label = (
+            "~/.claude/skills/hedwig-kg/"
+            if scope == "user"
+            else ".claude/skills/hedwig-kg/"
+        )
+        console.print(
+            f"[green]✓ Skill installed[/] → "
+            f"{scope_label}SKILL.md ({scope} scope)"
+        )
     else:
         console.print("[yellow]⚠ Skill source not found, skipping skill registration.[/]")
 
