@@ -104,12 +104,22 @@ def _node_text(data: dict) -> str:
 
     Includes file path context so queries like "store.py methods" or
     "functions in analyze.py" match via cosine similarity.
+    Also extracts parent class context from dotted labels (e.g.
+    "ClassName.method_name") so that method embeddings encode their
+    class membership — enabling queries like "AuthHandler methods".
     """
     parts = []
-    if data.get("kind"):
-        parts.append(data["kind"])
-    if data.get("label"):
-        parts.append(data["label"])
+    kind = data.get("kind", "")
+    label = data.get("label", "")
+    if kind:
+        parts.append(kind)
+    if label:
+        parts.append(label)
+    # Extract parent class context from dotted label (e.g. "MyClass.my_method")
+    # This enriches method embeddings with class membership information.
+    if kind in ("method", "constructor", "property") and "." in label:
+        class_name = label.rsplit(".", 1)[0]
+        parts.append(f"method of {class_name}")
     # Add filename for file-based query matching (e.g. "store.py methods")
     fp = data.get("file_path", "")
     if fp:

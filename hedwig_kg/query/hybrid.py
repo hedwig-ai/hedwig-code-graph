@@ -176,6 +176,51 @@ def extract_search_terms(query: str) -> list[str]:
     ]
 
 
+def _query_relevant_snippet(source: str, terms: list[str], max_len: int = 200) -> str:
+    """Extract the most query-relevant portion of source code as snippet.
+
+    Instead of blindly truncating from the start, finds the region with the
+    highest density of query terms and centers the snippet around it.
+    Falls back to the first ``max_len`` chars if no terms match.
+    """
+    if not source or not terms:
+        return source[:max_len] if source else ""
+
+    src_lower = source.lower()
+    # Find all term positions
+    positions: list[int] = []
+    for term in terms:
+        idx = 0
+        while True:
+            idx = src_lower.find(term, idx)
+            if idx == -1:
+                break
+            positions.append(idx)
+            idx += len(term)
+
+    if not positions:
+        return source[:max_len]
+
+    # Pick the densest region: center on the median position
+    positions.sort()
+    median_pos = positions[len(positions) // 2]
+    start = max(0, median_pos - max_len // 3)
+    end = start + max_len
+
+    snippet = source[start:end]
+    # Clean up: don't start mid-word
+    if start > 0:
+        space_idx = snippet.find(" ")
+        if 0 < space_idx < 20:
+            snippet = "..." + snippet[space_idx + 1:]
+    if end < len(source):
+        space_idx = snippet.rfind(" ")
+        if space_idx > max_len - 20:
+            snippet = snippet[:space_idx] + "..."
+
+    return snippet
+
+
 def hybrid_search(
     query: str,
     store: "KnowledgeStore",
@@ -299,7 +344,9 @@ def hybrid_search(
             file_path=data.get("file_path", ""),
             score=rrf_score,
             source="fused",
-            snippet=data.get("source_snippet", "")[:200],
+            snippet=_query_relevant_snippet(
+                data.get("source_snippet", ""), terms,
+            ),
             neighbors=neighbors,
         ))
 

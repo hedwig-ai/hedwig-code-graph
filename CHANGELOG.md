@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `weights` parameter on `hybrid_search()` for runtime signal weight tuning
 - **Weight-aware graph expansion**: BFS traversal now uses edge weights (semantic similarity + confidence + proximity) and relation-type weights (`calls`/`inherits`=1.0, `imports`=0.7, `defines`=0.5, `contains`=0.3) instead of uniform hop distance
 - `RELATION_WEIGHTS` dictionary for configurable per-relation expansion priority
+- **Parent class context in embeddings**: Method/constructor/property nodes now include "method of ClassName" in embedding text for better class-membership queries
+- **Query-relevant snippets**: Search results now show the most query-term-dense region of source code instead of blind truncation from the start
 
 ### Changed
 - FAISS index loading now uses `IO_FLAG_MMAP` for lower RSS and faster cold starts on large indices (with automatic fallback)
