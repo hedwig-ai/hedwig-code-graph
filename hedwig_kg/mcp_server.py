@@ -77,7 +77,8 @@ def _load():
         )
     _store = KnowledgeStore(db)
     _graph = _store.load_graph()
-    logger.info("Loaded graph: %d nodes, %d edges", _graph.number_of_nodes(), _graph.number_of_edges())
+    n, e = _graph.number_of_nodes(), _graph.number_of_edges()
+    logger.info("Loaded graph: %d nodes, %d edges", n, e)
     return _store, _graph
 
 
@@ -179,21 +180,28 @@ def node(node_id: str) -> str:
             lines.append("- **Outgoing edges**:")
             for _, target, edata in out_edges:
                 tlabel = G.nodes.get(target, {}).get("label", target.split("::")[-1])
-                lines.append(f"  - → {tlabel} ({edata.get('relation', '?')}, w={edata.get('weight', 0):.2f})")
+                rel = edata.get('relation', '?')
+                w = edata.get('weight', 0)
+                lines.append(f"  - → {tlabel} ({rel}, w={w:.2f})")
         if in_edges:
             lines.append("- **Incoming edges**:")
             for source, _, edata in in_edges:
                 slabel = G.nodes.get(source, {}).get("label", source.split("::")[-1])
-                lines.append(f"  - ← {slabel} ({edata.get('relation', '?')}, w={edata.get('weight', 0):.2f})")
+                rel = edata.get('relation', '?')
+                w = edata.get('weight', 0)
+                lines.append(f"  - ← {slabel} ({rel}, w={w:.2f})")
         lines.append("")
     return "\n".join(lines)
 
 
 @mcp.tool()
 def stats() -> str:
-    """Get knowledge graph statistics including node/edge counts, communities, and quality metrics."""
+    """Get knowledge graph statistics.
+
+    Returns node/edge counts, communities, and quality metrics.
+    """
     store, G = _load()
-    from hedwig_kg.core.analyze import compute_god_nodes
+    from hedwig_kg.core.analyze import analyze as analyze_graph
 
     n_nodes = G.number_of_nodes()
     n_edges = G.number_of_edges()
@@ -210,8 +218,9 @@ def stats() -> str:
         for cid in data.get("community_ids", []):
             community_ids.add(cid)
 
-    # God nodes (high fan-out)
-    god_nodes = compute_god_nodes(G, threshold=10)
+    # God nodes (high degree + pagerank)
+    analysis = analyze_graph(G, top_k=10)
+    god_nodes = analysis.god_nodes
 
     lines = [
         "## Knowledge Graph Statistics\n",

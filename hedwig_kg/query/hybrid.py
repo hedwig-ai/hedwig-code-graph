@@ -278,7 +278,7 @@ def hybrid_search(
     # Stage 1: Vector search
     if fast:
         # Fast mode: text model only (cold start ~0.2s vs ~2.8s)
-        from hedwig_kg.query.embeddings import embed_query, TEXT_MODEL
+        from hedwig_kg.query.embeddings import TEXT_MODEL, embed_query
         query_vec = embed_query(query, TEXT_MODEL)
         code_vector_hits: list[tuple[str, float]] = []
         text_vector_hits = store.vector_search(

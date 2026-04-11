@@ -131,6 +131,14 @@ def search(query: str, db: str | None, top_k: int, source_dir: str, fast: bool):
     store.close()
 
 
+def _file_loc(r) -> str:
+    """Format file:line for search result display."""
+    name = str(Path(r.file_path).name)
+    if r.start_line:
+        return f"{name}:{r.start_line}"
+    return name
+
+
 def _print_search_results(query: str, results: list) -> None:
     """Print search results as a Rich table."""
     if not results:
@@ -158,7 +166,7 @@ def _print_search_results(query: str, results: list) -> None:
             str(i),
             r.label,
             r.kind,
-            (str(Path(r.file_path).name) + (f":{r.start_line}" if r.start_line else "")) if r.file_path else "",
+            _file_loc(r) if r.file_path else "",
             f"{r.score:.4f}",
             " ".join(sig_parts[:3]),
             ", ".join(r.neighbors[:3]),
@@ -510,7 +518,7 @@ def query(db: str | None, source_dir: str, top_k: int):
     import threading
     def _preload_models():
         try:
-            from hedwig_kg.query.embeddings import _get_model, CODE_MODEL, TEXT_MODEL
+            from hedwig_kg.query.embeddings import CODE_MODEL, TEXT_MODEL, _get_model
             _get_model(CODE_MODEL)
             _get_model(TEXT_MODEL)
         except Exception:
