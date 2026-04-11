@@ -338,6 +338,34 @@ def _extract_js_ts(file_path: str, content: str, language: str) -> ExtractionRes
         language=language,
     ))
 
+    # JS/TS builtins to skip in call extraction
+    _JS_BUILTINS = frozenset({
+        "console", "require", "parseInt", "parseFloat", "isNaN", "isFinite",
+        "setTimeout", "setInterval", "clearTimeout", "clearInterval",
+        "JSON", "Object", "Array", "String", "Number", "Boolean", "Symbol",
+        "Promise", "Map", "Set", "WeakMap", "WeakSet", "Date", "Math",
+        "Error", "TypeError", "RangeError", "RegExp",
+    })
+
+    def _extract_js_calls(node, caller_id: str):
+        """Extract function/method calls from a JS/TS node's body."""
+        for child in node.children:
+            if child.type == "call_expression":
+                func_node = child.child_by_field_name("function")
+                if func_node:
+                    call_text = _get_node_text(func_node, source_bytes)
+                    # Get the base name for filtering
+                    parts = call_text.split(".")
+                    base = parts[0]
+                    target = parts[-1] if len(parts) > 1 else base
+                    # Skip builtins and common patterns
+                    if base not in _JS_BUILTINS and target not in _JS_BUILTINS:
+                        result.edges.append(ExtractedEdge(
+                            caller_id, f"*::{target}", "calls",
+                            confidence="INFERRED",
+                        ))
+            _extract_js_calls(child, caller_id)
+
     def _process_node(node, parent_id: str, prefix: str = ""):
         """Recursively process AST nodes."""
         if node.type == "class_declaration":
@@ -402,6 +430,9 @@ def _extract_js_ts(file_path: str, content: str, language: str) -> ExtractionRes
                         content, node.start_point[0], node.end_point[0]),
                 ))
                 result.edges.append(ExtractedEdge(parent_id, node_id, "defines"))
+
+                # Extract function/method calls within the body
+                _extract_js_calls(node, node_id)
 
         elif node.type == "import_statement":
             source_node = node.child_by_field_name("source")
