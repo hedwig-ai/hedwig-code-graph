@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fast search mode**: `--fast` flag uses text model only, skipping code model loading for lower cold-start latency; available in CLI, REPL, and MCP server
 - **REPL model preloading**: `hedwig-kg query` REPL now preloads embedding models in a background thread so first search is faster
 - **Python decorator extraction**: Decorators (`@dataclass`, `@cli.command()`, `@staticmethod`, etc.) are now extracted and stored as node attributes, enriching embeddings for decorator-aware search
+- **Search result line numbers**: Results now include `start_line`/`end_line` in CLI (`file.py:42`), MCP server (`file.py:42-67`), and SearchResult API — enabling AI agents to navigate directly to code
 
 ### Changed
 - FAISS index loading now uses `IO_FLAG_MMAP` for lower RSS and faster cold starts on large indices (with automatic fallback)

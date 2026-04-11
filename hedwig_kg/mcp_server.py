@@ -117,7 +117,12 @@ def search(query: str, top_k: int = 10, fast: bool = False) -> str:
     lines = [f"## Search: '{query}' ({len(results)} results)\n"]
     for i, r in enumerate(results, 1):
         lines.append(f"### {i}. {r.label} ({r.kind})")
-        lines.append(f"- **File**: {r.file_path}")
+        loc = r.file_path
+        if r.start_line:
+            loc += f":{r.start_line}"
+            if r.end_line and r.end_line != r.start_line:
+                loc += f"-{r.end_line}"
+        lines.append(f"- **File**: {loc}")
         lines.append(f"- **Score**: {r.score:.4f}")
         if r.signal_contributions:
             sigs = ", ".join(

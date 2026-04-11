@@ -51,6 +51,8 @@ class SearchResult:
     score: float
     source: str  # "vector", "graph", "keyword", "fused"
     snippet: str = ""
+    start_line: int = 0
+    end_line: int = 0
     neighbors: list[str] = field(default_factory=list)
     signal_contributions: dict[str, float] = field(default_factory=dict)
     """Per-signal RRF contribution breakdown (e.g. {"code_vector": 0.018, "keyword": 0.012})."""
@@ -377,6 +379,8 @@ def hybrid_search(
             snippet=_query_relevant_snippet(
                 data.get("source_snippet", ""), terms,
             ),
+            start_line=data.get("start_line", 0),
+            end_line=data.get("end_line", 0),
             neighbors=neighbors,
             signal_contributions=breakdowns.get(node_id, {}),
         ))
