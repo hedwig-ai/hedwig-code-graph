@@ -19,7 +19,7 @@
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 
 
-**hedwig-kg** builds knowledge graphs from source code and documents, then provides **4-signal HybridRAG search** that fuses vector similarity, graph traversal, keyword matching, and community summaries. Everything runs **100% locally** — no cloud APIs, no data leaves your machine.
+**hedwig-kg** builds knowledge graphs from source code and documents, then provides **6-signal HybridRAG search** with dual embedding models (code-specialized + text-specialized) fused via RRF. Everything runs **100% locally** — no cloud APIs, no data leaves your machine.
 
 ## Integration with AI Coding Agents
 
@@ -65,7 +65,7 @@ To remove: `hedwig-kg <platform> uninstall`
 ### Requirements
 
 - Python 3.10+
-- ~500MB disk space for the default embedding model (downloaded on first use)
+- ~250MB disk space for dual embedding models (cached in `~/.hedwig-kg/models/` on first use)
 
 ### Optional Dependencies
 
@@ -84,12 +84,12 @@ cd ./my-project
 hedwig-kg build .
 ```
 
-First build scans all files, extracts AST structures, generates embeddings (~80MB model download on first run), detects communities, and stores everything in `.hedwig-kg/knowledge.db`.
+First build scans all files, extracts AST structures, generates embeddings with dual models (~250MB download on first run, cached in `~/.hedwig-kg/models/`), detects communities, and stores everything in `.hedwig-kg/knowledge.db`.
 
 ### 2. Search
 
 ```bash
-# 4-signal HybridRAG search (vector + graph + keyword + community)
+# 6-signal HybridRAG search (code vector + text vector + graph + keyword + community)
 hedwig-kg search "authentication handler"
 ```
 
@@ -139,20 +139,21 @@ Source Code/Docs
     hierarchy      summaries       god nodes     FTS5 + FAISS
 ```
 
-### HybridRAG Search
+### HybridRAG Search (6 Signals)
 
-1. **Vector Search** — Embed the query, find semantically similar nodes via FAISS
-2. **Graph Expansion** — From top vector hits, traverse N-hop neighbors
-3. **Keyword Search** — FTS5 full-text search with BM25 ranking
-4. **Community Search** — Match query against community summaries, boost member nodes
-5. **RRF Fusion** — Reciprocal Rank Fusion combines all signals into a unified ranking
+1. **Code Vector Search** — Query embedded with `BAAI/bge-small-en-v1.5`, searches code nodes (functions, classes, methods) via FAISS
+2. **Text Vector Search** — Query embedded with `all-MiniLM-L6-v2`, searches document nodes (headings, sections, docstrings) via FAISS
+3. **Graph Expansion** — From top vector hits, traverse N-hop neighbors
+4. **Keyword Search** — FTS5 full-text search with BM25 ranking
+5. **Community Search** — Match query against community summaries, boost member nodes
+6. **RRF Fusion** — Reciprocal Rank Fusion combines all 5 signals into a unified ranking
 
 ## CLI Reference
 
 | Command | Description |
 |---------|-------------|
 | `build <dir>` | Build knowledge graph (`--incremental`, `--no-embed`, `--model`) |
-| `search <query>` | 4-signal HybridRAG search (`--top-k`, `--source-dir`) |
+| `search <query>` | 6-signal HybridRAG search (`--top-k`, `--source-dir`) |
 | `query` | Interactive search REPL |
 | `communities` | List and search communities (`--search`, `--level`) |
 | `stats` | Graph statistics (density, clustering, components) |
@@ -166,7 +167,8 @@ Source Code/Docs
 
 ## Key Features
 
-- **4-Signal HybridRAG Search** — Vector + Graph + Keyword + Community → RRF fusion
+- **6-Signal HybridRAG Search** — Dual vector (code + text) + Graph + Keyword + Community → RRF fusion
+- **Dual Embedding Models** — Code nodes use `bge-small-en-v1.5`, text nodes use `all-MiniLM-L6-v2` (~220MB total, cached locally)
 - **Tree-sitter AST Extraction** — Python, JavaScript, TypeScript with call graph analysis
 - **Hierarchical Communities** — Multi-resolution Leiden clustering with auto-generated summaries
 - **Incremental Builds** — SHA-256 content hashing skips unchanged files

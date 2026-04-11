@@ -47,7 +47,7 @@ def run_pipeline(
     source_dir: str | Path,
     output_dir: str | Path | None = None,
     embed: bool = True,
-    model_name: str = "all-MiniLM-L6-v2",
+    model_name: str | None = None,
     resolutions: list[float] | None = None,
     max_file_size: int = 1_000_000,
     on_progress: callable | None = None,
@@ -169,21 +169,43 @@ def run_pipeline(
         if result.graph.has_node(node_id):
             result.graph.nodes[node_id]["pagerank"] = score
 
-    # Stage 5: Embeddings (optional)
+    # Stage 5: Embeddings (optional) — dual-model streaming
+    all_embeddings: dict = {}  # only kept for edge weight computation
     if embed:
         try:
-            _progress("embed", f"Generating embeddings with {model_name}")
-            from hedwig_kg.query.embeddings import embed_nodes
+            from hedwig_kg.query.embeddings import (
+                CODE_MODEL,
+                TEXT_MODEL,
+                embed_nodes_streaming,
+            )
 
-            embeddings = embed_nodes(result.graph, model_name=model_name)
-            result.embeddings_count = len(embeddings)
-            _progress("embed", f"Generated {len(embeddings)} embeddings")
+            _progress("embed", f"Dual-model: code={CODE_MODEL}, text={TEXT_MODEL}")
 
-            store.save_embeddings(embeddings, model_name=model_name)
+            total_count = 0
+            code_count = 0
+            text_count = 0
+            for batch_ids, batch_vecs, model_type in embed_nodes_streaming(
+                result.graph
+            ):
+                batch_dict = dict(zip(batch_ids, batch_vecs))
+                model_label = CODE_MODEL if model_type == "code" else TEXT_MODEL
+                store.save_embeddings(
+                    batch_dict, model_name=model_label, model_type=model_type,
+                )
+                all_embeddings.update(batch_dict)
+                total_count += len(batch_ids)
+                if model_type == "code":
+                    code_count += len(batch_ids)
+                else:
+                    text_count += len(batch_ids)
+                _progress("embed", f"Embedded {total_count} nodes (code:{code_count} text:{text_count})")
 
-            # Compute semantic edge weights using embeddings
+            result.embeddings_count = total_count
+            _progress("embed", f"Generated {total_count} embeddings (code:{code_count} text:{text_count})")
+
             _progress("embed", "Computing edge weights")
-            compute_edge_weights(result.graph, embeddings=embeddings)
+            compute_edge_weights(result.graph, embeddings=all_embeddings)
+            del all_embeddings
         except ImportError:
             _progress("embed", "sentence-transformers not available, skipping embeddings")
             compute_edge_weights(result.graph)
@@ -218,7 +240,7 @@ def run_pipeline(
     store.save_graph(result.graph)
     store.save_communities(result.cluster_result.communities)
     store.set_meta("source_dir", str(source_dir))
-    store.set_meta("model_name", model_name)
+    store.set_meta("model_name", model_name or "dual:bge-small+MiniLM")
     store.set_meta("status", "complete")
 
     # Save file hashes for incremental builds

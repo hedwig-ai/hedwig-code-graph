@@ -78,11 +78,20 @@ def hybrid_search(
     Returns:
         Ranked list of SearchResult.
     """
-    from hedwig_kg.query.embeddings import embed_query
+    from hedwig_kg.query.embeddings import embed_query_dual
 
-    # Stage 1: Vector search
-    query_vec = embed_query(query)
-    vector_hits = store.vector_search(query_vec, top_k=vector_candidates)
+    # Stage 1: Dual vector search (code + text models)
+    query_vecs = embed_query_dual(query)
+    code_vector_hits = store.vector_search(
+        query_vecs["code"], top_k=vector_candidates, model_type="code",
+    )
+    text_vector_hits = store.vector_search(
+        query_vecs["text"], top_k=vector_candidates, model_type="text",
+    )
+    # Combined for graph expansion
+    vector_hits = sorted(
+        code_vector_hits + text_vector_hits, key=lambda x: x[1], reverse=True,
+    )[:vector_candidates]
 
     # Stage 2: Graph expansion from vector hits
     graph_hits: list[tuple[str, float]] = []
@@ -125,9 +134,9 @@ def hybrid_search(
     except Exception:
         logger.debug("Community search failed", exc_info=True)
 
-    # Stage 5: RRF fusion (4 signals)
+    # Stage 5: RRF fusion (6 signals: code_vector + text_vector + graph + keyword + community)
     fused = reciprocal_rank_fusion(
-        vector_hits, graph_hits, keyword_hits, community_hits,
+        code_vector_hits, text_vector_hits, graph_hits, keyword_hits, community_hits,
     )
 
     # Build final results

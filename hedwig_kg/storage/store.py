@@ -23,9 +23,12 @@ class KnowledgeStore:
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn: sqlite3.Connection | None = None
-        self._faiss_index = None
-        self._faiss_labels: list[str] = []
+        # Dual FAISS indices: one for code, one for text
+        self._faiss_indices: dict[str, object] = {}  # model_type -> index
+        self._faiss_labels: dict[str, list[str]] = {}  # model_type -> labels
         self._embedding_dim: int = 0
+        # Legacy single-index compat
+        self._faiss_index = None
 
     @property
     def conn(self) -> sqlite3.Connection:
@@ -77,6 +80,7 @@ class KnowledgeStore:
                 node_id TEXT PRIMARY KEY,
                 vector BLOB NOT NULL,
                 model TEXT DEFAULT '',
+                model_type TEXT DEFAULT 'text',
                 updated_at TEXT DEFAULT (datetime('now'))
             );
 
@@ -186,14 +190,19 @@ class KnowledgeStore:
 
     # --- Embedding / Vector persistence ---
 
-    def save_embeddings(self, embeddings: dict[str, np.ndarray], model_name: str = "") -> None:
+    def save_embeddings(
+        self,
+        embeddings: dict[str, np.ndarray],
+        model_name: str = "",
+        model_type: str = "text",
+    ) -> None:
         """Save node embeddings to SQLite."""
         c = self.conn.cursor()
         for node_id, vec in embeddings.items():
             c.execute(
-                """INSERT OR REPLACE INTO embeddings (node_id, vector, model)
-                   VALUES (?, ?, ?)""",
-                (node_id, vec.tobytes(), model_name),
+                """INSERT OR REPLACE INTO embeddings (node_id, vector, model, model_type)
+                   VALUES (?, ?, ?, ?)""",
+                (node_id, vec.tobytes(), model_name, model_type),
             )
         self.conn.commit()
 
@@ -207,59 +216,149 @@ class KnowledgeStore:
             result[row["node_id"]] = np.frombuffer(row["vector"], dtype=np.float32)
         return result
 
-    def build_vector_index(self, embeddings: dict[str, np.ndarray] | None = None) -> None:
-        """Build FAISS index for vector similarity search.
+    def _iter_embeddings_batched(self, model_type: str | None = None, batch_size: int = 1000):
+        """Iterate embeddings from DB in batches to limit memory usage.
 
-        Uses IndexFlatIP (inner product) on L2-normalized vectors,
-        which is equivalent to cosine similarity.
+        Args:
+            model_type: Filter by "code" or "text". None = all.
+
+        Yields:
+            (labels_batch, vectors_batch) where vectors_batch is float32 ndarray.
+        """
+        if model_type:
+            cursor = self.conn.execute(
+                "SELECT node_id, vector FROM embeddings WHERE model_type = ?",
+                (model_type,),
+            )
+        else:
+            cursor = self.conn.execute("SELECT node_id, vector FROM embeddings")
+        while True:
+            rows = cursor.fetchmany(batch_size)
+            if not rows:
+                break
+            labels = [r["node_id"] for r in rows]
+            vecs = np.array(
+                [np.frombuffer(r["vector"], dtype=np.float32) for r in rows],
+                dtype=np.float32,
+            )
+            yield labels, vecs
+
+    def _build_index_for_type(self, model_type: str) -> None:
+        """Build a FAISS index for a specific model_type from DB."""
+        import faiss
+
+        index = None
+        all_labels: list[str] = []
+
+        for batch_labels, batch_vecs in self._iter_embeddings_batched(model_type=model_type):
+            faiss.normalize_L2(batch_vecs)
+            if index is None:
+                dim = batch_vecs.shape[1]
+                index = faiss.IndexFlatIP(dim)
+                self._embedding_dim = dim
+            index.add(batch_vecs)
+            all_labels.extend(batch_labels)
+
+        if index is not None:
+            self._faiss_indices[model_type] = index
+            self._faiss_labels[model_type] = all_labels
+
+    def build_vector_index(self, embeddings: dict[str, np.ndarray] | None = None) -> None:
+        """Build FAISS indices for vector similarity search.
+
+        Builds separate indices for code and text embeddings.
+        When embeddings=None, loads from DB in batches.
         """
         import faiss
 
-        if embeddings is None:
-            embeddings = self.load_embeddings()
+        if embeddings is not None:
+            # Legacy single-index path (for backward compat)
+            if not embeddings:
+                return
+            labels = list(embeddings.keys())
+            vectors = np.array([embeddings[lb] for lb in labels], dtype=np.float32)
+            faiss.normalize_L2(vectors)
+            dim = vectors.shape[1]
 
-        if not embeddings:
+            index = faiss.IndexFlatIP(dim)
+            index.add(vectors)
+
+            self._faiss_index = index
+            self._faiss_labels["_all"] = labels
+            self._faiss_indices["_all"] = index
+            self._embedding_dim = dim
             return
 
-        labels = list(embeddings.keys())
-        vectors = np.array([embeddings[lb] for lb in labels], dtype=np.float32)
-        dim = vectors.shape[1]
+        # Build dual indices from DB
+        for mt in ("code", "text"):
+            self._build_index_for_type(mt)
 
-        # L2 normalize → inner product == cosine similarity
-        faiss.normalize_L2(vectors)
+        # Also build a combined legacy index for backward compat
+        if not self._faiss_indices:
+            # Fallback: no model_type column data — build from all rows
+            index = None
+            all_labels: list[str] = []
+            for batch_labels, batch_vecs in self._iter_embeddings_batched():
+                faiss.normalize_L2(batch_vecs)
+                if index is None:
+                    dim = batch_vecs.shape[1]
+                    index = faiss.IndexFlatIP(dim)
+                    self._embedding_dim = dim
+                index.add(batch_vecs)
+                all_labels.extend(batch_labels)
+            if index is not None:
+                self._faiss_index = index
+                self._faiss_labels["_all"] = all_labels
+                self._faiss_indices["_all"] = index
 
-        index = faiss.IndexFlatIP(dim)
-        index.add(vectors)
-
-        self._faiss_index = index
-        self._faiss_labels = labels
-        self._embedding_dim = dim
-
-    def vector_search(self, query_vec: np.ndarray, top_k: int = 10) -> list[tuple[str, float]]:
+    def vector_search(
+        self,
+        query_vec: np.ndarray,
+        top_k: int = 10,
+        model_type: str | None = None,
+    ) -> list[tuple[str, float]]:
         """Search for nearest neighbors using FAISS index.
+
+        Args:
+            query_vec: Query embedding vector.
+            top_k: Number of results.
+            model_type: "code", "text", or None (searches all available indices).
 
         Returns:
             List of (node_id, cosine_similarity) tuples, sorted by similarity desc.
         """
         import faiss
 
-        if self._faiss_index is None:
+        if not self._faiss_indices:
             self.build_vector_index()
 
-        if self._faiss_index is None or not self._faiss_labels:
+        # Determine which indices to search
+        if model_type and model_type in self._faiss_indices:
+            indices_to_search = {model_type: self._faiss_indices[model_type]}
+        elif "_all" in self._faiss_indices:
+            indices_to_search = {"_all": self._faiss_indices["_all"]}
+        else:
+            indices_to_search = self._faiss_indices
+
+        if not indices_to_search:
             return []
 
-        k = min(top_k, len(self._faiss_labels))
         qvec = query_vec.reshape(1, -1).astype(np.float32).copy()
         faiss.normalize_L2(qvec)
 
-        scores, indices = self._faiss_index.search(qvec, k)
-
         results = []
-        for idx, score in zip(indices[0], scores[0]):
-            if 0 <= idx < len(self._faiss_labels):
-                results.append((self._faiss_labels[idx], float(score)))
-        return results
+        for mt, index in indices_to_search.items():
+            labels = self._faiss_labels.get(mt, [])
+            if not labels:
+                continue
+            k = min(top_k, len(labels))
+            scores, idxs = index.search(qvec, k)
+            for idx, score in zip(idxs[0], scores[0]):
+                if 0 <= idx < len(labels):
+                    results.append((labels[idx], float(score)))
+
+        results.sort(key=lambda x: x[1], reverse=True)
+        return results[:top_k]
 
     # --- Community persistence ---
 

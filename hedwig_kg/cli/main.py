@@ -31,7 +31,8 @@ def cli():
 @click.option("--output", "-o", type=click.Path(), default=None,
               help="Output directory for the database")
 @click.option("--no-embed", is_flag=True, help="Skip embedding generation")
-@click.option("--model", default="all-MiniLM-L6-v2", help="Sentence-transformers model name")
+@click.option("--model", default=None,
+              help="Override embedding model (default: dual-model, code=bge-small + text=MiniLM)")
 @click.option("--max-file-size", default=1_000_000, type=int, help="Max file size in bytes")
 @click.option("--incremental", is_flag=True, help="Skip unchanged files (faster rebuilds)")
 def build(
