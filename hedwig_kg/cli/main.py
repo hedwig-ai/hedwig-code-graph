@@ -81,6 +81,18 @@ def build(
 
     console.print(table)
 
+    # Show per-stage timing breakdown
+    if result.stage_timings:
+        timing_table = Table(title="Stage Timings")
+        timing_table.add_column("Stage", style="bold")
+        timing_table.add_column("Time", justify="right")
+        for stage, secs in result.stage_timings.items():
+            if stage == "total":
+                timing_table.add_row(f"[bold]{stage}[/bold]", f"[bold]{secs:.1f}s[/bold]")
+            else:
+                timing_table.add_row(stage, f"{secs:.1f}s")
+        console.print(timing_table)
+
 
 @cli.command()
 @click.argument("query")

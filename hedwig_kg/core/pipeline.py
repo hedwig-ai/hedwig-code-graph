@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -34,6 +35,8 @@ class PipelineResult:
     analysis: AnalysisResult | None = None
     embeddings_count: int = 0
     db_path: str = ""
+    stage_timings: dict[str, float] = field(default_factory=dict)
+    """Per-stage wall-clock seconds (e.g. {"detect": 0.12, "embed": 8.5})."""
 
 
 def _file_hash(path: Path) -> str:
@@ -82,9 +85,22 @@ def run_pipeline(
         if on_progress:
             on_progress(stage, detail)
 
+    _stage_start: float = 0.0
+
+    def _start_stage(name: str) -> None:
+        nonlocal _stage_start
+        _stage_start = time.perf_counter()
+
+    def _end_stage(name: str) -> None:
+        elapsed = time.perf_counter() - _stage_start
+        result.stage_timings[name] = elapsed
+        _progress(name, f"completed in {elapsed:.1f}s")
+
     # Stage 1: Detect files
+    _start_stage("detect")
     _progress("detect", f"Scanning {source_dir}")
     result.detect_result = detect(source_dir, max_file_size=max_file_size)
+    _end_stage("detect")
     _progress("detect", f"Found {len(result.detect_result.files)} files")
 
     if not result.detect_result.files:
@@ -93,6 +109,7 @@ def run_pipeline(
         return result
 
     # Stage 2: Extract structures
+    _start_stage("extract")
     _progress("extract", f"Extracting from {len(result.detect_result.files)} files")
 
     # Load previous file hashes for incremental build
@@ -128,9 +145,11 @@ def run_pipeline(
             f"Skipped {skipped_count} unchanged files",
         )
 
+    _end_stage("extract")
     _progress("extract", f"Extracted {sum(len(e.nodes) for e in result.extractions)} nodes")
 
     # Stage 3: Build graph
+    _start_stage("build")
     _progress("build", "Building knowledge graph")
     new_graph = build_graph(result.extractions)
 
@@ -160,16 +179,20 @@ def run_pipeline(
         result.graph = new_graph
 
     n, e = result.graph.number_of_nodes(), result.graph.number_of_edges()
+    _end_stage("build")
     _progress("build", f"Graph: {n} nodes, {e} edges")
 
     # Stage 4: PageRank
+    _start_stage("pagerank")
     _progress("pagerank", "Computing importance scores")
     result.pagerank = compute_pagerank(result.graph)
     for node_id, score in result.pagerank.items():
         if result.graph.has_node(node_id):
             result.graph.nodes[node_id]["pagerank"] = score
+    _end_stage("pagerank")
 
     # Stage 5: Embeddings (optional) — dual-model streaming
+    _start_stage("embed")
     all_embeddings: dict = {}  # only kept for edge weight computation
     if embed:
         try:
@@ -220,8 +243,10 @@ def run_pipeline(
             compute_edge_weights(result.graph)
     else:
         compute_edge_weights(result.graph)
+    _end_stage("embed")
 
     # Stage 6: Cluster
+    _start_stage("cluster")
     _progress("cluster", "Running hierarchical community detection")
     result.cluster_result = hierarchical_cluster(result.graph, resolutions=resolutions)
     _progress("cluster", f"Found {len(result.cluster_result.communities)} communities")
@@ -234,14 +259,18 @@ def run_pipeline(
     # Generate community summaries for search indexing
     from hedwig_kg.core.cluster import summarize_communities
     summarize_communities(result.graph, result.cluster_result)
+    _end_stage("cluster")
     _progress("cluster", "Community summaries generated")
 
     # Stage 7: Analyze
+    _start_stage("analyze")
     _progress("analyze", "Running structural analysis")
     result.analysis = analyze(result.graph, pagerank=result.pagerank)
+    _end_stage("analyze")
     _progress("analyze", f"Found {len(result.analysis.god_nodes)} god nodes")
 
     # Stage 8: Persist
+    _start_stage("store")
     _progress("store", "Saving to database")
     store.save_graph(result.graph)
     store.save_communities(result.cluster_result.communities)
@@ -276,6 +305,10 @@ def run_pipeline(
         pass
 
     store.close()
-    _progress("done", f"Knowledge base saved to {db_path}")
+    _end_stage("store")
+
+    total = sum(result.stage_timings.values())
+    result.stage_timings["total"] = total
+    _progress("done", f"Knowledge base saved to {db_path} ({total:.1f}s total)")
 
     return result

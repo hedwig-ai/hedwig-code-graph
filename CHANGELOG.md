@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **MCP Server** (`hedwig-kg mcp`): Model Context Protocol server exposing 5 tools (search, node, stats, communities, build) over stdio transport for universal AI agent integration
 - **Search signal explainability**: Each result now includes per-signal RRF contribution breakdown (code_vector, text_vector, graph, keyword, community) in CLI table and MCP output
 - **JS/TS call graph extraction**: Tree-sitter now extracts function/method calls in JavaScript and TypeScript (previously only Python had call tracking), with JS builtin filtering
+- **Pipeline stage timing**: Build command now displays per-stage wall-clock timing breakdown (detect, extract, build, pagerank, embed, cluster, analyze, store) with total elapsed time
 
 ### Changed
 - FAISS index loading now uses `IO_FLAG_MMAP` for lower RSS and faster cold starts on large indices (with automatic fallback)
