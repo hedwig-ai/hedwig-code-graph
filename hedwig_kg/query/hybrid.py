@@ -94,19 +94,21 @@ def hybrid_search(
     )[:vector_candidates]
 
     # Stage 2: Graph expansion from vector hits
+    # Convert to undirected once (avoids O(N) copy per iteration)
+    G_undirected = G.to_undirected(as_view=True)
     graph_hits: list[tuple[str, float]] = []
     expanded_nodes: set[str] = set()
     for node_id, vscore in vector_hits[:5]:  # Expand top 5
         if not G.has_node(node_id):
             continue
         try:
-            ego = nx.ego_graph(G.to_undirected(), node_id, radius=graph_hops)
+            ego = nx.ego_graph(G_undirected, node_id, radius=graph_hops)
             for neighbor in ego.nodes():
                 if neighbor not in expanded_nodes:
                     expanded_nodes.add(neighbor)
-                    # Score decays with distance
+                    # Score decays with distance via BFS depth
                     try:
-                        dist = nx.shortest_path_length(G.to_undirected(), node_id, neighbor)
+                        dist = nx.shortest_path_length(G_undirected, node_id, neighbor)
                     except nx.NetworkXNoPath:
                         dist = graph_hops
                     gscore = vscore * (1.0 / (1 + dist))

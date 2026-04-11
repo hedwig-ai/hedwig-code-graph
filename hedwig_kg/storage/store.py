@@ -94,6 +94,14 @@ class KnowledgeStore:
             CREATE INDEX IF NOT EXISTS idx_edges_source ON edges(source);
             CREATE INDEX IF NOT EXISTS idx_edges_target ON edges(target);
             CREATE INDEX IF NOT EXISTS idx_communities_level ON communities(level);
+
+            CREATE TABLE IF NOT EXISTS community_members (
+                community_id INTEGER NOT NULL,
+                node_id TEXT NOT NULL,
+                PRIMARY KEY (community_id, node_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_cm_node ON community_members(node_id);
+            CREATE INDEX IF NOT EXISTS idx_cm_community ON community_members(community_id);
         """)
 
         # FTS5 virtual table for full-text search (separate statement)
@@ -155,6 +163,15 @@ class KnowledgeStore:
                 (u, v, data.get("relation", ""), data.get("confidence", "EXTRACTED"),
                  data.get("weight", 1.0)),
             )
+
+        # Populate community_members mapping table
+        c.execute("DELETE FROM community_members")
+        for node_id, data in G.nodes(data=True):
+            for comm_id in data.get("community_ids", []):
+                c.execute(
+                    "INSERT OR IGNORE INTO community_members (community_id, node_id) VALUES (?, ?)",
+                    (comm_id, node_id),
+                )
 
         # Populate FTS5 index
         self._rebuild_fts(c, G)
@@ -243,6 +260,46 @@ class KnowledgeStore:
             )
             yield labels, vecs
 
+    def _faiss_index_path(self, model_type: str) -> Path:
+        """Return path for persisted FAISS index file."""
+        return self.db_path.parent / f"faiss_{model_type}.index"
+
+    def _faiss_labels_path(self, model_type: str) -> Path:
+        """Return path for persisted FAISS labels file."""
+        return self.db_path.parent / f"faiss_{model_type}.labels.json"
+
+    def _save_faiss_to_disk(self, model_type: str) -> None:
+        """Persist a FAISS index and its labels to disk."""
+        import faiss
+
+        index = self._faiss_indices.get(model_type)
+        labels = self._faiss_labels.get(model_type)
+        if index is None or labels is None:
+            return
+        faiss.write_index(index, str(self._faiss_index_path(model_type)))
+        self._faiss_labels_path(model_type).write_text(
+            json.dumps(labels), encoding="utf-8",
+        )
+
+    def _load_faiss_from_disk(self, model_type: str) -> bool:
+        """Try to load a FAISS index from disk. Returns True on success."""
+        import faiss
+
+        idx_path = self._faiss_index_path(model_type)
+        lbl_path = self._faiss_labels_path(model_type)
+        if not idx_path.exists() or not lbl_path.exists():
+            return False
+        try:
+            index = faiss.read_index(str(idx_path))
+            labels = json.loads(lbl_path.read_text(encoding="utf-8"))
+            self._faiss_indices[model_type] = index
+            self._faiss_labels[model_type] = labels
+            self._embedding_dim = index.d
+            return True
+        except Exception:
+            logger.debug("Failed to load FAISS index from disk for %s", model_type, exc_info=True)
+            return False
+
     def _build_index_for_type(self, model_type: str) -> None:
         """Build a FAISS index for a specific model_type from DB."""
         import faiss
@@ -262,12 +319,13 @@ class KnowledgeStore:
         if index is not None:
             self._faiss_indices[model_type] = index
             self._faiss_labels[model_type] = all_labels
+            self._save_faiss_to_disk(model_type)
 
     def build_vector_index(self, embeddings: dict[str, np.ndarray] | None = None) -> None:
         """Build FAISS indices for vector similarity search.
 
         Builds separate indices for code and text embeddings.
-        When embeddings=None, loads from DB in batches.
+        When embeddings=None, loads from DB in batches (or from disk cache).
         """
         import faiss
 
@@ -289,7 +347,17 @@ class KnowledgeStore:
             self._embedding_dim = dim
             return
 
-        # Build dual indices from DB
+        # Try loading persisted FAISS indices from disk first
+        all_loaded = True
+        for mt in ("code", "text"):
+            if not self._load_faiss_from_disk(mt):
+                all_loaded = False
+                break
+        if all_loaded and self._faiss_indices:
+            logger.debug("Loaded FAISS indices from disk cache")
+            return
+
+        # Build dual indices from DB (and persist to disk)
         for mt in ("code", "text"):
             self._build_index_for_type(mt)
 
@@ -401,16 +469,16 @@ class KnowledgeStore:
         results = []
         for row_dict, score in scored[:top_k]:
             comm_id = row_dict["id"]
-            # Get member node IDs from the nodes table
+            # Get member node IDs from the indexed mapping table
             members = self.conn.execute(
-                "SELECT id FROM nodes WHERE community_ids LIKE ?",
-                (f"%{comm_id}%",),
+                "SELECT node_id FROM community_members WHERE community_id = ?",
+                (comm_id,),
             ).fetchall()
             results.append({
                 "community_id": comm_id,
                 "summary": row_dict["summary"],
                 "level": row_dict["level"],
-                "node_ids": [m["id"] for m in members],
+                "node_ids": [m["node_id"] for m in members],
                 "score": score,
             })
 
