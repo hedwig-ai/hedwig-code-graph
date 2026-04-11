@@ -50,7 +50,7 @@ Repository = "https://github.com/hedwig-ai/hedwig-knowledge-graph"
 Issues = "https://github.com/hedwig-ai/hedwig-knowledge-graph/issues"
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "pytest-cov", "ruff"]
+dev = ["pytest>=8.0", "pytest-cov", "ruff", "mcp>=1.0"]
 docs = ["pymupdf>=1.24"]
 mcp = ["mcp>=1.0"]
 

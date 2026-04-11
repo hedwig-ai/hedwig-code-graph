@@ -14,6 +14,9 @@ from unittest.mock import MagicMock, patch
 import networkx as nx
 import pytest
 
+# Skip entire module if mcp is not installed (optional dependency)
+pytest.importorskip("mcp", reason="mcp package not installed")
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
