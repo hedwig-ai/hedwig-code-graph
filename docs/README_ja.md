@@ -1,97 +1,124 @@
 <p align="center">
   <h1 align="center">hedwig-kg</h1>
   <p align="center">
-    ローカルファーストのナレッジグラフビルダー — 4シグナルHybridRAG検索
+    AIコーディングエージェント向けローカルファーストナレッジグラフビルダー
     <br />
-    <a href="#インストール">インストール</a> · <a href="#クイックスタート">クイックスタート</a> · <a href="#アーキテクチャ">アーキテクチャ</a> · <a href="../README.md">English</a> · <a href="README_ko.md">한국어</a>
+    <a href="#aiコーディングエージェント統合">統合</a> · <a href="#クイックスタート">クイックスタート</a> · <a href="#アーキテクチャ">アーキテクチャ</a> · <a href="../README.md">English</a> · <a href="README_ko.md">한국어</a>
   </p>
 </p>
 
 ---
 
-## hedwig-kgとは？
+**hedwig-kg**はソースコードとドキュメントからナレッジグラフを構築し、ベクトル類似度＋グラフ探索＋キーワードマッチング＋コミュニティ要約を融合した**4シグナルHybridRAG検索**を提供します。すべて**100%ローカル**で実行されます。
 
-**hedwig-kg**はソースコードとドキュメントを解析してナレッジグラフを構築し、ベクトル類似度＋グラフ探索＋キーワードマッチング＋コミュニティ要約を融合した**4シグナルHybridRAG検索**を提供します。すべて**100%ローカル**で実行され、クラウドAPIは使用しません。
+## AIコーディングエージェント統合
 
-### 主な機能
-
-- **4シグナルHybridRAG検索** — ベクトル類似度 → グラフN-hop拡張 → FTS5キーワードマッチング → コミュニティ要約マッチング → RRF融合
-- **Tree-sitter AST抽出** — Python、JavaScript、TypeScriptの正確な構造解析
-- **Markdownドキュメント抽出** — 見出しをセクションノードに、内部リンクを参照エッジに変換
-- **階層的コミュニティ** — マルチ解像度Leidenクラスタリング＋自動生成キーワードサマリー
-- **インクリメンタルビルド** — SHA-256ハッシュで未変更ファイルをスキップ（高速リビルド）
-- **ローカル埋め込み** — sentence-transformersによるプライバシー保護されたセマンティック検索
-- **SQLite + FTS5 + FAISS** — シングルファイルDBに全文検索＋ベクトルインデックスを統合
-- **20+言語対応** — Python、JS/TS、Java、Go、Rust、C/C++、Rubyなど
-
-## インストール
+1コマンドで主要なAIコーディングエージェントと統合できます。各統合はプラットフォーム固有のコンテキストファイルとフックを書き込み、エージェントがファイル検索前にナレッジグラフを自動的に活用します。
 
 ```bash
 pip install hedwig-kg
 ```
 
-ソースからインストール：
+### Claude Code
 
 ```bash
-git clone https://github.com/hedwig-ai/hedwig-knowledge-graph.git
-cd hedwig-knowledge-graph
-pip install -e .
+hedwig-kg claude install
+```
+
+`CLAUDE.md`セクション + `.claude/settings.json` PreToolUseフックを書き込みます。
+
+### OpenAI Codex CLI
+
+```bash
+hedwig-kg codex install
+```
+
+`AGENTS.md`セクション + `.codex/hooks.json` PreToolUseフックを書き込みます。
+
+### Google Gemini CLI
+
+```bash
+hedwig-kg gemini install
+```
+
+`GEMINI.md`セクション + `.gemini/settings.json` BeforeToolフックを書き込みます。
+
+### 仕組み
+
+各`install`コマンドは2つのことを行います：
+
+1. **コンテキストファイル** — プラットフォームのコンテキストファイルに`## hedwig-kg`セクションを追加
+2. **フック** — ツール呼び出し前に実行される軽量シェルフックを登録
+
+削除: `hedwig-kg <platform> uninstall`
+
+### 要件
+
+- Python 3.10+
+- デフォルト埋め込みモデル用に~500MBのディスク容量（初回使用時にダウンロード）
+
+### オプション依存関係
+
+```bash
+# PDFテキスト抽出
+pip install hedwig-kg[docs]
 ```
 
 ## クイックスタート
 
+### 1. インストール＆ビルド
+
 ```bash
-# ナレッジグラフの構築
-hedwig-kg build ./my-project
+pip install hedwig-kg
+cd ./my-project
+hedwig-kg build .
+```
 
-# インクリメンタルリビルド（未変更ファイルをスキップ）
-hedwig-kg build ./my-project --incremental
+初回ビルドはすべてのファイルをスキャンし、AST構造を抽出し、埋め込みを生成し（~80MBモデルの初回ダウンロード）、コミュニティを検出して`.hedwig-kg/knowledge.db`に保存します。
 
-# 4シグナルハイブリッド検索
+### 2. 検索
+
+```bash
 hedwig-kg search "authentication handler"
+```
 
-# コミュニティの探索
-hedwig-kg communities
-hedwig-kg communities --search "auth"
+### 3. エージェント統合
 
-# インタラクティブ探索（REPL — グラフを一度読み込んで連続検索）
-hedwig-kg query
+```bash
+hedwig-kg claude install   # Claude Code
+hedwig-kg codex install    # Codex CLI
+hedwig-kg gemini install   # Gemini CLI
+```
 
-# 統計表示（密度、クラスタリング係数、連結成分を含む）
-hedwig-kg stats
+### 4. 最新状態を維持
 
-# ノード詳細表示（ファジーマッチング対応）
-hedwig-kg node "AuthHandler"
+```bash
+hedwig-kg build . --incremental
+```
 
-# グラフのエクスポート
-hedwig-kg export --format json
-hedwig-kg export --format d3       # D3.js互換JSON
+### 5. 探索
 
-# インタラクティブ可視化（ブラウザで開く）
-hedwig-kg visualize
-hedwig-kg visualize --max-nodes 300 -o my_graph.html
-
-# データベース削除
-hedwig-kg clean
-hedwig-kg clean --yes              # 確認なしで削除
+```bash
+hedwig-kg stats                           # グラフ概要
+hedwig-kg communities --search "auth"     # コミュニティ探索
+hedwig-kg node "AuthHandler"              # ノード詳細
+hedwig-kg query                           # インタラクティブREPL
+hedwig-kg visualize                       # HTML可視化
 ```
 
 ## アーキテクチャ
 
 ```
-ソースコード → 検出 → 抽出 → グラフ構築 → 埋め込み → クラスタリング → 要約 → 分析 → 保存
+ソースコード/ドキュメント → 検出 → 抽出 → グラフ構築 → 埋め込み → クラスタリング → 要約 → 分析 → 保存
 ```
 
-| ステージ | 説明 |
-|----------|------|
-| **検出** | ディレクトリスキャン、20+言語分類、`.hedwig-kg-ignore`対応 |
-| **抽出** | Tree-sitter AST（Python/JS/TS）、Markdown見出し/セクション抽出、正規表現フォールバック |
-| **構築** | 3フェーズ重複排除で有向グラフを組み立て |
-| **埋め込み** | sentence-transformersによるローカル埋め込み生成 |
-| **クラスタリング** | マルチ解像度Leiden階層的コミュニティ検出 |
-| **要約** | ノード属性からキーワード豊富なコミュニティサマリーを自動生成 |
-| **分析** | PageRank、ゴッドノード、ハブ分析 |
-| **保存** | SQLite + FTS5全文検索 + FAISSベクトルインデックス |
+### HybridRAG検索
+
+1. **ベクトル検索** — クエリを埋め込みFAISSで類似ノードを検索
+2. **グラフ拡張** — 上位ベクトル結果からN-hopネイバーを探索
+3. **キーワード検索** — FTS5全文検索（BM25ランキング）
+4. **コミュニティ検索** — コミュニティ要約とクエリのマッチング
+5. **RRF融合** — すべてのシグナルを統合ランキングに結合
 
 ## ライセンス
 
