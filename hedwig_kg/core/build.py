@@ -6,6 +6,7 @@ Handles node deduplication, edge merging, and cross-file relationship resolution
 from __future__ import annotations
 
 from collections import defaultdict
+from pathlib import PurePosixPath
 
 import networkx as nx
 
@@ -88,7 +89,64 @@ def build_graph(extractions: list[ExtractionResult]) -> nx.DiGraph:
                     confidence=confidence,
                 )
 
+    # Phase 4: Build directory hierarchy
+    _add_directory_nodes(G)
+
     return G
+
+
+def _add_directory_nodes(G: nx.DiGraph) -> None:
+    """Create directory nodes and connect them to files and parent directories."""
+    file_paths: set[str] = set()
+    for _, data in G.nodes(data=True):
+        fp = data.get("file_path", "")
+        if fp and data.get("kind") in ("module", "document"):
+            file_paths.add(fp)
+
+    dir_nodes: set[str] = set()
+
+    for fp in file_paths:
+        parts = PurePosixPath(fp).parts
+        # Create directory nodes for each level (skip the filename)
+        for i in range(1, len(parts)):
+            dir_path = str(PurePosixPath(*parts[:i]))
+            dir_id = f"dir::{dir_path}"
+
+            if dir_id not in dir_nodes:
+                dir_nodes.add(dir_id)
+                if not G.has_node(dir_id):
+                    G.add_node(
+                        dir_id,
+                        label=parts[i - 1],
+                        kind="directory",
+                        file_path=dir_path,
+                        language="",
+                        start_line=0,
+                        end_line=0,
+                        docstring="",
+                        signature="",
+                        source_snippet=f"Directory: {dir_path}",
+                    )
+
+            # Connect parent → child directory
+            if i >= 2:
+                parent_path = str(PurePosixPath(*parts[:i - 1]))
+                parent_id = f"dir::{parent_path}"
+                if G.has_node(parent_id) and not G.has_edge(parent_id, dir_id):
+                    G.add_edge(parent_id, dir_id, relation="contains",
+                               confidence="EXTRACTED")
+
+        # Connect deepest directory → file (module/document node)
+        if len(parts) >= 2:
+            parent_dir = str(PurePosixPath(*parts[:-1]))
+            parent_id = f"dir::{parent_dir}"
+            # Find the module/document node for this file
+            for node_id, data in G.nodes(data=True):
+                if (data.get("file_path") == fp
+                        and data.get("kind") in ("module", "document")
+                        and not G.has_edge(parent_id, node_id)):
+                    G.add_edge(parent_id, node_id, relation="contains",
+                               confidence="EXTRACTED")
 
 
 def compute_pagerank(
