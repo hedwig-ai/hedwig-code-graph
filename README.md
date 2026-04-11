@@ -3,7 +3,7 @@
   <p align="center">
     Local-first knowledge graph builder for AI coding agents
     <br />
-    <a href="#integration-with-ai-coding-agents">Integration</a> · <a href="#quick-start">Quick Start</a> · <a href="#architecture">Architecture</a> · <a href="docs/README_ko.md">한국어</a> · <a href="docs/README_ja.md">日本語</a> · <a href="docs/README_zh.md">中文</a> · <a href="docs/README_de.md">Deutsch</a>
+    <a href="#quick-start">Quick Start</a> · <a href="#supported-languages">Languages</a> · <a href="#ai-agent-integrations">Integrations</a> · <a href="#architecture">Architecture</a> · <a href="docs/README_ko.md">한국어</a> · <a href="docs/README_ja.md">日本語</a> · <a href="docs/README_zh.md">中文</a> · <a href="docs/README_de.md">Deutsch</a>
   </p>
 </p>
 
@@ -16,110 +16,19 @@
 
 ---
 
+## Why hedwig-kg?
+
+You're a software engineer. When you think about building in the payments domain, what comes to mind? Maybe "Paddle" or "Stripe."
+
+But tools like Claude Code don't naturally surface relevant code — and they don't even know how to look for it. The semantic connection simply doesn't exist. To Claude, "Payment" and "Stripe" live in entirely separate worlds.
+
+So it keeps doing the only thing it knows how to do — grepping for the word "Payment," over and over again.
+
+**hedwig-kg** fixes this. It builds a knowledge graph from your codebase — functions, classes, imports, call graphs, inheritance, communities — and searches it semantically, more like how humans actually think.
+
+When you ask "find payment-related code," it finds `StripeClient`, `checkout_handler`, and `WebhookController` — even though none of them contain the word "payment."
+
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
-
-
-**hedwig-kg** builds knowledge graphs from source code and documents, then provides **5-signal HybridRAG search** with dual embedding models (code-specialized + text-specialized) fused via RRF. Everything runs **100% locally** — no cloud APIs, no data leaves your machine.
-
-## Integration with AI Coding Agents
-
-hedwig-kg integrates with major AI coding agents in one command. Each integration writes platform-specific context files and hooks so the agent automatically uses the knowledge graph before searching raw files.
-
-```bash
-pip install hedwig-kg
-```
-
-### Claude Code
-
-```bash
-hedwig-kg claude install --scope user     # Global (~/.claude/skills/) — available in ALL projects
-hedwig-kg claude install --scope project  # Local (.claude/skills/) — this project only
-```
-
-Installs in priority order: 1) **Skill** (SKILL.md) 2) CLAUDE.md section 3) PreToolUse hook. Claude Code will consult the knowledge graph before every Glob/Grep operation.
-
-### OpenAI Codex CLI
-
-```bash
-hedwig-kg codex install
-```
-
-Writes `AGENTS.md` section + `.codex/hooks.json` PreToolUse hook. Codex CLI will see knowledge graph context before Bash tool calls.
-
-### Google Gemini CLI
-
-```bash
-hedwig-kg gemini install
-```
-
-Writes `GEMINI.md` section + `.gemini/settings.json` BeforeTool hook. Gemini CLI will see knowledge graph context before file reads.
-
-### Cursor IDE
-
-```bash
-hedwig-kg cursor install
-```
-
-Creates `.cursor/rules/hedwig-kg.mdc` rule file. Cursor will automatically apply hedwig-kg search rules across your project.
-
-### Windsurf IDE
-
-```bash
-hedwig-kg windsurf install
-```
-
-Creates `.windsurf/rules/hedwig-kg.md` rule file. Windsurf Cascade will automatically apply hedwig-kg search rules when working in your project.
-
-### Cline (VS Code Extension)
-
-```bash
-hedwig-kg cline install
-```
-
-Creates `.clinerules` file with hedwig-kg search rules. Cline will automatically apply knowledge graph search when working in your project.
-
-### Aider CLI
-
-```bash
-hedwig-kg aider install
-```
-
-Creates `CONVENTIONS.md` with hedwig-kg rules + adds it to `.aider.conf.yml` read list. Aider will automatically load knowledge graph conventions.
-
-### MCP Server (Universal)
-
-For any MCP-compatible agent, hedwig-kg also ships as an MCP server:
-
-```bash
-# Claude Code
-claude mcp add hedwig-kg -- hedwig-kg mcp
-
-# Cursor / VS Code (.cursor/mcp.json or .vscode/mcp.json)
-{ "mcpServers": { "hedwig-kg": { "command": "hedwig-kg", "args": ["mcp"] } } }
-```
-
-This exposes 5 tools over the Model Context Protocol: `search`, `node`, `stats`, `communities`, `build`. Any MCP client can call them programmatically.
-
-### How It Works
-
-Each `install` command does two things:
-
-1. **Context file** — Adds a `## hedwig-kg` section to the platform's context file (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `CONVENTIONS.md`) or rule file (`.cursor/rules/`, `.windsurf/rules/`) with rules for using the knowledge graph
-2. **Hook** — For platforms that support it (Claude Code, Codex, Gemini), registers a lightweight shell hook that fires before tool calls, reminding the agent to use `hedwig-kg search` instead of grepping raw files
-
-To remove: `hedwig-kg <platform> uninstall`
-
-### Requirements
-
-- Python 3.10+
-- ~250MB disk space for dual embedding models (cached in `~/.hedwig-kg/models/` on first use)
-
-### Optional Dependencies
-
-```bash
-# PDF text extraction
-pip install hedwig-kg[docs]
-```
 
 ## Quick Start
 
@@ -131,161 +40,144 @@ cd ./my-project
 hedwig-kg build .
 ```
 
-First build scans all files, extracts AST structures, generates embeddings with dual models (~250MB download on first run, cached in `~/.hedwig-kg/models/`), detects communities, and stores everything in `.hedwig-kg/knowledge.db`.
-
 ### 2. Search
 
 ```bash
-# 5-signal HybridRAG search (code vector + text vector + graph + keyword + community)
 hedwig-kg search "authentication handler"
-
-# Fast mode — text model only, 10× lower cold-start latency
-hedwig-kg search "authentication handler" --fast
 ```
 
-### 3. Integrate with Your Agent
+hedwig-kg runs 5 search signals in one call — code vector, text vector, graph traversal, keyword, and community matching — fused via RRF. No need to run separate searches.
+
+### 3. Integrate with Claude Code
 
 ```bash
-# Pick your platform
-hedwig-kg claude install     # Claude Code
-hedwig-kg codex install      # Codex CLI
-hedwig-kg gemini install     # Gemini CLI
-hedwig-kg cursor install     # Cursor IDE
-hedwig-kg windsurf install   # Windsurf IDE
-hedwig-kg cline install      # Cline (VS Code)
-hedwig-kg aider install      # Aider CLI
+hedwig-kg claude install
 ```
+
+That's it. Claude Code will now consult the knowledge graph before every Glob/Grep operation. One command, zero configuration.
 
 ### 4. Keep It Updated
 
 ```bash
-# Incremental rebuild — only re-processes changed files (fast)
-hedwig-kg build . --incremental
+hedwig-kg build . --incremental    # Only re-processes changed files
 ```
 
-### 5. Explore
+## Supported Languages
 
-```bash
-hedwig-kg stats                           # Graph overview
-hedwig-kg communities --search "auth"     # Community exploration
-hedwig-kg node "AuthHandler"              # Node details
-hedwig-kg query                           # Interactive REPL
-hedwig-kg visualize                       # HTML visualization
-```
+### Deep AST Extraction (17 languages)
+
+hedwig-kg uses [tree-sitter tags.scm](https://tree-sitter.github.io/tree-sitter/4-code-navigation.html) for universal structural extraction — functions, classes, methods, calls, imports, inheritance — without per-language custom code.
+
+| | | | |
+|:---:|:---:|:---:|:---:|
+| Python | JavaScript | TypeScript | Go |
+| Rust | Java | C | C++ |
+| C# | Ruby | Swift | Scala |
+| Lua | PHP | Elixir | Kotlin |
+| Objective-C | | | |
+
+Additionally detects and indexes: Markdown, PDF, HTML, CSV, YAML, JSON, TOML, Shell, R, and more.
+
+### Multilingual Natural Language
+
+Text nodes (docs, comments, markdown) are embedded with `intfloat/multilingual-e5-small` supporting **100+ natural languages** — Korean, Japanese, Chinese, German, French, and more. Search in your language, find results in any language.
+
+## AI Agent Integrations
+
+hedwig-kg integrates with major AI coding agents in one command:
+
+| Agent | Install | What it does |
+|-------|---------|-------------|
+| **Claude Code** | `hedwig-kg claude install` | Skill + CLAUDE.md + PreToolUse hook |
+| **Codex CLI** | `hedwig-kg codex install` | AGENTS.md + PreToolUse hook |
+| **Gemini CLI** | `hedwig-kg gemini install` | GEMINI.md + BeforeTool hook |
+| **Cursor IDE** | `hedwig-kg cursor install` | `.cursor/rules/` rule file |
+| **Windsurf IDE** | `hedwig-kg windsurf install` | `.windsurf/rules/` rule file |
+| **Cline** | `hedwig-kg cline install` | `.clinerules` file |
+| **Aider CLI** | `hedwig-kg aider install` | CONVENTIONS.md + `.aider.conf.yml` |
+| **MCP Server** | `claude mcp add hedwig-kg -- hedwig-kg mcp` | 5 tools over Model Context Protocol |
+
+Each `install` does two things: writes a context file with rules, and (where supported) registers a hook that fires before tool calls. To remove: `hedwig-kg <platform> uninstall`.
+
+---
 
 ## Architecture
 
 ```
 Source Code/Docs
-       │
-       ▼
-   ┌───────┐     ┌─────────┐     ┌───────┐     ┌───────┐
-   │Detect │────▶│ Extract │────▶│ Build │────▶│ Embed │
-   └───────┘     └─────────┘     └───────┘     └───────┘
-                  tree-sitter      NetworkX      sentence-
-                  + markdown       DiGraph       transformers
-       │
-       ▼
-   ┌─────────┐   ┌───────────┐   ┌─────────┐   ┌───────┐
-   │ Cluster │──▶│ Summarize │──▶│ Analyze │──▶│ Store │
-   └─────────┘   └───────────┘   └─────────┘   └───────┘
-    Leiden         community       PageRank,     SQLite +
-    hierarchy      summaries       god nodes     FTS5 + FAISS
+       |
+       v
+   Detect ──> Extract ──> Build ──> Embed ──> Cluster ──> Analyze ──> Store
+              tags.scm    NetworkX   dual       Leiden      PageRank    SQLite
+              (17 langs)  DiGraph    FAISS      hierarchy   god nodes   FTS5+FAISS
 ```
 
 ### HybridRAG Search (5 Signals)
 
 ```
   Query: "authentication handler"
-    │
-    ├─→ ① Code Vector (bge-small)  ─→ FAISS cosine  ─→  cv:0.019
-    ├─→ ② Text Vector (MiniLM)     ─→ FAISS cosine  ─→  tv:0.018
-    ├─→ ③ Graph Expansion           ─→ weighted BFS  ─→  g:0.012
-    ├─→ ④ Keyword (FTS5)            ─→ BM25 ranking  ─→  kw:0.016
-    ├─→ ⑤ Community                 ─→ summary match ─→  cm:0.008
-    │
-    └─→ Weighted RRF Fusion ──→ Final: 0.073 (with signal breakdown)
+    |
+    |-> 1. Code Vector (bge-small)  -> FAISS cosine
+    |-> 2. Text Vector (e5-small)   -> FAISS cosine
+    |-> 3. Graph Expansion          -> weighted BFS (2-hop)
+    |-> 4. Keyword (FTS5)           -> BM25 ranking
+    |-> 5. Community                -> summary match
+    |
+    +-> Weighted RRF Fusion -> Final ranked results
 ```
 
-1. **Code Vector Search** — Query embedded with `BAAI/bge-small-en-v1.5`, searches code nodes via FAISS
-2. **Text Vector Search** — Query embedded with `all-MiniLM-L6-v2`, searches document nodes via FAISS
-3. **Graph Expansion** — Weight-aware BFS from top vector hits using edge quality (semantic similarity × confidence × relation type: `calls`/`inherits`/`extends`=1.0, `imports`=0.7, `references`=0.6, `defines`=0.5, `contains`=0.3)
-4. **Keyword Search** — FTS5 full-text search with BM25 ranking and 80+ stopword filtering
-5. **Community Search** — Match query against auto-generated community summaries, boost member nodes
-6. **Weighted RRF Fusion** — Reciprocal Rank Fusion with per-signal weights (code=1.0×, text=1.0×, graph=0.8×, keyword=1.5×, community=0.7×) and **per-result signal breakdown** for full explainability
+1. **Code Vector** — `BAAI/bge-small-en-v1.5` embeds code nodes, FAISS cosine search
+2. **Text Vector** — `intfloat/multilingual-e5-small` embeds text nodes (100+ languages)
+3. **Graph Expansion** — BFS from vector hits, weighted by edge quality (calls > imports > contains)
+4. **Keyword** — FTS5 full-text over complete source code (no snippet limits)
+5. **Community** — Leiden clustering summaries boost related nodes
+6. **RRF Fusion** — Weighted Reciprocal Rank Fusion combines all signals
 
 ## CLI Reference
 
-**Global flag:** `--json` outputs structured JSON for all commands (for AI agent consumption, suppresses all library noise).
+**Global flag:** `--json` outputs compact JSON for AI agent consumption.
 
 | Command | Description |
 |---------|-------------|
-| `build <dir>` | Build knowledge graph (`--incremental`, `--no-embed`, `--model`) |
-| `search <query>` | 5-signal HybridRAG search (`--top-k`, `--fast`) |
+| `build <dir>` | Build knowledge graph (`--incremental`, `--no-embed`) |
+| `search <query>` | 5-signal HybridRAG search (`--top-k`, `--fast`, `--expand`) |
 | `query` | Interactive search REPL |
 | `communities` | List and search communities (`--search`, `--level`) |
-| `stats` | Graph statistics (density, clustering, components) |
+| `stats` | Graph statistics |
 | `node <id>` | Node details with fuzzy matching |
 | `export` | Export as JSON, GraphML, or D3.js |
-| `visualize` | Interactive HTML visualization (`--max-nodes`, `--offline`) |
+| `visualize` | Interactive HTML visualization |
 | `clean` | Remove .hedwig-kg/ database |
-| `doctor` | Check installation health, dependencies, DB integrity |
-| `mcp` | Start MCP server (stdio) — 5 tools for AI agents |
-| `claude install` | Claude Code integration |
-| `codex install` | Codex CLI integration |
-| `gemini install` | Gemini CLI integration |
-| `cursor install` | Cursor IDE integration |
-| `windsurf install` | Windsurf IDE integration |
-| `cline install` | Cline (VS Code) integration |
-| `aider install` | Aider CLI integration |
-
-## Key Features
-
-- **5-Signal HybridRAG Search** — Dual vector (code + text) + Graph + Keyword + Community → Weighted RRF fusion with per-result signal breakdown
-- **Dual Embedding Models** — Code nodes use `bge-small-en-v1.5`, text nodes use `all-MiniLM-L6-v2` or `multilingual-e5-small` for 100+ languages (~220MB–470MB, cached locally)
-- **Multilingual Support** — Auto-detects natural language in text nodes; switches to `intfloat/multilingual-e5-small` (384-dim, 100+ languages) for non-English codebases. Code embeddings stay English-optimized since code is language-agnostic. Use `--lang auto|en|multilingual`
-- **Tree-sitter AST Extraction** — Python, JavaScript, TypeScript with call graph tracking, class hierarchy, and decorator extraction
-- **Weight-Aware Graph Expansion** — Edges scored by semantic similarity, confidence, proximity, and relation type (`calls`/`inherits` > `imports` > `contains`)
-- **Search Explainability** — Each result shows which signals contributed (e.g. `cv:0.019 kw:0.016 g:0.012`)
-- **Fast Search Mode** — `--fast` flag uses text model only for 10× lower cold-start latency
-- **Line Number Navigation** — Results include `file.py:42-67` ranges for direct AI agent code navigation
-- **Incremental Builds + Embedding** — SHA-256 hashing skips unchanged files; DB lookup skips unchanged embeddings (95% faster)
-- **Hierarchical Communities** — Multi-resolution Leiden clustering with auto-generated keyword-rich summaries
-- **MCP Server** — Universal AI agent integration via Model Context Protocol (5 tools over stdio)
-- **8 AI Agent Integrations** — Claude Code, Codex CLI, Gemini CLI, Cursor IDE, Windsurf IDE, Cline, Aider CLI + MCP server
-- **100% Local** — SQLite + FTS5 + FAISS, no cloud APIs, no data leaves your machine
-- **20+ Languages** — File detection for Python, JS/TS, Java, Go, Rust, C/C++, Ruby, and more
+| `doctor` | Check installation health |
+| `mcp` | Start MCP server (stdio) |
 
 ## Performance
 
-Benchmarks measured on hedwig-kg itself (~3,000 lines, 85 files, 976 nodes):
+Benchmarks on hedwig-kg's own codebase (~3,500 lines, 90 files, 1,300 nodes):
 
-| Operation | Time | Notes |
-|-----------|------|-------|
-| Full build | ~9.5s | Detect + extract + embed + cluster + store |
-| Incremental build (changes) | ~4s | Re-embeds only changed-file nodes |
-| Incremental build (no changes) | ~0.4s | All embeddings reused from DB |
-| Cold search (dual model) | ~2.8s | Both models loaded + 5-signal fusion |
-| Cold search (`--fast`) | ~0.2s | Text model only, code index cross-searched |
-| Warm search (new query) | ~0.08s | Models cached, encode + FAISS + fusion |
-| Cached search (same query) | <1ms | LRU cache hit |
-| FAISS search only | ~0.03s | Pure vector similarity (post-model-load) |
-| Embedding models | ~220MB | Downloaded once, cached in `~/.hedwig-kg/models/` |
-| Database size | ~1.5MB | SQLite + FTS5 + FAISS indices |
+| Operation | Time |
+|-----------|------|
+| Full build | ~14s |
+| Incremental (changes) | ~4s |
+| Incremental (no changes) | ~0.4s |
+| Cold search (dual model) | ~2.8s |
+| Cold search (`--fast`) | ~0.2s |
+| Warm search | ~0.08s |
+| Cached search | <1ms |
 
-### Optimizations
+- **Embedding models**: ~470MB, downloaded once to `~/.hedwig-kg/models/`
+- **Database**: ~2MB (SQLite + FTS5 + FAISS indices)
+- **Incremental builds**: SHA-256 hashing, 95%+ faster than full rebuild
 
-- **Incremental embedding** — SHA-256 hash + DB embedding lookup skips unchanged nodes (95% faster rebuilds)
-- **Fast search mode** — `--fast` skips code model loading, cross-searches with text vectors only
-- **REPL model preloading** — Background thread loads models while you type your first query
-- **FAISS mmap loading** — Vector indices loaded via `IO_FLAG_MMAP` for lower RSS and faster cold starts
-- **Per-stage timing** — Build shows wall-clock breakdown per stage to identify bottlenecks
-- **Query embedding LRU cache** — 256-entry cache eliminates re-encoding for repeated queries
-- **Search result LRU cache** — 128-entry cache for instant repeated search results
-- **Memory-bounded embedding** — 2GB RSS budget with streaming batches and automatic GC
-- **Decorator-enriched embeddings** — Python decorators (`@dataclass`, `@route`) included in embedding text
-- **Metadata-enriched embeddings** — File paths, parent class context, signatures, and line numbers in embedding text
-- **Weight-aware graph traversal** — Edge weights (semantic similarity × confidence × relation type) guide expansion
+## Requirements
+
+- Python 3.10+
+- ~470MB disk for embedding models (cached on first use)
+
+```bash
+# Optional: PDF extraction
+pip install hedwig-kg[docs]
+```
 
 ## Development
 
