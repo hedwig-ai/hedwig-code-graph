@@ -202,11 +202,6 @@ _INHERITANCE_QUERIES: dict[str, str] = {
           (base_class_clause
             (type_identifier) @name)) @_inherits
     """,
-    "c_sharp": """
-        (class_declaration
-          bases: (base_list
-            (identifier) @name)) @_inherits
-    """,
     "swift": """
         (class_declaration
           (type_identifier) @name) @_inherits
@@ -596,7 +591,8 @@ def extract_file_tags(
         parent_id = parent["node_id"] if parent else module_id
 
         # Prefix method names with parent class/interface (e.g. "bark" → "Dog.bark")
-        if parent and parent["kind"] in ("class", "interface") and d["kind"] in ("method", "function"):
+        is_container = parent and parent["kind"] in ("class", "interface")
+        if is_container and d["kind"] in ("method", "function"):
             old_name = d["name"]
             new_name = f"{parent['name']}.{old_name}"
             old_id = d["node_id"]
