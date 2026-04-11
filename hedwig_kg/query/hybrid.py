@@ -134,7 +134,7 @@ def hybrid_search(
     except Exception:
         logger.debug("Community search failed", exc_info=True)
 
-    # Stage 5: RRF fusion (6 signals: code_vector + text_vector + graph + keyword + community)
+    # Stage 5: RRF fusion (5 signals: code_vector + text_vector + graph + keyword + community)
     fused = reciprocal_rank_fusion(
         code_vector_hits, text_vector_hits, graph_hits, keyword_hits, community_hits,
     )
