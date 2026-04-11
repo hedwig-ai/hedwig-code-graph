@@ -529,7 +529,7 @@ class KnowledgeStore:
                         data.get("file_path", ""),
                         data.get("docstring", ""),
                         data.get("signature", ""),
-                        data.get("source_snippet", "")[:500],
+                        data.get("source_snippet", ""),
                     ),
                 )
         except Exception:

@@ -598,6 +598,11 @@ def _extract_js_ts(file_path: str, content: str, language: str) -> ExtractionRes
 def extract_file_ts(file_path: str, language: str, content: str | None = None) -> ExtractionResult:
     """Extract structural elements using tree-sitter when available, regex as fallback.
 
+    Priority chain:
+    1. tags.scm universal extractor (165+ languages)
+    2. Legacy tree-sitter AST walkers (Python/JS/TS — kept as fallback)
+    3. Regex fallback
+
     Args:
         file_path: Path to the source file.
         language: Programming language identifier.
@@ -609,7 +614,17 @@ def extract_file_ts(file_path: str, language: str, content: str | None = None) -
     if content is None:
         content = Path(file_path).read_text(errors="replace")
 
-    # Try tree-sitter first
+    # Priority 1: tags.scm universal extraction
+    try:
+        from hedwig_kg.core.tags_extract import extract_file_tags
+        tags_result = extract_file_tags(file_path, language, content)
+        if tags_result is not None and len(tags_result.nodes) > 1:
+            # tags.scm succeeded with meaningful results (> just module node)
+            return tags_result
+    except Exception as e:
+        logger.debug("tags.scm extraction failed for %s: %s", file_path, e)
+
+    # Priority 2: Legacy tree-sitter AST walkers (Python/JS/TS)
     ts_lang = language
     if language == "typescript":
         # Try as javascript if typescript parser not available
@@ -627,5 +642,5 @@ def extract_file_ts(file_path: str, language: str, content: str | None = None) -
                 "tree-sitter extraction failed for %s: %s, "
                 "falling back to regex", file_path, e)
 
-    # Fallback to regex extraction
+    # Priority 3: Regex fallback
     return regex_extract_file(file_path, language, content)

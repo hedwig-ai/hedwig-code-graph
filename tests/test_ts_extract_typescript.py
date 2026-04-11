@@ -16,6 +16,9 @@ def _skip_if_no_ts_parser():
     """Skip all tests if tree-sitter-typescript is not available."""
     if not _ensure_parser("typescript"):
         pytest.skip("tree-sitter-typescript not available")
+    # Clear tags_extract cache to avoid cross-test pollution
+    from hedwig_kg.core.tags_extract import _cache
+    _cache.pop("typescript", None)
 
 
 class TestInterfaceExtraction:

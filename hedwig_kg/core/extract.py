@@ -61,9 +61,13 @@ def _make_node_id(file_path: str, name: str, kind: str) -> str:
     return f"{file_path}::{kind}::{name}"
 
 
-def _extract_snippet(content: str, start: int, end: int, max_lines: int = 10) -> str:
+def _extract_snippet(content: str, start: int, end: int, max_lines: int = 0) -> str:
+    """Extract source lines. max_lines=0 means no limit (full source)."""
     lines = content.splitlines()
-    snippet_lines = lines[start:min(end, start + max_lines)]
+    if max_lines > 0:
+        snippet_lines = lines[start:min(end + 1, start + max_lines)]
+    else:
+        snippet_lines = lines[start:end + 1]
     return "\n".join(snippet_lines)
 
 
