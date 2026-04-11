@@ -42,7 +42,7 @@ _PREFIX_MODELS: dict[str, dict[str, str]] = {
 CODE_KINDS = frozenset({
     "function", "class", "method", "module", "variable",
     "interface", "enum", "struct", "trait", "import",
-    "constructor", "property", "decorator",
+    "constructor", "property", "decorator", "type_alias",
 })
 
 # Node kinds excluded from embedding (these are references to external
@@ -155,7 +155,7 @@ def _node_text(data: dict) -> str:
     if data.get("docstring"):
         parts.append(data["docstring"])
     if data.get("source_snippet"):
-        parts.append(data["source_snippet"][:300])
+        parts.append(data["source_snippet"])
     return " ".join(parts)
 
 
