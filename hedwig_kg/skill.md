@@ -1,11 +1,11 @@
 ---
 name: hedwig-kg
-description: Local-first knowledge graph builder with 4-signal HybridRAG search (vector + graph + keyword + community). Use when analyzing codebases, searching for code architecture, exploring dependencies, or building knowledge graphs from source code and documents.
+description: Local-first knowledge graph builder with 5-signal HybridRAG search (dual vector + graph + keyword + community). Use when analyzing codebases, searching for code architecture, exploring dependencies, or building knowledge graphs from source code and documents.
 ---
 
 # hedwig-kg
 
-Build knowledge graphs from source code and documents. Search with 4-signal HybridRAG fusion (vector similarity + graph traversal + FTS5 keyword + community matching). 100% local — no cloud APIs.
+Build knowledge graphs from source code and documents. Search with 5-signal HybridRAG fusion (code vector + text vector + graph traversal + FTS5 keyword + community matching). 100% local — no cloud APIs.
 
 ## Quick Start
 
@@ -38,7 +38,7 @@ hedwig-kg build . --no-embed
 ### Search
 
 ```bash
-# 4-signal HybridRAG search
+# 5-signal HybridRAG search
 hedwig-kg search "database connection pool"
 
 # More results
@@ -86,7 +86,7 @@ hedwig-kg visualize --max-nodes 300 --offline
 | Command | Description |
 |---------|-------------|
 | `hedwig-kg build <dir>` | Build knowledge graph (`--incremental`, `--no-embed`) |
-| `hedwig-kg search <query>` | 4-signal HybridRAG search (`--top-k`) |
+| `hedwig-kg search <query>` | 5-signal HybridRAG search (`--top-k`) |
 | `hedwig-kg communities` | List/search communities (`--search`, `--level`) |
 | `hedwig-kg stats` | Graph statistics with quality metrics |
 | `hedwig-kg node <id>` | Node details with fuzzy matching |

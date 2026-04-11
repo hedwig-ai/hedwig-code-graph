@@ -41,5 +41,12 @@ htmlcov/
 # Internal review feedback (not for public repo)
 feedbacks/
 
+# Generated integration files (from hedwig-kg install commands)
+.cursor/
+.windsurf/
+.codex/
+AGENTS.md
+GEMINI.md
+
 # OMC state
 .omc/

@@ -1119,5 +1119,148 @@ def gemini_uninstall():
 cli.add_command(gemini_group)
 
 
+# --- Cursor integration ---
+
+@cli.group(name="cursor")
+def cursor_group():
+    """Manage per-project Cursor IDE integration."""
+    pass
+
+
+@cursor_group.command(name="install")
+def cursor_install():
+    """Install per-project Cursor integration (.cursor/rules/hedwig-kg.mdc)."""
+    project_root = Path.cwd()
+
+    rules_dir = project_root / ".cursor" / "rules"
+    rules_dir.mkdir(parents=True, exist_ok=True)
+    rules_file = rules_dir / "hedwig-kg.mdc"
+
+    rule_content = (
+        "---\n"
+        "description: hedwig-kg knowledge graph search rules\n"
+        "globs: **/*\n"
+        "alwaysApply: true\n"
+        "---\n\n"
+        "# hedwig-kg\n\n"
+        "This project has a hedwig-kg knowledge graph at `.hedwig-kg/`.\n\n"
+        "Rules:\n"
+        "- **Always use `hedwig-kg search \"<query>\"` as the primary search method.** "
+        "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
+        "in a single call — no need to run separate community or keyword searches.\n"
+        "- Before grepping raw files, run `hedwig-kg search` first. "
+        "Only fall back to grep/find if the knowledge graph has no results.\n"
+        "- After modifying code files, run "
+        "`hedwig-kg build . --incremental` to keep the graph current.\n"
+        "- Use `hedwig-kg communities` (without `--search`) only when you need to "
+        "list or browse the community structure, not as a search substitute.\n"
+        "- Use `hedwig-kg stats` for structural overview "
+        "(god nodes, communities, density).\n"
+    )
+
+    if rules_file.exists():
+        content = rules_file.read_text()
+        if "hedwig-kg" in content:
+            console.print("[dim].cursor/rules/hedwig-kg.mdc already exists.[/]")
+        else:
+            rules_file.write_text(rule_content)
+            console.print("[green]Updated .cursor/rules/hedwig-kg.mdc[/]")
+    else:
+        rules_file.write_text(rule_content)
+        console.print("[green]Created .cursor/rules/hedwig-kg.mdc[/]")
+
+    console.print()
+    console.print("[bold]Done![/] Cursor will now see hedwig-kg rules "
+                  "when working in this project.")
+    console.print("[dim]Run 'hedwig-kg cursor uninstall' to remove.[/]")
+
+
+@cursor_group.command(name="uninstall")
+def cursor_uninstall():
+    """Remove per-project Cursor integration."""
+    project_root = Path.cwd()
+
+    rules_file = project_root / ".cursor" / "rules" / "hedwig-kg.mdc"
+    if rules_file.exists():
+        rules_file.unlink()
+        console.print("[green]Removed .cursor/rules/hedwig-kg.mdc[/]")
+    else:
+        console.print("[dim]No hedwig-kg Cursor rule file found.[/]")
+
+    console.print("[dim]hedwig-kg Cursor integration removed.[/]")
+
+
+cli.add_command(cursor_group)
+
+
+# --- Windsurf integration ---
+
+@cli.group(name="windsurf")
+def windsurf_group():
+    """Manage per-project Windsurf IDE integration."""
+    pass
+
+
+@windsurf_group.command(name="install")
+def windsurf_install():
+    """Install per-project Windsurf integration (.windsurf/rules/hedwig-kg.md)."""
+    project_root = Path.cwd()
+
+    rules_dir = project_root / ".windsurf" / "rules"
+    rules_dir.mkdir(parents=True, exist_ok=True)
+    rules_file = rules_dir / "hedwig-kg.md"
+
+    rule_content = (
+        "# hedwig-kg\n\n"
+        "This project has a hedwig-kg knowledge graph at `.hedwig-kg/`.\n\n"
+        "Rules:\n"
+        "- **Always use `hedwig-kg search \"<query>\"` as the primary search method.** "
+        "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
+        "in a single call — no need to run separate community or keyword searches.\n"
+        "- Before grepping raw files, run `hedwig-kg search` first. "
+        "Only fall back to grep/find if the knowledge graph has no results.\n"
+        "- After modifying code files, run "
+        "`hedwig-kg build . --incremental` to keep the graph current.\n"
+        "- Use `hedwig-kg communities` (without `--search`) only when you need to "
+        "list or browse the community structure, not as a search substitute.\n"
+        "- Use `hedwig-kg stats` for structural overview "
+        "(god nodes, communities, density).\n"
+    )
+
+    if rules_file.exists():
+        content = rules_file.read_text()
+        if "hedwig-kg" in content:
+            console.print("[dim].windsurf/rules/hedwig-kg.md already exists.[/]")
+        else:
+            rules_file.write_text(rule_content)
+            console.print("[green]Updated .windsurf/rules/hedwig-kg.md[/]")
+    else:
+        rules_file.write_text(rule_content)
+        console.print("[green]Created .windsurf/rules/hedwig-kg.md[/]")
+
+    console.print()
+    console.print("[bold]Done![/] Windsurf Cascade will now see hedwig-kg rules "
+                  "when working in this project.")
+    console.print("[dim]Run 'hedwig-kg windsurf uninstall' to remove.[/]")
+
+
+@windsurf_group.command(name="uninstall")
+def windsurf_uninstall():
+    """Remove per-project Windsurf integration."""
+    project_root = Path.cwd()
+
+    rules_file = project_root / ".windsurf" / "rules" / "hedwig-kg.md"
+    if rules_file.exists():
+        rules_file.unlink()
+        console.print("[green]Removed .windsurf/rules/hedwig-kg.md[/]")
+    else:
+        console.print("[dim]No hedwig-kg Windsurf rule file found.[/]")
+
+    console.print("[dim]hedwig-kg Windsurf integration removed.[/]")
+
+
+cli.add_command(windsurf_group)
+
+
 if __name__ == "__main__":
     cli()

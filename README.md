@@ -53,12 +53,28 @@ hedwig-kg gemini install
 
 Writes `GEMINI.md` section + `.gemini/settings.json` BeforeTool hook. Gemini CLI will see knowledge graph context before file reads.
 
+### Cursor IDE
+
+```bash
+hedwig-kg cursor install
+```
+
+Creates `.cursor/rules/hedwig-kg.mdc` rule file. Cursor will automatically apply hedwig-kg search rules across your project.
+
+### Windsurf IDE
+
+```bash
+hedwig-kg windsurf install
+```
+
+Creates `.windsurf/rules/hedwig-kg.md` rule file. Windsurf Cascade will automatically apply hedwig-kg search rules when working in your project.
+
 ### How It Works
 
 Each `install` command does two things:
 
-1. **Context file** — Adds a `## hedwig-kg` section to the platform's context file (`CLAUDE.md`, `AGENTS.md`, or `GEMINI.md`) with rules for using the knowledge graph
-2. **Hook** — Registers a lightweight shell hook that fires before tool calls, reminding the agent to use `hedwig-kg search` instead of grepping raw files
+1. **Context file** — Adds a `## hedwig-kg` section to the platform's context file (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`) or rule file (`.cursor/rules/`, `.windsurf/rules/`) with rules for using the knowledge graph
+2. **Hook** — For platforms that support it (Claude Code, Codex, Gemini), registers a lightweight shell hook that fires before tool calls, reminding the agent to use `hedwig-kg search` instead of grepping raw files
 
 To remove: `hedwig-kg <platform> uninstall`
 
@@ -97,9 +113,11 @@ hedwig-kg search "authentication handler"
 
 ```bash
 # Pick your platform
-hedwig-kg claude install   # Claude Code
-hedwig-kg codex install    # Codex CLI
-hedwig-kg gemini install   # Gemini CLI
+hedwig-kg claude install     # Claude Code
+hedwig-kg codex install      # Codex CLI
+hedwig-kg gemini install     # Gemini CLI
+hedwig-kg cursor install     # Cursor IDE
+hedwig-kg windsurf install   # Windsurf IDE
 ```
 
 ### 4. Keep It Updated
@@ -146,7 +164,7 @@ Source Code/Docs
 3. **Graph Expansion** — From top vector hits, traverse N-hop neighbors
 4. **Keyword Search** — FTS5 full-text search with BM25 ranking
 5. **Community Search** — Match query against community summaries, boost member nodes
-5. **RRF Fusion** — Reciprocal Rank Fusion combines all signals into a unified ranking
+6. **RRF Fusion** — Reciprocal Rank Fusion combines all signals into a unified ranking
 
 ## CLI Reference
 
@@ -164,6 +182,8 @@ Source Code/Docs
 | `claude install` | Claude Code integration |
 | `codex install` | Codex CLI integration |
 | `gemini install` | Gemini CLI integration |
+| `cursor install` | Cursor IDE integration |
+| `windsurf install` | Windsurf IDE integration |
 
 ## Key Features
 
