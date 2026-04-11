@@ -100,7 +100,9 @@ def build(
 @click.option("--top-k", default=10, type=int, help="Number of results")
 @click.option("--source-dir", type=click.Path(), default=".",
               help="Source dir (to find default DB)")
-def search(query: str, db: str | None, top_k: int, source_dir: str):
+@click.option("--fast", is_flag=True, default=False,
+              help="Fast mode: text model only (lower latency, slightly reduced accuracy)")
+def search(query: str, db: str | None, top_k: int, source_dir: str, fast: bool):
     """Search the knowledge graph with hybrid vector + graph + keyword search."""
     from hedwig_kg.query.hybrid import hybrid_search
     from hedwig_kg.storage.store import KnowledgeStore
@@ -124,7 +126,7 @@ def search(query: str, db: str | None, top_k: int, source_dir: str):
     except Exception:
         console.print("[dim]Vector index not available, keyword search only.[/]")
 
-    results = hybrid_search(query, store, G, top_k=top_k)
+    results = hybrid_search(query, store, G, top_k=top_k, fast=fast)
     _print_search_results(query, results)
     store.close()
 
@@ -504,9 +506,21 @@ def query(db: str | None, source_dir: str, top_k: int):
     except Exception:
         console.print("[dim]Vector index not available, keyword search only.[/]")
 
+    # Preload embedding models in background thread so first search is fast
+    import threading
+    def _preload_models():
+        try:
+            from hedwig_kg.query.embeddings import _get_model, CODE_MODEL, TEXT_MODEL
+            _get_model(CODE_MODEL)
+            _get_model(TEXT_MODEL)
+        except Exception:
+            pass
+    threading.Thread(target=_preload_models, daemon=True).start()
+
     console.print(f"[bold green]hedwig-kg query REPL[/] — "
                   f"{G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
-    console.print("[dim]Type a query to search. :quit to exit. :node <id> for details.[/]\n")
+    console.print("[dim]Type a query to search. :quit to exit. :node <id> for details.[/]")
+    console.print("[dim]Models loading in background...[/]\n")
 
     while True:
         try:

@@ -244,6 +244,7 @@ def hybrid_search(
     vector_candidates: int = 20,
     weights: list[float] | None = None,
     use_cache: bool = True,
+    fast: bool = False,
 ) -> list[SearchResult]:
     """Execute hybrid search combining vector, graph, and keyword signals.
 
@@ -257,6 +258,8 @@ def hybrid_search(
         weights: Per-signal weights [code_vec, text_vec, graph, keyword, community].
             Defaults to DEFAULT_WEIGHTS.
         use_cache: Whether to use LRU search result caching.
+        fast: If True, use only the text model (skips code model loading).
+            Reduces cold-start latency from ~2.8s to ~0.2s.
 
     Returns:
         Ranked list of SearchResult.
@@ -268,18 +271,31 @@ def hybrid_search(
             _search_cache.move_to_end(key)
             return _search_cache[key]
 
-    from hedwig_kg.query.embeddings import embed_query_dual
-
     signal_weights = weights or DEFAULT_WEIGHTS
 
-    # Stage 1: Dual vector search (code + text models)
-    query_vecs = embed_query_dual(query)
-    code_vector_hits = store.vector_search(
-        query_vecs["code"], top_k=vector_candidates, model_type="code",
-    )
-    text_vector_hits = store.vector_search(
-        query_vecs["text"], top_k=vector_candidates, model_type="text",
-    )
+    # Stage 1: Vector search
+    if fast:
+        # Fast mode: text model only (cold start ~0.2s vs ~2.8s)
+        from hedwig_kg.query.embeddings import embed_query, TEXT_MODEL
+        query_vec = embed_query(query, TEXT_MODEL)
+        code_vector_hits: list[tuple[str, float]] = []
+        text_vector_hits = store.vector_search(
+            query_vec, top_k=vector_candidates, model_type="text",
+        )
+        # Also search code index with text vector (cross-model approximate match)
+        code_vector_hits = store.vector_search(
+            query_vec, top_k=vector_candidates, model_type="code",
+        )
+    else:
+        # Full dual-model search
+        from hedwig_kg.query.embeddings import embed_query_dual
+        query_vecs = embed_query_dual(query)
+        code_vector_hits = store.vector_search(
+            query_vecs["code"], top_k=vector_candidates, model_type="code",
+        )
+        text_vector_hits = store.vector_search(
+            query_vecs["text"], top_k=vector_candidates, model_type="text",
+        )
     # Combined for graph expansion
     vector_hits = sorted(
         code_vector_hits + text_vector_hits, key=lambda x: x[1], reverse=True,

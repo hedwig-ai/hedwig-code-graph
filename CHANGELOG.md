@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **JS/TS call graph extraction**: Tree-sitter now extracts function/method calls in JavaScript and TypeScript (previously only Python had call tracking), with JS builtin filtering
 - **Pipeline stage timing**: Build command now displays per-stage wall-clock timing breakdown (detect, extract, build, pagerank, embed, cluster, analyze, store) with total elapsed time
 - **Incremental embedding**: `--incremental` builds now skip re-embedding unchanged nodes by checking existing embeddings in DB, reducing rebuild time by up to 95% (8.7s → 0.4s when no files changed)
+- **Fast search mode**: `--fast` flag uses text model only, skipping code model loading for lower cold-start latency; available in CLI, REPL, and MCP server
+- **REPL model preloading**: `hedwig-kg query` REPL now preloads embedding models in a background thread so first search is faster
 
 ### Changed
 - FAISS index loading now uses `IO_FLAG_MMAP` for lower RSS and faster cold starts on large indices (with automatic fallback)

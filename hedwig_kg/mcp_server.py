@@ -95,7 +95,7 @@ def _reload():
 
 
 @mcp.tool()
-def search(query: str, top_k: int = 10) -> str:
+def search(query: str, top_k: int = 10, fast: bool = False) -> str:
     """Search the knowledge graph using 5-signal HybridRAG.
 
     Combines code vector + text vector + graph expansion + keyword + community
@@ -105,11 +105,12 @@ def search(query: str, top_k: int = 10) -> str:
         query: Natural language search query (e.g. "authentication handler",
                "database connection", "how does the build pipeline work")
         top_k: Number of results to return (default 10)
+        fast: If True, use text model only for lower latency (skips code model loading)
     """
     store, G = _load()
     from hedwig_kg.query.hybrid import hybrid_search
 
-    results = hybrid_search(query, store, G, top_k=top_k)
+    results = hybrid_search(query, store, G, top_k=top_k, fast=fast)
     if not results:
         return f"No results found for '{query}'."
 
