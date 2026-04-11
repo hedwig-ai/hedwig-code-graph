@@ -14,7 +14,7 @@ from pathlib import Path
 import networkx as nx
 
 from hedwig_kg.core.analyze import AnalysisResult, analyze
-from hedwig_kg.core.build import build_graph, compute_pagerank
+from hedwig_kg.core.build import build_graph, compute_edge_weights, compute_pagerank
 from hedwig_kg.core.cluster import ClusterResult, hierarchical_cluster
 from hedwig_kg.core.detect import DetectResult, detect
 from hedwig_kg.core.extract import ExtractionResult
@@ -180,10 +180,18 @@ def run_pipeline(
             _progress("embed", f"Generated {len(embeddings)} embeddings")
 
             store.save_embeddings(embeddings, model_name=model_name)
+
+            # Compute semantic edge weights using embeddings
+            _progress("embed", "Computing edge weights")
+            compute_edge_weights(result.graph, embeddings=embeddings)
         except ImportError:
             _progress("embed", "sentence-transformers not available, skipping embeddings")
+            compute_edge_weights(result.graph)
         except Exception as e:
             _progress("embed", f"Embedding error: {e}")
+            compute_edge_weights(result.graph)
+    else:
+        compute_edge_weights(result.graph)
 
     # Stage 6: Cluster
     _progress("cluster", "Running hierarchical community detection")

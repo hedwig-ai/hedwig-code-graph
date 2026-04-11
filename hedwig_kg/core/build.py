@@ -149,6 +149,70 @@ def _add_directory_nodes(G: nx.DiGraph) -> None:
                                confidence="EXTRACTED")
 
 
+_CONFIDENCE_SCORES: dict[str, float] = {
+    "EXTRACTED": 1.0,
+    "INFERRED": 0.5,
+    "AMBIGUOUS": 0.3,
+}
+
+
+def compute_edge_weights(
+    G: nx.DiGraph,
+    embeddings: dict[str, list[float]] | None = None,
+) -> None:
+    """Compute composite edge weights combining multiple signals.
+
+    weight = 0.4 * semantic + 0.3 * confidence + 0.2 * proximity + 0.1 * bidirectional
+
+    Args:
+        G: The knowledge graph (modified in-place).
+        embeddings: Optional node_id -> embedding vector mapping for semantic similarity.
+    """
+    import numpy as np
+
+    # Precompute: which edges are bidirectional
+    bidir_pairs: set[tuple[str, str]] = set()
+    for u, v in G.edges():
+        if G.has_edge(v, u):
+            bidir_pairs.add((u, v))
+            bidir_pairs.add((v, u))
+
+    for u, v, data in G.edges(data=True):
+        # 1. Semantic similarity (cosine) — 0.0 if no embeddings
+        semantic = 0.0
+        if embeddings and u in embeddings and v in embeddings:
+            vec_u = np.array(embeddings[u], dtype=np.float32)
+            vec_v = np.array(embeddings[v], dtype=np.float32)
+            norm_u = np.linalg.norm(vec_u)
+            norm_v = np.linalg.norm(vec_v)
+            if norm_u > 0 and norm_v > 0:
+                semantic = float(np.dot(vec_u, vec_v) / (norm_u * norm_v))
+                semantic = max(0.0, semantic)  # clamp negative
+
+        # 2. Confidence score
+        confidence = _CONFIDENCE_SCORES.get(data.get("confidence", "EXTRACTED"), 0.5)
+
+        # 3. Proximity score (based on file paths)
+        u_path = G.nodes[u].get("file_path", "") if G.has_node(u) else ""
+        v_path = G.nodes[v].get("file_path", "") if G.has_node(v) else ""
+        if u_path and v_path and u_path == v_path:
+            proximity = 1.0
+        elif u_path and v_path:
+            u_dir = str(PurePosixPath(u_path).parent)
+            v_dir = str(PurePosixPath(v_path).parent)
+            proximity = 0.7 if u_dir == v_dir else 0.4
+        else:
+            proximity = 0.4
+
+        # 4. Bidirectional bonus
+        bidir = 1.0 if (u, v) in bidir_pairs else 0.0
+
+        # Composite weight
+        weight = (0.4 * semantic + 0.3 * confidence + 0.2 * proximity + 0.1 * bidir)
+        data["weight"] = round(weight, 4)
+        data["semantic_similarity"] = round(semantic, 4)
+
+
 def compute_pagerank(
     G: nx.DiGraph, personalization: dict[str, float] | None = None,
 ) -> dict[str, float]:
