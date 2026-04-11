@@ -1,144 +1,132 @@
 <p align="center">
   <h1 align="center">hedwig-kg</h1>
   <p align="center">
-    Local-first Wissensgraph-Builder für KI-Coding-Agenten
+    Local-First Knowledge Graph Builder fuer AI Coding Agents
     <br />
-    <a href="#integration-mit-ki-coding-agenten">Integration</a> · <a href="#schnellstart">Schnellstart</a> · <a href="#architektur">Architektur</a> · <a href="../README.md">English</a> · <a href="README_ko.md">한국어</a> · <a href="README_ja.md">日本語</a> · <a href="README_zh.md">中文</a>
+    <a href="#schnellstart">Schnellstart</a> · <a href="#unterstuetzte-sprachen">Sprachen</a> · <a href="#ai-agent-integrationen">Integrationen</a> · <a href="#architektur">Architektur</a> · <a href="../README.md">English</a> · <a href="README_ko.md">한국어</a> · <a href="README_ja.md">日本語</a> · <a href="README_zh.md">中文</a>
   </p>
+</p>
+
+<p align="center">
+  <a href="https://github.com/hedwig-ai/hedwig-knowledge-graph/actions"><img src="https://img.shields.io/github/actions/workflow/status/hedwig-ai/hedwig-knowledge-graph/ci.yml?branch=main" alt="CI"></a>
+  <a href="https://pypi.org/project/hedwig-kg/"><img src="https://img.shields.io/pypi/v/hedwig-kg" alt="PyPI"></a>
+  <a href="https://github.com/hedwig-ai/hedwig-knowledge-graph/blob/main/LICENSE"><img src="https://img.shields.io/github/license/hedwig-ai/hedwig-knowledge-graph" alt="License"></a>
+  <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+">
 </p>
 
 ---
 
-**hedwig-kg** erstellt Wissensgraphen aus Quellcode und Dokumenten und bietet eine **5-Signal HybridRAG-Suche** mit dualen Embedding-Modellen (Code-spezialisiert + Text-spezialisiert), fusioniert über RRF. Alles läuft **100% lokal** — keine Cloud-APIs, keine Daten verlassen Ihren Rechner.
+## Warum hedwig-kg?
 
-## Integration mit KI-Coding-Agenten
+Sie sind Softwareentwickler. Wenn Sie an die Entwicklung im Zahlungsbereich denken, was faellt Ihnen ein? Vielleicht "Paddle" oder "Stripe".
 
-Mit einem einzigen Befehl integrieren Sie hedwig-kg in führende KI-Coding-Agenten. Jede Integration erstellt plattformspezifische Kontextdateien und Hooks, sodass der Agent automatisch den Wissensgraphen nutzt, bevor er Rohdateien durchsucht.
+Aber Tools wie Claude Code koennen relevanten Code nicht natuerlich finden — sie wissen nicht einmal, wie sie danach suchen sollen. Die semantische Verbindung existiert einfach nicht. Fuer Claude leben "Payment" und "Stripe" in voellig verschiedenen Welten.
 
-```bash
-pip install hedwig-kg
-```
+Also macht es das Einzige, was es kann — immer wieder nach dem Wort "Payment" greppen.
 
-### Claude Code
+**hedwig-kg** loest dieses Problem. Es baut einen Knowledge Graph aus Ihrer Codebasis — Funktionen, Klassen, Imports, Call-Graphen, Vererbung, Communities — und sucht semantisch, aehnlich wie Menschen denken.
 
-```bash
-hedwig-kg claude install
-```
+Wenn Sie fragen "Finde zahlungsbezogenen Code", findet es `StripeClient`, `checkout_handler` und `WebhookController` — auch wenn keines davon das Wort "Payment" enthaelt.
 
-Erstellt einen `CLAUDE.md`-Abschnitt + `.claude/settings.json` PreToolUse-Hook.
-
-### OpenAI Codex CLI
-
-```bash
-hedwig-kg codex install
-```
-
-Erstellt einen `AGENTS.md`-Abschnitt + `.codex/hooks.json` PreToolUse-Hook.
-
-### Google Gemini CLI
-
-```bash
-hedwig-kg gemini install
-```
-
-Erstellt einen `GEMINI.md`-Abschnitt + `.gemini/settings.json` BeforeTool-Hook.
-
-### Windsurf IDE
-
-```bash
-hedwig-kg windsurf install
-```
-
-Erstellt eine `.windsurf/rules/hedwig-kg.md` Regeldatei.
-
-### Cline (VS Code-Erweiterung)
-
-```bash
-hedwig-kg cline install
-```
-
-Erstellt eine `.clinerules` Datei.
-
-### Funktionsweise
-
-Jeder `install`-Befehl führt zwei Schritte aus:
-
-1. **Kontextdatei** — Fügt einen `## hedwig-kg`-Abschnitt zur Kontextdatei der Plattform hinzu
-2. **Hook** — Registriert einen leichtgewichtigen Shell-Hook, der vor Tool-Aufrufen ausgelöst wird
-
-Deinstallation: `hedwig-kg <platform> uninstall`
-
-### Voraussetzungen
-
-- Python 3.10+
-- ~250 MB Speicherplatz für duale Embedding-Modelle (beim ersten Gebrauch in `~/.hedwig-kg/models/` zwischengespeichert)
-
-### Optionale Abhängigkeiten
-
-```bash
-# PDF-Textextraktion
-pip install hedwig-kg[docs]
-```
+<img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 
 ## Schnellstart
 
-### 1. Installation & Build
-
 ```bash
 pip install hedwig-kg
-cd ./my-project
-hedwig-kg build .
+hedwig-kg claude install
 ```
 
-Der erste Build scannt alle Dateien, extrahiert AST-Strukturen, generiert Embeddings mit dualen Modellen (~250 MB Download beim ersten Lauf, zwischengespeichert in `~/.hedwig-kg/models/`), erkennt Communities und speichert alles in `.hedwig-kg/knowledge.db`.
+Sagen Sie Claude Code:
 
-### 2. Suche
+> "Baue einen Knowledge Graph fuer dieses Projekt"
 
-```bash
-hedwig-kg search "Authentifizierungs-Handler"
-```
+Das war's. Claude Code baut den Graph und konsultiert ihn ab sofort bei jeder Suche. Bei Code-Aenderungen:
 
-### 3. Agenten-Integration
+> "Knowledge Graph neu bauen"
 
-```bash
-hedwig-kg claude install        # Claude Code
-hedwig-kg codex install         # Codex CLI
-hedwig-kg gemini install        # Gemini CLI
-hedwig-kg windsurf install      # Windsurf IDE
-hedwig-kg cline install         # Cline (VS Code)
-```
+## Unterstuetzte Sprachen
 
-### 4. Aktuell halten
+### Tiefe AST-Extraktion (17 Sprachen)
 
-```bash
-hedwig-kg build . --incremental
-```
+hedwig-kg verwendet [tree-sitter tags.scm](https://tree-sitter.github.io/tree-sitter/4-code-navigation.html) fuer universelle Strukturextraktion — Funktionen, Klassen, Methoden, Aufrufe, Imports, Vererbung — ohne sprachspezifischen Code.
 
-### 5. Erkunden
+| | | | |
+|:---:|:---:|:---:|:---:|
+| Python | JavaScript | TypeScript | Go |
+| Rust | Java | C | C++ |
+| C# | Ruby | Swift | Scala |
+| Lua | PHP | Elixir | Kotlin |
+| Objective-C | | | |
 
-```bash
-hedwig-kg stats                           # Graph-Übersicht
-hedwig-kg communities --search "auth"     # Community-Erkundung
-hedwig-kg node "AuthHandler"              # Knotendetails
-hedwig-kg query                           # Interaktive REPL
-hedwig-kg visualize                       # HTML-Visualisierung
-```
+Zusaetzlich erkannt und indiziert: Markdown, PDF, HTML, CSV, YAML, JSON, TOML, Shell, R und mehr.
+
+### Mehrsprachige natuerliche Sprache
+
+Textknoten (Dokumente, Kommentare, Markdown) werden mit `intfloat/multilingual-e5-small` eingebettet und unterstuetzen **100+ natuerliche Sprachen** — Deutsch, Koreanisch, Japanisch, Chinesisch, Franzoesisch und mehr. Suchen Sie in Ihrer Sprache, finden Sie Ergebnisse in jeder Sprache.
+
+## AI-Agent-Integrationen
+
+hedwig-kg integriert sich mit einem Befehl in fuehrende AI Coding Agents:
+
+| Agent | Installation | Beschreibung |
+|-------|-------------|-------------|
+| **Claude Code** | `hedwig-kg claude install` | Skill + CLAUDE.md + PreToolUse-Hook |
+| **Codex CLI** | `hedwig-kg codex install` | AGENTS.md + PreToolUse-Hook |
+| **Gemini CLI** | `hedwig-kg gemini install` | GEMINI.md + BeforeTool-Hook |
+| **Cursor IDE** | `hedwig-kg cursor install` | `.cursor/rules/`-Regeldatei |
+| **Windsurf IDE** | `hedwig-kg windsurf install` | `.windsurf/rules/`-Regeldatei |
+| **Cline** | `hedwig-kg cline install` | `.clinerules`-Datei |
+| **Aider CLI** | `hedwig-kg aider install` | CONVENTIONS.md + `.aider.conf.yml` |
+| **MCP-Server** | `claude mcp add hedwig-kg -- hedwig-kg mcp` | Model Context Protocol 5 Tools |
+
+Jeder `install`-Befehl schreibt eine Kontextdatei und registriert (bei unterstuetzten Plattformen) einen Hook vor Tool-Aufrufen. Entfernen: `hedwig-kg <platform> uninstall`.
+
+---
 
 ## Architektur
 
 ```
-Quellcode/Dokumente → Erkennung → Extraktion → Graph-Aufbau → Embedding → Clustering → Zusammenfassung → Analyse → Speicherung
+Quellcode/Dokumente
+       |
+       v
+   Erkennen ──> Extrahieren ──> Bauen ──> Einbetten ──> Clustern ──> Analysieren ──> Speichern
+                tags.scm       NetworkX   Dual-        Leiden       PageRank       SQLite
+                (17 Sprachen)  DiGraph    FAISS        Hierarchie   God-Nodes      FTS5+FAISS
 ```
 
 ### HybridRAG-Suche (5 Signale)
 
-1. **Code-Vektorsuche** — Abfrage mit `BAAI/bge-small-en-v1.5` eingebettet, durchsucht Code-Knoten (Funktionen, Klassen, Methoden) über FAISS
-2. **Text-Vektorsuche** — Abfrage mit `all-MiniLM-L6-v2` eingebettet, durchsucht Dokumentknoten (Überschriften, Abschnitte, Docstrings) über FAISS
-3. **Graph-Erweiterung** — Von den besten Vektortreffern werden N-Hop-Nachbarn durchlaufen
-4. **Stichwortsuche** — FTS5-Volltextsuche mit BM25-Ranking
-5. **Community-Suche** — Abfrage wird mit Community-Zusammenfassungen abgeglichen
-5. **RRF-Fusion** — Alle Signale werden zu einem einheitlichen Ranking kombiniert
+1. **Code-Vektor** — `BAAI/bge-small-en-v1.5` bettet Code-Knoten ein, FAISS-Kosinus-Suche
+2. **Text-Vektor** — `intfloat/multilingual-e5-small` bettet Textknoten ein (100+ Sprachen)
+3. **Graph-Expansion** — BFS von Vektor-Treffern, gewichtet nach Kantenqualitaet
+4. **Keyword** — FTS5-Volltextsuche ueber vollstaendigen Quellcode
+5. **Community** — Leiden-Clustering-Zusammenfassungen boosten verwandte Knoten
+6. **RRF-Fusion** — Gewichtete reziproke Rang-Fusion kombiniert alle Signale
+
+## Leistung
+
+Benchmarks auf der eigenen Codebasis von hedwig-kg (~3.500 Zeilen, 90 Dateien, 1.300 Knoten):
+
+| Operation | Zeit |
+|-----------|------|
+| Vollstaendiger Build | ~14s |
+| Inkrementeller Build (Aenderungen) | ~4s |
+| Inkrementeller Build (keine Aenderungen) | ~0,4s |
+| Kaltstart-Suche (Dual-Modell) | ~2,8s |
+| Kaltstart-Suche (`--fast`) | ~0,2s |
+| Warme Suche | ~0,08s |
+| Cache-Treffer | <1ms |
+
+## Anforderungen
+
+- Python 3.10+
+- Einbettungsmodelle ~470MB (beim ersten Gebrauch gecacht)
 
 ## Lizenz
 
-MIT-Lizenz. Siehe [LICENSE](../LICENSE) für Details.
+MIT License. Siehe [LICENSE](../LICENSE).
+
+## Mitwirken
+
+Beitraege sind willkommen! Siehe [CONTRIBUTING.md](../CONTRIBUTING.md).

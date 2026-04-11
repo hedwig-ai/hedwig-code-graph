@@ -1,144 +1,132 @@
 <p align="center">
   <h1 align="center">hedwig-kg</h1>
   <p align="center">
-    面向 AI 编程代理的本地优先知识图谱构建器
+    面向AI编程代理的本地优先知识图谱构建器
     <br />
-    <a href="#ai-编程代理集成">集成</a> · <a href="#快速开始">快速开始</a> · <a href="#架构">架构</a> · <a href="../README.md">English</a> · <a href="README_ko.md">한국어</a> · <a href="README_ja.md">日本語</a> · <a href="README_de.md">Deutsch</a>
+    <a href="#快速开始">快速开始</a> · <a href="#支持的语言">语言</a> · <a href="#ai代理集成">集成</a> · <a href="#架构">架构</a> · <a href="../README.md">English</a> · <a href="README_ko.md">한국어</a> · <a href="README_ja.md">日本語</a> · <a href="README_de.md">Deutsch</a>
   </p>
+</p>
+
+<p align="center">
+  <a href="https://github.com/hedwig-ai/hedwig-knowledge-graph/actions"><img src="https://img.shields.io/github/actions/workflow/status/hedwig-ai/hedwig-knowledge-graph/ci.yml?branch=main" alt="CI"></a>
+  <a href="https://pypi.org/project/hedwig-kg/"><img src="https://img.shields.io/pypi/v/hedwig-kg" alt="PyPI"></a>
+  <a href="https://github.com/hedwig-ai/hedwig-knowledge-graph/blob/main/LICENSE"><img src="https://img.shields.io/github/license/hedwig-ai/hedwig-knowledge-graph" alt="License"></a>
+  <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+">
 </p>
 
 ---
 
-**hedwig-kg** 从源代码和文档构建知识图谱，并通过双嵌入模型（代码专用 + 文本专用）经 RRF 融合提供 **5 信号 HybridRAG 搜索**。一切 **100% 本地运行** — 无需云端 API，数据不会离开您的机器。
+## 为什么选择 hedwig-kg？
 
-## AI 编程代理集成
+你是一名软件工程师。当你想到支付领域的开发时，会想到什么？也许是"Paddle"或"Stripe"。
 
-一条命令即可与主流 AI 编程代理集成。每个集成会写入平台专用的上下文文件和 hook，使代理在搜索原始文件之前自动利用知识图谱。
+但像Claude Code这样的工具无法自然地找到相关代码——它们甚至不知道如何寻找。语义连接根本不存在。对Claude来说，"Payment"和"Stripe"生活在完全不同的世界里。
 
-```bash
-pip install hedwig-kg
-```
+所以它只能做唯一知道的事情——一遍又一遍地grep"Payment"这个词。
 
-### Claude Code
+**hedwig-kg**解决了这个问题。它从代码库构建知识图谱——函数、类、import、调用图、继承、社区——并像人类思考的方式一样进行语义搜索。
 
-```bash
-hedwig-kg claude install
-```
+当你问"找找支付相关的代码"时，即使代码中没有"payment"这个词，它也能找到`StripeClient`、`checkout_handler`和`WebhookController`。
 
-写入 `CLAUDE.md` 段落 + `.claude/settings.json` PreToolUse hook。
-
-### OpenAI Codex CLI
-
-```bash
-hedwig-kg codex install
-```
-
-写入 `AGENTS.md` 段落 + `.codex/hooks.json` PreToolUse hook。
-
-### Google Gemini CLI
-
-```bash
-hedwig-kg gemini install
-```
-
-写入 `GEMINI.md` 段落 + `.gemini/settings.json` BeforeTool hook。
-
-### Windsurf IDE
-
-```bash
-hedwig-kg windsurf install
-```
-
-创建 `.windsurf/rules/hedwig-kg.md` 规则文件。
-
-### Cline（VS Code 扩展）
-
-```bash
-hedwig-kg cline install
-```
-
-创建 `.clinerules` 文件。
-
-### 工作原理
-
-每个 `install` 命令执行两项操作：
-
-1. **上下文文件** — 在平台上下文文件中添加 `## hedwig-kg` 段落
-2. **Hook** — 注册一个在工具调用前触发的轻量 shell hook
-
-卸载：`hedwig-kg <platform> uninstall`
-
-### 系统要求
-
-- Python 3.10+
-- 双嵌入模型约需 ~250MB 磁盘空间（首次使用时缓存至 `~/.hedwig-kg/models/`）
-
-### 可选依赖
-
-```bash
-# PDF 文本提取
-pip install hedwig-kg[docs]
-```
+<img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 
 ## 快速开始
 
-### 1. 安装与构建
-
 ```bash
 pip install hedwig-kg
-cd ./my-project
-hedwig-kg build .
+hedwig-kg claude install
 ```
 
-首次构建会扫描所有文件、提取 AST 结构、使用双模型生成嵌入（首次运行约下载 ~250MB，缓存至 `~/.hedwig-kg/models/`）、检测社区，并将所有内容存储在 `.hedwig-kg/knowledge.db` 中。
+然后告诉Claude Code：
 
-### 2. 搜索
+> "为这个项目构建知识图谱"
 
-```bash
-hedwig-kg search "认证处理器"
-```
+就这样。Claude Code会构建图谱，之后每次搜索都会自动参考。代码变更后：
 
-### 3. 集成代理
+> "重新构建知识图谱"
 
-```bash
-hedwig-kg claude install        # Claude Code
-hedwig-kg codex install         # Codex CLI
-hedwig-kg gemini install        # Gemini CLI
-hedwig-kg windsurf install      # Windsurf IDE
-hedwig-kg cline install         # Cline (VS Code)
-```
+## 支持的语言
 
-### 4. 保持更新
+### 深度AST提取（17种语言）
 
-```bash
-hedwig-kg build . --incremental
-```
+hedwig-kg使用[tree-sitter tags.scm](https://tree-sitter.github.io/tree-sitter/4-code-navigation.html)进行通用结构提取——函数、类、方法、调用、import、继承——无需针对每种语言编写自定义代码。
 
-### 5. 探索
+| | | | |
+|:---:|:---:|:---:|:---:|
+| Python | JavaScript | TypeScript | Go |
+| Rust | Java | C | C++ |
+| C# | Ruby | Swift | Scala |
+| Lua | PHP | Elixir | Kotlin |
+| Objective-C | | | |
 
-```bash
-hedwig-kg stats                           # 图谱概览
-hedwig-kg communities --search "auth"     # 社区探索
-hedwig-kg node "AuthHandler"              # 节点详情
-hedwig-kg query                           # 交互式 REPL
-hedwig-kg visualize                       # HTML 可视化
-```
+还可检测和索引：Markdown、PDF、HTML、CSV、YAML、JSON、TOML、Shell、R等。
+
+### 多语言自然语言支持
+
+文本节点（文档、注释、markdown）使用`intfloat/multilingual-e5-small`嵌入，支持**100多种自然语言**——中文、韩语、日语、德语、法语等。用你的语言搜索，找到任何语言的结果。
+
+## AI代理集成
+
+hedwig-kg通过一个命令与主要AI编程代理集成：
+
+| 代理 | 安装 | 说明 |
+|------|------|------|
+| **Claude Code** | `hedwig-kg claude install` | Skill + CLAUDE.md + PreToolUse钩子 |
+| **Codex CLI** | `hedwig-kg codex install` | AGENTS.md + PreToolUse钩子 |
+| **Gemini CLI** | `hedwig-kg gemini install` | GEMINI.md + BeforeTool钩子 |
+| **Cursor IDE** | `hedwig-kg cursor install` | `.cursor/rules/`规则文件 |
+| **Windsurf IDE** | `hedwig-kg windsurf install` | `.windsurf/rules/`规则文件 |
+| **Cline** | `hedwig-kg cline install` | `.clinerules`文件 |
+| **Aider CLI** | `hedwig-kg aider install` | CONVENTIONS.md + `.aider.conf.yml` |
+| **MCP服务器** | `claude mcp add hedwig-kg -- hedwig-kg mcp` | Model Context Protocol 5个工具 |
+
+每个`install`会写入上下文文件，并（在支持的平台上）注册工具调用前的钩子。卸载：`hedwig-kg <platform> uninstall`。
+
+---
 
 ## 架构
 
 ```
-源代码/文档 → 检测 → 提取 → 构建图谱 → 嵌入 → 聚类 → 摘要 → 分析 → 存储
+源代码/文档
+       |
+       v
+   检测 ──> 提取 ──> 构建 ──> 嵌入 ──> 聚类 ──> 分析 ──> 存储
+           tags.scm  NetworkX  双模型    Leiden    PageRank  SQLite
+           (17种)    DiGraph   FAISS    层次结构   核心节点  FTS5+FAISS
 ```
 
-### HybridRAG 搜索（5 信号）
+### HybridRAG搜索（5个信号）
 
-1. **代码向量搜索** — 使用 `BAAI/bge-small-en-v1.5` 嵌入查询，通过 FAISS 搜索代码节点（函数、类、方法）
-2. **文本向量搜索** — 使用 `all-MiniLM-L6-v2` 嵌入查询，通过 FAISS 搜索文档节点（标题、段落、文档字符串）
-3. **图谱扩展** — 从顶部向量结果遍历 N 跳邻居
-4. **关键词搜索** — FTS5 全文搜索（BM25 排序）
-5. **社区搜索** — 将查询与社区摘要匹配
-5. **RRF 融合** — 将所有信号合并为统一排序
+1. **代码向量** — `BAAI/bge-small-en-v1.5`嵌入代码节点，FAISS余弦搜索
+2. **文本向量** — `intfloat/multilingual-e5-small`嵌入文本节点（100+语言）
+3. **图扩展** — 从向量命中进行BFS，按边质量加权
+4. **关键词** — FTS5全文搜索，覆盖完整源代码
+5. **社区** — Leiden聚类摘要提升相关节点
+6. **RRF融合** — 加权逆排名融合组合所有信号
+
+## 性能
+
+在hedwig-kg自身代码库上的基准测试（约3,500行，90个文件，1,300个节点）：
+
+| 操作 | 时间 |
+|------|------|
+| 完整构建 | ~14秒 |
+| 增量构建（有变更） | ~4秒 |
+| 增量构建（无变更） | ~0.4秒 |
+| 冷搜索（双模型） | ~2.8秒 |
+| 冷搜索（`--fast`） | ~0.2秒 |
+| 热搜索 | ~0.08秒 |
+| 缓存命中 | <1ms |
+
+## 要求
+
+- Python 3.10+
+- 嵌入模型 ~470MB（首次使用时缓存）
 
 ## 许可证
 
-MIT License。详情参见 [LICENSE](../LICENSE)。
+MIT License。参见[LICENSE](../LICENSE)。
+
+## 贡献
+
+欢迎贡献！参见[CONTRIBUTING.md](../CONTRIBUTING.md)。

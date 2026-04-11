@@ -32,35 +32,18 @@ When you ask "find payment-related code," it finds `StripeClient`, `checkout_han
 
 ## Quick Start
 
-### 1. Install & Build
-
 ```bash
 pip install hedwig-kg
-cd ./my-project
-hedwig-kg build .
-```
-
-### 2. Search
-
-```bash
-hedwig-kg search "authentication handler"
-```
-
-hedwig-kg runs 5 search signals in one call — code vector, text vector, graph traversal, keyword, and community matching — fused via RRF. No need to run separate searches.
-
-### 3. Integrate with Claude Code
-
-```bash
 hedwig-kg claude install
 ```
 
-That's it. Claude Code will now consult the knowledge graph before every Glob/Grep operation. One command, zero configuration.
+Then tell Claude Code:
 
-### 4. Keep It Updated
+> "Build a knowledge graph for this project"
 
-```bash
-hedwig-kg build . --incremental    # Only re-processes changed files
-```
+That's it. Claude Code will build the graph, and from then on, consult it before every search. When the code changes, just say:
+
+> "Rebuild the knowledge graph"
 
 ## Supported Languages
 
