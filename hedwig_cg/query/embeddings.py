@@ -50,8 +50,8 @@ CODE_KINDS = frozenset({
 # polluting the vector search space with low-information vectors).
 SKIP_KINDS = frozenset({"external", "directory"})
 
-# Memory budget: 2 GB max for embeddings pipeline
-_MEMORY_LIMIT_BYTES = 2 * 1024 * 1024 * 1024
+# Memory budget: 4 GB max for entire pipeline
+_MEMORY_LIMIT_BYTES = 4 * 1024 * 1024 * 1024
 
 # Model cache directory: ~/.hedwig-cg/models/
 _MODEL_CACHE_DIR = Path.home() / ".hedwig-cg" / "models"
@@ -362,12 +362,29 @@ def embed_query_dual(
 
 
 def _memory_guard():
-    """Trigger GC if memory exceeds budget."""
+    """Trigger GC if memory exceeds 75% of budget, warn at limit."""
     rss = _get_process_rss()
-    if rss > _MEMORY_LIMIT_BYTES:
+    if rss <= 0:
+        return
+    threshold_75 = int(_MEMORY_LIMIT_BYTES * 0.75)
+    if rss > threshold_75:
         gc.collect()
-        logger.warning(
-            "Memory usage %.1f GB exceeds %.1f GB limit, GC triggered",
-            rss / (1024**3),
-            _MEMORY_LIMIT_BYTES / (1024**3),
-        )
+        rss_after = _get_process_rss()
+        if rss > _MEMORY_LIMIT_BYTES:
+            logger.warning(
+                "Memory %.1f GB exceeds %.1f GB limit (%.1f GB after GC)",
+                rss / (1024**3),
+                _MEMORY_LIMIT_BYTES / (1024**3),
+                rss_after / (1024**3),
+            )
+        else:
+            logger.debug(
+                "Memory %.1f GB > 75%% threshold, GC freed %.1f MB",
+                rss / (1024**3),
+                (rss - rss_after) / (1024**2),
+            )
+
+
+def get_memory_limit_bytes() -> int:
+    """Return the current memory budget in bytes."""
+    return _MEMORY_LIMIT_BYTES

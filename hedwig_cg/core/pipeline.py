@@ -5,6 +5,7 @@ detect → extract → build → embed → cluster → analyze → store
 
 from __future__ import annotations
 
+import gc
 import hashlib
 import json
 import logging
@@ -37,6 +38,22 @@ class PipelineResult:
     db_path: str = ""
     stage_timings: dict[str, float] = field(default_factory=dict)
     """Per-stage wall-clock seconds (e.g. {"detect": 0.12, "embed": 8.5})."""
+    node_count: int = 0
+    edge_count: int = 0
+
+    def release_memory(self) -> None:
+        """Free large in-memory objects after DB persistence.
+
+        Call this after the pipeline completes and you no longer need
+        the in-memory graph/cluster/analysis data (it's all in SQLite).
+        """
+        self.graph = None
+        self.cluster_result = None
+        self.analysis = None
+        self.detect_result = None
+        self.extractions.clear()
+        self.pagerank.clear()
+        gc.collect()
 
 
 def _file_hash(path: Path) -> str:
@@ -149,11 +166,20 @@ def run_pipeline(
         )
 
     _end_stage("extract")
-    _progress("extract", f"Extracted {sum(len(e.nodes) for e in result.extractions)} nodes")
+    total_nodes = sum(len(e.nodes) for e in result.extractions)
+    _progress("extract", f"Extracted {total_nodes} nodes")
 
     # Stage 3: Build graph
     _start_stage("build")
     _progress("build", "Building code graph")
+
+    # Collect re-extracted file paths before clearing extractions
+    re_extracted_files: set[str] = set()
+    for ext in result.extractions:
+        for node in ext.nodes:
+            if node.file_path:
+                re_extracted_files.add(node.file_path)
+
     new_graph = build_graph(result.extractions)
 
     # For incremental builds, merge new extractions into existing graph
@@ -161,12 +187,6 @@ def run_pipeline(
         existing = store.load_graph()
         if existing.number_of_nodes() > 0:
             # Remove nodes from re-extracted files (they'll be replaced)
-            re_extracted_files = set()
-            for ext in result.extractions:
-                for node in ext.nodes:
-                    if node.file_path:
-                        re_extracted_files.add(node.file_path)
-
             nodes_to_remove = [
                 n for n, d in existing.nodes(data=True)
                 if d.get("file_path", "") in re_extracted_files
@@ -176,12 +196,16 @@ def run_pipeline(
 
             # Merge: add existing (unchanged) nodes/edges, then new ones
             result.graph = nx.compose(existing, new_graph)
+            del existing
         else:
             result.graph = new_graph
     else:
         result.graph = new_graph
+    del new_graph
 
     n, e = result.graph.number_of_nodes(), result.graph.number_of_edges()
+    result.node_count = n
+    result.edge_count = e
     _end_stage("build")
     _progress("build", f"Graph: {n} nodes, {e} edges")
 
@@ -215,12 +239,6 @@ def run_pipeline(
             skip_ids: set[str] | None = None
             if incremental:
                 existing_ids = store.get_embedded_node_ids()
-                # Only skip nodes from unchanged files (re-extracted files need fresh embeddings)
-                re_extracted_files = set()
-                for ext in result.extractions:
-                    for node in ext.nodes:
-                        if node.file_path:
-                            re_extracted_files.add(node.file_path)
                 # Nodes from re-extracted files should NOT be skipped
                 nodes_from_changed = {
                     n for n, d in result.graph.nodes(data=True)

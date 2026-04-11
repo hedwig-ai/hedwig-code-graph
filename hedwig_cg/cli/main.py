@@ -119,16 +119,29 @@ def build(
                 lang=lang,
             )
 
+    # Capture summary values before releasing memory
+    files_detected = len(result.detect_result.files) if result.detect_result else 0
+    files_skipped = len(result.detect_result.skipped) if result.detect_result else 0
+    nodes = result.node_count
+    edges = result.edge_count
+    communities = len(result.cluster_result.communities) if result.cluster_result else 0
+    embeddings = result.embeddings_count
+    db_path = result.db_path
+    stage_timings = result.stage_timings or {}
+
+    # Release large in-memory objects (all data is persisted in SQLite)
+    result.release_memory()
+
     if json_mode:
         _json_out({
-            "files_detected": len(result.detect_result.files) if result.detect_result else 0,
-            "files_skipped": len(result.detect_result.skipped) if result.detect_result else 0,
-            "nodes": result.graph.number_of_nodes() if result.graph else 0,
-            "edges": result.graph.number_of_edges() if result.graph else 0,
-            "communities": len(result.cluster_result.communities) if result.cluster_result else 0,
-            "embeddings": result.embeddings_count,
-            "database": result.db_path,
-            "stage_timings": result.stage_timings or {},
+            "files_detected": files_detected,
+            "files_skipped": files_skipped,
+            "nodes": nodes,
+            "edges": edges,
+            "communities": communities,
+            "embeddings": embeddings,
+            "database": db_path,
+            "stage_timings": stage_timings,
         })
         return
 
@@ -138,25 +151,22 @@ def build(
     table.add_column("Metric", style="bold")
     table.add_column("Value", justify="right")
 
-    if result.detect_result:
-        table.add_row("Files detected", str(len(result.detect_result.files)))
-        table.add_row("Files skipped", str(len(result.detect_result.skipped)))
-    if result.graph:
-        table.add_row("Nodes", str(result.graph.number_of_nodes()))
-        table.add_row("Edges", str(result.graph.number_of_edges()))
-    if result.cluster_result:
-        table.add_row("Communities", str(len(result.cluster_result.communities)))
-    table.add_row("Embeddings", str(result.embeddings_count))
-    table.add_row("Database", result.db_path)
+    table.add_row("Files detected", str(files_detected))
+    table.add_row("Files skipped", str(files_skipped))
+    table.add_row("Nodes", str(nodes))
+    table.add_row("Edges", str(edges))
+    table.add_row("Communities", str(communities))
+    table.add_row("Embeddings", str(embeddings))
+    table.add_row("Database", db_path)
 
     console.print(table)
 
     # Show per-stage timing breakdown
-    if result.stage_timings:
+    if stage_timings:
         timing_table = Table(title="Stage Timings")
         timing_table.add_column("Stage", style="bold")
         timing_table.add_column("Time", justify="right")
-        for stage, secs in result.stage_timings.items():
+        for stage, secs in stage_timings.items():
             if stage == "total":
                 timing_table.add_row(f"[bold]{stage}[/bold]", f"[bold]{secs:.1f}s[/bold]")
             else:
