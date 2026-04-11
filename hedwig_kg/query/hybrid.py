@@ -52,6 +52,8 @@ class SearchResult:
     source: str  # "vector", "graph", "keyword", "fused"
     snippet: str = ""
     neighbors: list[str] = field(default_factory=list)
+    signal_contributions: dict[str, float] = field(default_factory=dict)
+    """Per-signal RRF contribution breakdown (e.g. {"code_vector": 0.018, "keyword": 0.012})."""
 
 
 # --- LRU search cache ---
@@ -70,11 +72,15 @@ def clear_search_cache() -> None:
     _search_cache.clear()
 
 
+SIGNAL_NAMES = ["code_vector", "text_vector", "graph", "keyword", "community"]
+
+
 def reciprocal_rank_fusion(
     *ranked_lists: list[tuple[str, float]],
     k: int = 60,
     weights: list[float] | None = None,
-) -> list[tuple[str, float]]:
+    signal_names: list[str] | None = None,
+) -> tuple[list[tuple[str, float]], dict[str, dict[str, float]]]:
     """Combine multiple ranked lists using Weighted Reciprocal Rank Fusion.
 
     RRF score = sum(w_i / (k + rank_i)) for each list where item appears.
@@ -83,20 +89,28 @@ def reciprocal_rank_fusion(
         ranked_lists: Each list is [(item_id, score), ...] sorted by score desc.
         k: RRF constant (default 60, as in the original paper).
         weights: Per-signal weights. If None, all signals weighted equally (1.0).
+        signal_names: Names for each signal (for breakdown tracking).
 
     Returns:
-        Fused ranking as [(item_id, rrf_score), ...].
+        Tuple of (fused ranking, per-item signal breakdowns).
     """
     if weights is None:
         weights = [1.0] * len(ranked_lists)
+    if signal_names is None:
+        signal_names = SIGNAL_NAMES[:len(ranked_lists)]
 
     scores: dict[str, float] = {}
-    for w, rlist in zip(weights, ranked_lists):
+    breakdowns: dict[str, dict[str, float]] = {}
+    for w, rlist, sname in zip(weights, ranked_lists, signal_names):
         for rank, (item_id, _) in enumerate(rlist):
-            scores[item_id] = scores.get(item_id, 0) + w / (k + rank + 1)
+            contribution = w / (k + rank + 1)
+            scores[item_id] = scores.get(item_id, 0) + contribution
+            if item_id not in breakdowns:
+                breakdowns[item_id] = {}
+            breakdowns[item_id][sname] = breakdowns[item_id].get(sname, 0) + contribution
 
     fused = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-    return fused
+    return fused, breakdowns
 
 
 # Default signal weights: [code_vector, text_vector, graph, keyword, community]
@@ -310,7 +324,7 @@ def hybrid_search(
             logger.debug("Community search failed", exc_info=True)
 
     # Stage 5: Weighted RRF fusion (5 signals with configurable weights)
-    fused = reciprocal_rank_fusion(
+    fused, breakdowns = reciprocal_rank_fusion(
         code_vector_hits, text_vector_hits, graph_hits, keyword_hits, community_hits,
         weights=signal_weights,
     )
@@ -348,6 +362,7 @@ def hybrid_search(
                 data.get("source_snippet", ""), terms,
             ),
             neighbors=neighbors,
+            signal_contributions=breakdowns.get(node_id, {}),
         ))
 
     # Store in cache

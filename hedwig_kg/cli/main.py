@@ -129,15 +129,24 @@ def _print_search_results(query: str, results: list) -> None:
     table.add_column("Kind")
     table.add_column("File")
     table.add_column("Score", justify="right")
+    table.add_column("Signals", style="dim")
     table.add_column("Neighbors", style="dim")
 
     for i, r in enumerate(results, 1):
+        # Format signal contributions as compact abbreviations
+        sig_parts = []
+        abbrev = {"code_vector": "cv", "text_vector": "tv", "graph": "g",
+                  "keyword": "kw", "community": "cm"}
+        for sname, sval in sorted(r.signal_contributions.items(), key=lambda x: -x[1]):
+            if sval > 0:
+                sig_parts.append(f"{abbrev.get(sname, sname[:2])}:{sval:.3f}")
         table.add_row(
             str(i),
             r.label,
             r.kind,
             str(Path(r.file_path).name) if r.file_path else "",
             f"{r.score:.4f}",
+            " ".join(sig_parts[:3]),
             ", ".join(r.neighbors[:3]),
         )
 

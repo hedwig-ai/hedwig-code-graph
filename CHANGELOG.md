@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Parent class context in embeddings**: Method/constructor/property nodes now include "method of ClassName" in embedding text for better class-membership queries
 - **Query-relevant snippets**: Search results now show the most query-term-dense region of source code instead of blind truncation from the start
 - **MCP Server** (`hedwig-kg mcp`): Model Context Protocol server exposing 5 tools (search, node, stats, communities, build) over stdio transport for universal AI agent integration
+- **Search signal explainability**: Each result now includes per-signal RRF contribution breakdown (code_vector, text_vector, graph, keyword, community) in CLI table and MCP output
 
 ### Changed
 - FAISS index loading now uses `IO_FLAG_MMAP` for lower RSS and faster cold starts on large indices (with automatic fallback)

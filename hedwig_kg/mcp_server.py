@@ -118,6 +118,12 @@ def search(query: str, top_k: int = 10) -> str:
         lines.append(f"### {i}. {r.label} ({r.kind})")
         lines.append(f"- **File**: {r.file_path}")
         lines.append(f"- **Score**: {r.score:.4f}")
+        if r.signal_contributions:
+            sigs = ", ".join(
+                f"{k}={v:.3f}" for k, v in
+                sorted(r.signal_contributions.items(), key=lambda x: -x[1]) if v > 0
+            )
+            lines.append(f"- **Signals**: {sigs}")
         if r.neighbors:
             lines.append(f"- **Neighbors**: {', '.join(r.neighbors[:5])}")
         if r.snippet:
