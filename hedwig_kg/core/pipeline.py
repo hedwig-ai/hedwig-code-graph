@@ -263,6 +263,13 @@ def run_pipeline(
         except Exception:
             logger.debug("Vector index build failed", exc_info=True)
 
+    # Clear search cache after rebuild (stale results)
+    try:
+        from hedwig_kg.query.hybrid import clear_search_cache
+        clear_search_cache()
+    except ImportError:
+        pass
+
     store.close()
     _progress("done", f"Knowledge base saved to {db_path}")
 
