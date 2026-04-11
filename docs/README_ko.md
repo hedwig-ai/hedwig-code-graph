@@ -43,6 +43,22 @@ hedwig-kg gemini install
 
 `GEMINI.md` 섹션 + `.gemini/settings.json` BeforeTool hook을 작성합니다.
 
+### Windsurf IDE
+
+```bash
+hedwig-kg windsurf install
+```
+
+`.windsurf/rules/hedwig-kg.md` 규칙 파일을 생성합니다.
+
+### Cline (VS Code 확장)
+
+```bash
+hedwig-kg cline install
+```
+
+`.clinerules` 파일을 생성합니다.
+
 ### 동작 방식
 
 각 `install` 명령은 두 가지를 수행합니다:
@@ -85,9 +101,11 @@ hedwig-kg search "인증 핸들러"
 ### 3. 에이전트 통합
 
 ```bash
-hedwig-kg claude install   # Claude Code
-hedwig-kg codex install    # Codex CLI
-hedwig-kg gemini install   # Gemini CLI
+hedwig-kg claude install        # Claude Code
+hedwig-kg codex install         # Codex CLI
+hedwig-kg gemini install        # Gemini CLI
+hedwig-kg windsurf install      # Windsurf IDE
+hedwig-kg cline install         # Cline (VS Code)
 ```
 
 ### 4. 최신 상태 유지

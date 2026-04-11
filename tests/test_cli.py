@@ -431,3 +431,52 @@ class TestCLINode:
         ])
         assert result.exit_code == 0
         assert "not found" in result.output.lower()
+
+
+# ---------------------------------------------------------------------------
+# Cline integration tests
+# ---------------------------------------------------------------------------
+
+class TestClineIntegration:
+    def test_cline_install_creates_rules(self, tmp_path):
+        runner = CliRunner()
+        with runner.isolated_filesystem(temp_dir=tmp_path):
+            result = runner.invoke(cli, ["cline", "install"])
+            assert result.exit_code == 0
+            rules = Path(".clinerules")
+            assert rules.exists()
+            content = rules.read_text()
+            assert "hedwig-kg" in content
+            assert "HybridRAG" in content
+
+    def test_cline_install_idempotent(self, tmp_path):
+        runner = CliRunner()
+        with runner.isolated_filesystem(temp_dir=tmp_path):
+            runner.invoke(cli, ["cline", "install"])
+            result = runner.invoke(cli, ["cline", "install"])
+            assert result.exit_code == 0
+            assert "already" in result.output.lower()
+
+    def test_cline_install_appends_to_existing(self, tmp_path):
+        runner = CliRunner()
+        with runner.isolated_filesystem(temp_dir=tmp_path):
+            Path(".clinerules").write_text("# Existing rules\nDo stuff.\n")
+            result = runner.invoke(cli, ["cline", "install"])
+            assert result.exit_code == 0
+            content = Path(".clinerules").read_text()
+            assert "Existing rules" in content
+            assert "hedwig-kg" in content
+
+    def test_cline_uninstall(self, tmp_path):
+        runner = CliRunner()
+        with runner.isolated_filesystem(temp_dir=tmp_path):
+            runner.invoke(cli, ["cline", "install"])
+            result = runner.invoke(cli, ["cline", "uninstall"])
+            assert result.exit_code == 0
+
+    def test_cline_uninstall_no_file(self, tmp_path):
+        runner = CliRunner()
+        with runner.isolated_filesystem(temp_dir=tmp_path):
+            result = runner.invoke(cli, ["cline", "uninstall"])
+            assert result.exit_code == 0
+            assert "no .clinerules" in result.output.lower()

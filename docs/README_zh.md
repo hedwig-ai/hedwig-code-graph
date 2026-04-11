@@ -43,6 +43,22 @@ hedwig-kg gemini install
 
 写入 `GEMINI.md` 段落 + `.gemini/settings.json` BeforeTool hook。
 
+### Windsurf IDE
+
+```bash
+hedwig-kg windsurf install
+```
+
+创建 `.windsurf/rules/hedwig-kg.md` 规则文件。
+
+### Cline（VS Code 扩展）
+
+```bash
+hedwig-kg cline install
+```
+
+创建 `.clinerules` 文件。
+
 ### 工作原理
 
 每个 `install` 命令执行两项操作：
@@ -85,9 +101,11 @@ hedwig-kg search "认证处理器"
 ### 3. 集成代理
 
 ```bash
-hedwig-kg claude install   # Claude Code
-hedwig-kg codex install    # Codex CLI
-hedwig-kg gemini install   # Gemini CLI
+hedwig-kg claude install        # Claude Code
+hedwig-kg codex install         # Codex CLI
+hedwig-kg gemini install        # Gemini CLI
+hedwig-kg windsurf install      # Windsurf IDE
+hedwig-kg cline install         # Cline (VS Code)
 ```
 
 ### 4. 保持更新

@@ -43,6 +43,22 @@ hedwig-kg gemini install
 
 `GEMINI.md`セクション + `.gemini/settings.json` BeforeToolフックを書き込みます。
 
+### Windsurf IDE
+
+```bash
+hedwig-kg windsurf install
+```
+
+`.windsurf/rules/hedwig-kg.md` ルールファイルを作成します。
+
+### Cline (VS Code拡張機能)
+
+```bash
+hedwig-kg cline install
+```
+
+`.clinerules` ファイルを作成します。
+
 ### 仕組み
 
 各`install`コマンドは2つのことを行います：
@@ -85,9 +101,11 @@ hedwig-kg search "authentication handler"
 ### 3. エージェント統合
 
 ```bash
-hedwig-kg claude install   # Claude Code
-hedwig-kg codex install    # Codex CLI
-hedwig-kg gemini install   # Gemini CLI
+hedwig-kg claude install        # Claude Code
+hedwig-kg codex install         # Codex CLI
+hedwig-kg gemini install        # Gemini CLI
+hedwig-kg windsurf install      # Windsurf IDE
+hedwig-kg cline install         # Cline (VS Code)
 ```
 
 ### 4. 最新状態を維持

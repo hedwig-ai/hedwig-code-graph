@@ -1305,6 +1305,96 @@ def windsurf_uninstall():
 cli.add_command(windsurf_group)
 
 
+# --- Cline integration ---
+
+@cli.group(name="cline")
+def cline_group():
+    """Manage per-project Cline (VS Code extension) integration."""
+    pass
+
+
+@cline_group.command(name="install")
+def cline_install():
+    """Install per-project Cline integration (.clinerules)."""
+    project_root = Path.cwd()
+
+    rules_file = project_root / ".clinerules"
+
+    rule_content = (
+        "# hedwig-kg\n\n"
+        "This project has a hedwig-kg knowledge graph at `.hedwig-kg/`.\n\n"
+        "Rules:\n"
+        "- **Always use `hedwig-kg search \"<query>\"` as the primary search method.** "
+        "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
+        "in a single call — no need to run separate community or keyword searches.\n"
+        "- Before grepping raw files, run `hedwig-kg search` first. "
+        "Only fall back to grep/find if the knowledge graph has no results.\n"
+        "- After modifying code files, run "
+        "`hedwig-kg build . --incremental` to keep the graph current.\n"
+        "- Use `hedwig-kg communities` (without `--search`) only when you need to "
+        "list or browse the community structure, not as a search substitute.\n"
+        "- Use `hedwig-kg stats` for structural overview "
+        "(god nodes, communities, density).\n"
+    )
+
+    if rules_file.exists():
+        content = rules_file.read_text()
+        if "hedwig-kg" in content:
+            console.print("[dim].clinerules already contains hedwig-kg rules.[/]")
+        else:
+            # Append to existing rules
+            with open(rules_file, "a") as f:
+                f.write("\n\n" + rule_content)
+            console.print("[green]Appended hedwig-kg rules to .clinerules[/]")
+    else:
+        rules_file.write_text(rule_content)
+        console.print("[green]Created .clinerules[/]")
+
+    console.print()
+    console.print("[bold]Done![/] Cline will now see hedwig-kg rules "
+                  "when working in this project.")
+    console.print("[dim]Run 'hedwig-kg cline uninstall' to remove.[/]")
+
+
+@cline_group.command(name="uninstall")
+def cline_uninstall():
+    """Remove per-project Cline integration."""
+    project_root = Path.cwd()
+
+    rules_file = project_root / ".clinerules"
+    if rules_file.exists():
+        content = rules_file.read_text()
+        if "hedwig-kg" in content:
+            # Remove hedwig-kg section
+            lines = content.split("\n")
+            filtered = []
+            skip = False
+            for line in lines:
+                if line.strip() == "# hedwig-kg":
+                    skip = True
+                    continue
+                if skip and line.startswith("# ") and "hedwig-kg" not in line:
+                    skip = False
+                if not skip:
+                    filtered.append(line)
+            new_content = "\n".join(filtered).strip()
+            if new_content:
+                rules_file.write_text(new_content + "\n")
+                console.print("[green]Removed hedwig-kg section from .clinerules[/]")
+            else:
+                rules_file.unlink()
+                console.print("[green]Removed .clinerules (was hedwig-kg only)[/]")
+        else:
+            console.print("[dim]No hedwig-kg section found in .clinerules.[/]")
+    else:
+        console.print("[dim]No .clinerules file found.[/]")
+
+    console.print("[dim]hedwig-kg Cline integration removed.[/]")
+
+
+cli.add_command(cline_group)
+
+
 # --- Aider integration ---
 
 @cli.group(name="aider")

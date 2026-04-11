@@ -43,6 +43,22 @@ hedwig-kg gemini install
 
 Erstellt einen `GEMINI.md`-Abschnitt + `.gemini/settings.json` BeforeTool-Hook.
 
+### Windsurf IDE
+
+```bash
+hedwig-kg windsurf install
+```
+
+Erstellt eine `.windsurf/rules/hedwig-kg.md` Regeldatei.
+
+### Cline (VS Code-Erweiterung)
+
+```bash
+hedwig-kg cline install
+```
+
+Erstellt eine `.clinerules` Datei.
+
 ### Funktionsweise
 
 Jeder `install`-Befehl führt zwei Schritte aus:
@@ -85,9 +101,11 @@ hedwig-kg search "Authentifizierungs-Handler"
 ### 3. Agenten-Integration
 
 ```bash
-hedwig-kg claude install   # Claude Code
-hedwig-kg codex install    # Codex CLI
-hedwig-kg gemini install   # Gemini CLI
+hedwig-kg claude install        # Claude Code
+hedwig-kg codex install         # Codex CLI
+hedwig-kg gemini install        # Gemini CLI
+hedwig-kg windsurf install      # Windsurf IDE
+hedwig-kg cline install         # Cline (VS Code)
 ```
 
 ### 4. Aktuell halten

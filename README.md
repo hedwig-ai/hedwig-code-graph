@@ -69,6 +69,14 @@ hedwig-kg windsurf install
 
 Creates `.windsurf/rules/hedwig-kg.md` rule file. Windsurf Cascade will automatically apply hedwig-kg search rules when working in your project.
 
+### Cline (VS Code Extension)
+
+```bash
+hedwig-kg cline install
+```
+
+Creates `.clinerules` file with hedwig-kg search rules. Cline will automatically apply knowledge graph search when working in your project.
+
 ### Aider CLI
 
 ```bash
@@ -143,6 +151,7 @@ hedwig-kg codex install      # Codex CLI
 hedwig-kg gemini install     # Gemini CLI
 hedwig-kg cursor install     # Cursor IDE
 hedwig-kg windsurf install   # Windsurf IDE
+hedwig-kg cline install      # Cline (VS Code)
 hedwig-kg aider install      # Aider CLI
 ```
 
@@ -223,6 +232,7 @@ Source Code/Docs
 | `gemini install` | Gemini CLI integration |
 | `cursor install` | Cursor IDE integration |
 | `windsurf install` | Windsurf IDE integration |
+| `cline install` | Cline (VS Code) integration |
 | `aider install` | Aider CLI integration |
 
 ## Key Features
@@ -237,7 +247,7 @@ Source Code/Docs
 - **Incremental Builds + Embedding** — SHA-256 hashing skips unchanged files; DB lookup skips unchanged embeddings (95% faster)
 - **Hierarchical Communities** — Multi-resolution Leiden clustering with auto-generated keyword-rich summaries
 - **MCP Server** — Universal AI agent integration via Model Context Protocol (5 tools over stdio)
-- **7 AI Agent Integrations** — Claude Code, Codex CLI, Gemini CLI, Cursor IDE, Windsurf IDE, Aider CLI + MCP server
+- **8 AI Agent Integrations** — Claude Code, Codex CLI, Gemini CLI, Cursor IDE, Windsurf IDE, Cline, Aider CLI + MCP server
 - **100% Local** — SQLite + FTS5 + FAISS, no cloud APIs, no data leaves your machine
 - **20+ Languages** — File detection for Python, JS/TS, Java, Go, Rust, C/C++, Ruby, and more
 
