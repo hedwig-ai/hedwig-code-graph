@@ -95,7 +95,7 @@ hedwig-kg通过一个命令与主要AI编程代理集成：
            (17种)    DiGraph   FAISS    层次结构   核心节点  FTS5+FAISS
 ```
 
-### HybridRAG搜索（5个信号）
+### 混合搜索（5个信号）
 
 1. **代码向量** — `BAAI/bge-small-en-v1.5`嵌入代码节点，FAISS余弦搜索
 2. **文本向量** — `intfloat/multilingual-e5-small`嵌入文本节点（100+语言）

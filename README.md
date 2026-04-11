@@ -95,7 +95,7 @@ Source Code/Docs
               (17 langs)  DiGraph    FAISS      hierarchy   god nodes   FTS5+FAISS
 ```
 
-### HybridRAG Search (5 Signals)
+### Hybrid Search (5 Signals)
 
 ```
   Query: "authentication handler"
@@ -123,7 +123,7 @@ Source Code/Docs
 | Command | Description |
 |---------|-------------|
 | `build <dir>` | Build knowledge graph (`--incremental`, `--no-embed`) |
-| `search <query>` | 5-signal HybridRAG search (`--top-k`, `--fast`, `--expand`) |
+| `search <query>` | 5-signal hybrid search (`--top-k`, `--fast`, `--expand`) |
 | `query` | Interactive search REPL |
 | `communities` | List and search communities (`--search`, `--level`) |
 | `stats` | Graph statistics |

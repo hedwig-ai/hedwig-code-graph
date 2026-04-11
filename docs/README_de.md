@@ -95,7 +95,7 @@ Quellcode/Dokumente
                 (17 Sprachen)  DiGraph    FAISS        Hierarchie   God-Nodes      FTS5+FAISS
 ```
 
-### HybridRAG-Suche (5 Signale)
+### Hybridsuche (5 Signale)
 
 1. **Code-Vektor** — `BAAI/bge-small-en-v1.5` bettet Code-Knoten ein, FAISS-Kosinus-Suche
 2. **Text-Vektor** — `intfloat/multilingual-e5-small` bettet Textknoten ein (100+ Sprachen)

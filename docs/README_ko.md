@@ -95,7 +95,7 @@ hedwig-kg는 주요 AI 코딩 에이전트와 한 명령어로 통합됩니다:
             (17개)    DiGraph    FAISS     계층구조    갓노드     FTS5+FAISS
 ```
 
-### HybridRAG 검색 (5개 신호)
+### 하이브리드 검색 (5개 신호)
 
 1. **코드 벡터** — `BAAI/bge-small-en-v1.5`로 코드 노드 임베딩, FAISS 코사인 검색
 2. **텍스트 벡터** — `intfloat/multilingual-e5-small`로 텍스트 노드 임베딩 (100+ 언어)

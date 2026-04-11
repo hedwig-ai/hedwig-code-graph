@@ -1,11 +1,11 @@
 ---
 name: hedwig-kg
-description: Local-first knowledge graph builder with 5-signal HybridRAG search. Use when analyzing codebases, searching for code architecture, exploring dependencies, or building knowledge graphs from source code and documents.
+description: Local-first knowledge graph builder with 5-signal hybrid search. Use when analyzing codebases, searching for code architecture, exploring dependencies, or building knowledge graphs from source code and documents.
 ---
 
 # hedwig-kg
 
-Builds knowledge graphs from source code and documents. Searches with 5-signal HybridRAG (code vector + text vector + graph traversal + FTS5 keyword + community → RRF fusion). Supports 17 languages with deep AST extraction. 100% local.
+Builds knowledge graphs from source code and documents. Searches with 5-signal hybrid search (code vector + text vector + graph traversal + FTS5 keyword + community → RRF fusion). Supports 17 languages with deep AST extraction. 100% local.
 
 **IMPORTANT: Always use `--json` flag.**
 
