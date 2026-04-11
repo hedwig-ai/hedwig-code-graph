@@ -27,9 +27,15 @@ logger = logging.getLogger(__name__)
 
 mcp = FastMCP(
     "hedwig-kg",
-    instructions="Local-first knowledge graph with 5-signal HybridRAG search. "
-    "Use 'search' for semantic code queries, 'node' for detailed info, "
-    "'stats' for overview, 'communities' for topic clusters, 'build' to rebuild.",
+    instructions=(
+        "Local-first knowledge graph for code and document search. "
+        "START with 'search' — it is the primary tool and handles most queries. "
+        "Only use 'node' when you need full details about a specific entity "
+        "found in search results. Use 'stats' for a structural overview. "
+        "Use 'build' after code changes to update the graph. "
+        "Avoid calling 'communities' directly — search already includes "
+        "community signals in its ranking."
+    ),
 )
 
 # ---------------------------------------------------------------------------
@@ -97,16 +103,16 @@ def _reload():
 
 @mcp.tool()
 def search(query: str, top_k: int = 10, fast: bool = False) -> str:
-    """Search the knowledge graph using 5-signal HybridRAG.
+    """Search the knowledge graph. This is the PRIMARY tool — use it first.
 
-    Combines code vector + text vector + graph expansion + keyword + community
-    signals via Weighted Reciprocal Rank Fusion for high-quality results.
+    Finds functions, classes, modules, and documents by combining semantic
+    vector search, keyword matching, graph structure, and community context.
 
     Args:
-        query: Natural language search query (e.g. "authentication handler",
-               "database connection", "how does the build pipeline work")
-        top_k: Number of results to return (default 10)
-        fast: If True, use text model only for lower latency (skips code model loading)
+        query: What to search for (e.g. "authentication handler",
+               "database connection pool", "how does build work")
+        top_k: Number of results (default 10)
+        fast: Use text model only for faster response (default False)
     """
     store, G = _load()
     from hedwig_kg.query.hybrid import hybrid_search
@@ -245,12 +251,15 @@ def stats() -> str:
 
 @mcp.tool()
 def communities(search_query: str = "", level: int = -1) -> str:
-    """List or search communities in the knowledge graph.
+    """Browse community clusters (rarely needed — use 'search' instead).
+
+    Communities group related code entities by topic. The 'search' tool
+    already factors community signals into ranking, so only use this
+    when you need to explore the community structure itself.
 
     Args:
-        search_query: Optional query to filter communities by keyword.
-                     Leave empty to list all communities.
-        level: Community hierarchy level (-1 for all levels).
+        search_query: Filter communities by keyword (leave empty to list all).
+        level: Hierarchy level (-1 for all levels).
     """
     store, G = _load()
 
