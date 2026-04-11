@@ -182,12 +182,24 @@ Source Code/Docs
 
 ### HybridRAG Search (5 Signals)
 
-1. **Code Vector Search** — Query embedded with `BAAI/bge-small-en-v1.5`, searches code nodes (functions, classes, methods) via FAISS
-2. **Text Vector Search** — Query embedded with `all-MiniLM-L6-v2`, searches document nodes (headings, sections, docstrings) via FAISS
-3. **Graph Expansion** — From top vector hits, traverse N-hop neighbors
-4. **Keyword Search** — FTS5 full-text search with BM25 ranking
-5. **Community Search** — Match query against community summaries, boost member nodes
-6. **RRF Fusion** — Reciprocal Rank Fusion combines all signals into a unified ranking
+```
+  Query: "authentication handler"
+    │
+    ├─→ ① Code Vector (bge-small)  ─→ FAISS cosine  ─→  cv:0.019
+    ├─→ ② Text Vector (MiniLM)     ─→ FAISS cosine  ─→  tv:0.018
+    ├─→ ③ Graph Expansion           ─→ weighted BFS  ─→  g:0.012
+    ├─→ ④ Keyword (FTS5)            ─→ BM25 ranking  ─→  kw:0.016
+    ├─→ ⑤ Community                 ─→ summary match ─→  cm:0.008
+    │
+    └─→ Weighted RRF Fusion ──→ Final: 0.073 (with signal breakdown)
+```
+
+1. **Code Vector Search** — Query embedded with `BAAI/bge-small-en-v1.5`, searches code nodes via FAISS
+2. **Text Vector Search** — Query embedded with `all-MiniLM-L6-v2`, searches document nodes via FAISS
+3. **Graph Expansion** — Weight-aware BFS from top vector hits using edge quality (semantic similarity × confidence × relation type: `calls`=1.0, `imports`=0.7, `contains`=0.3)
+4. **Keyword Search** — FTS5 full-text search with BM25 ranking and 80+ stopword filtering
+5. **Community Search** — Match query against auto-generated community summaries, boost member nodes
+6. **Weighted RRF Fusion** — Reciprocal Rank Fusion with per-signal weights (code=1.2×, text=1.2×, graph=0.8×, keyword=1.0×, community=0.6×) and **per-result signal breakdown** for full explainability
 
 ## CLI Reference
 
@@ -202,6 +214,7 @@ Source Code/Docs
 | `export` | Export as JSON, GraphML, or D3.js |
 | `visualize` | Interactive HTML visualization (`--max-nodes`, `--offline`) |
 | `clean` | Remove .hedwig-kg/ database |
+| `mcp` | Start MCP server (stdio) — 5 tools for AI agents |
 | `claude install` | Claude Code integration |
 | `codex install` | Codex CLI integration |
 | `gemini install` | Gemini CLI integration |
@@ -211,13 +224,16 @@ Source Code/Docs
 
 ## Key Features
 
-- **5-Signal HybridRAG Search** — Dual vector (code + text) + Graph + Keyword + Community → Weighted RRF fusion
+- **5-Signal HybridRAG Search** — Dual vector (code + text) + Graph + Keyword + Community → Weighted RRF fusion with per-result signal breakdown
 - **Dual Embedding Models** — Code nodes use `bge-small-en-v1.5`, text nodes use `all-MiniLM-L6-v2` (~220MB total, cached locally)
-- **Tree-sitter AST Extraction** — Python, JavaScript, TypeScript with call graph analysis
-- **Hierarchical Communities** — Multi-resolution Leiden clustering with auto-generated summaries
+- **Tree-sitter AST Extraction** — Python, JavaScript, TypeScript with call graph tracking and class hierarchy
+- **Weight-Aware Graph Expansion** — Edges scored by semantic similarity, confidence, proximity, and relation type (`calls`/`inherits` > `imports` > `contains`)
+- **Search Explainability** — Each result shows which signals contributed (e.g. `cv:0.019 kw:0.016 g:0.012`)
+- **Hierarchical Communities** — Multi-resolution Leiden clustering with auto-generated keyword-rich summaries
 - **Incremental Builds** — SHA-256 content hashing skips unchanged files
-- **6 AI Agent Integrations** — Claude Code, Codex CLI, Gemini CLI, Cursor IDE, Windsurf IDE, Aider CLI
-- **100% Local** — SQLite + FTS5 + FAISS, no cloud APIs
+- **MCP Server** — Universal AI agent integration via Model Context Protocol (5 tools over stdio)
+- **7 AI Agent Integrations** — Claude Code, Codex CLI, Gemini CLI, Cursor IDE, Windsurf IDE, Aider CLI + MCP server
+- **100% Local** — SQLite + FTS5 + FAISS, no cloud APIs, no data leaves your machine
 - **20+ Languages** — File detection for Python, JS/TS, Java, Go, Rust, C/C++, Ruby, and more
 
 ## Performance
@@ -236,12 +252,15 @@ Benchmarks measured on a ~2,300-line Python project (hedwig-kg itself):
 
 ### Optimizations
 
-- **FAISS disk persistence** — Vector indices saved to disk, loaded via mmap on search
+- **FAISS disk persistence** — Vector indices saved to disk, loaded via mmap for lower RSS and faster cold starts
 - **Query embedding LRU cache** — 256-entry cache eliminates re-encoding for repeated queries
 - **Search result LRU cache** — 128-entry cache for instant repeated search results
 - **Weighted RRF** — Per-signal weights boost semantic signals (1.2×) and reduce community noise (0.6×)
 - **Stopword filtering** — 80+ English stopwords removed from keyword search for better precision
 - **Memory-bounded embedding** — 2GB RSS budget with streaming batches and automatic GC
+- **External node filtering** — Stdlib/library references excluded from embeddings to reduce vector index noise
+- **Metadata-enriched embeddings** — File paths, parent class context, and signatures included in embedding text for better retrieval
+- **Weight-aware graph traversal** — Edge weights (semantic similarity × confidence × relation type) guide expansion toward high-quality neighbors
 
 ## Development
 
