@@ -100,12 +100,24 @@ def _get_process_rss() -> int:
 
 
 def _node_text(data: dict) -> str:
-    """Build embedding text from node attributes."""
+    """Build embedding text from node attributes.
+
+    Includes file path context so queries like "store.py methods" or
+    "functions in analyze.py" match via cosine similarity.
+    """
     parts = []
     if data.get("kind"):
         parts.append(data["kind"])
     if data.get("label"):
         parts.append(data["label"])
+    # Add filename for file-based query matching (e.g. "store.py methods")
+    fp = data.get("file_path", "")
+    if fp:
+        # Extract just the filename from absolute/relative paths
+        from pathlib import PurePosixPath
+        fname = PurePosixPath(fp).name
+        if fname:
+            parts.append(f"in {fname}")
     if data.get("signature"):
         parts.append(data["signature"])
     if data.get("docstring"):
