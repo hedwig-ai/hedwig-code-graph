@@ -1427,6 +1427,180 @@ cli.add_command(aider_group)
 
 
 @cli.command()
+def doctor():
+    """Check hedwig-kg installation health and knowledge graph integrity.
+
+    Verifies dependencies, model availability, database integrity,
+    and graph quality metrics. Useful for troubleshooting issues.
+    """
+    import importlib
+    import sqlite3
+    import sys
+
+    from rich.panel import Panel
+
+    checks_passed = 0
+    checks_failed = 0
+    checks_warned = 0
+
+    def ok(msg: str):
+        nonlocal checks_passed
+        checks_passed += 1
+        console.print(f"  [green]✓[/] {msg}")
+
+    def fail(msg: str):
+        nonlocal checks_failed
+        checks_failed += 1
+        console.print(f"  [red]✗[/] {msg}")
+
+    def warn(msg: str):
+        nonlocal checks_warned
+        checks_warned += 1
+        console.print(f"  [yellow]![/] {msg}")
+
+    console.print(Panel("[bold]hedwig-kg doctor[/]", subtitle="Installation Health Check"))
+    console.print()
+
+    # 1. Python version
+    console.print("[bold]Python Environment[/]")
+    v = sys.version_info
+    if v >= (3, 10):
+        ok(f"Python {v.major}.{v.minor}.{v.micro}")
+    else:
+        fail(f"Python {v.major}.{v.minor}.{v.micro} (requires >= 3.10)")
+
+    # 2. Core dependencies
+    console.print("\n[bold]Core Dependencies[/]")
+    deps = [
+        ("networkx", "networkx"),
+        ("sentence_transformers", "sentence-transformers"),
+        ("faiss", "faiss-cpu"),
+        ("leidenalg", "leidenalg"),
+        ("igraph", "igraph"),
+        ("click", "click"),
+        ("rich", "rich"),
+    ]
+    for mod_name, pip_name in deps:
+        try:
+            mod = importlib.import_module(mod_name)
+            ver = getattr(mod, "__version__", "installed")
+            ok(f"{pip_name} ({ver})")
+        except ImportError:
+            fail(f"{pip_name} — not installed (pip install {pip_name})")
+
+    # 3. Tree-sitter parsers
+    console.print("\n[bold]Tree-sitter Parsers[/]")
+    ts_langs = [
+        ("tree_sitter", "tree-sitter"),
+        ("tree_sitter_python", "tree-sitter-python"),
+        ("tree_sitter_javascript", "tree-sitter-javascript"),
+    ]
+    for mod_name, pip_name in ts_langs:
+        try:
+            importlib.import_module(mod_name)
+            ok(pip_name)
+        except ImportError:
+            warn(f"{pip_name} — not installed (optional, enables AST extraction)")
+
+    # 4. MCP server dependency
+    console.print("\n[bold]MCP Server[/]")
+    try:
+        importlib.import_module("mcp")
+        ok("mcp (Model Context Protocol server available)")
+    except ImportError:
+        warn("mcp — not installed (optional, install with: pip install mcp)")
+
+    # 5. Embedding models
+    console.print("\n[bold]Embedding Models[/]")
+    model_cache = Path.home() / ".hedwig-kg" / "models"
+    if model_cache.exists():
+        cached_models = [d.name for d in model_cache.iterdir() if d.is_dir()]
+        if cached_models:
+            for m in cached_models:
+                ok(f"Cached: {m}")
+        else:
+            warn("Model cache exists but empty — models will download on first build")
+    else:
+        warn("No model cache at ~/.hedwig-kg/models/ — models will download on first build")
+
+    # 6. Knowledge graph database
+    console.print("\n[bold]Knowledge Graph Database[/]")
+    cwd = Path.cwd()
+    db_path = cwd / ".hedwig-kg" / "knowledge.db"
+    if db_path.exists():
+        ok(f"Database found: {db_path}")
+        # Check integrity
+        try:
+            conn = sqlite3.connect(str(db_path))
+            conn.row_factory = sqlite3.Row
+            integrity = conn.execute("PRAGMA integrity_check").fetchone()[0]
+            if integrity == "ok":
+                ok("Database integrity: OK")
+            else:
+                fail(f"Database integrity: {integrity}")
+
+            # Node count
+            try:
+                n_nodes = conn.execute("SELECT COUNT(*) FROM nodes").fetchone()[0]
+                n_edges = conn.execute("SELECT COUNT(*) FROM edges").fetchone()[0]
+                ok(f"Nodes: {n_nodes}, Edges: {n_edges}")
+                if n_nodes == 0:
+                    warn("Graph is empty — run 'hedwig-kg build .' to populate")
+            except sqlite3.OperationalError:
+                fail("Missing nodes/edges tables — database may be corrupted")
+
+            # FTS5 index
+            try:
+                conn.execute("SELECT COUNT(*) FROM nodes_fts").fetchone()
+                ok("FTS5 full-text search index: present")
+            except sqlite3.OperationalError:
+                warn("FTS5 index missing — keyword search may not work")
+
+            # Communities
+            try:
+                n_comm = conn.execute("SELECT COUNT(*) FROM communities").fetchone()[0]
+                ok(f"Communities: {n_comm}")
+            except sqlite3.OperationalError:
+                warn("Communities table missing — run build to generate")
+
+            # FAISS index
+            faiss_path = cwd / ".hedwig-kg" / "faiss_code.index"
+            faiss_text_path = cwd / ".hedwig-kg" / "faiss_text.index"
+            if faiss_path.exists() and faiss_text_path.exists():
+                code_size = faiss_path.stat().st_size / 1024
+                text_size = faiss_text_path.stat().st_size / 1024
+                ok(f"FAISS code index: {code_size:.1f} KB")
+                ok(f"FAISS text index: {text_size:.1f} KB")
+            elif faiss_path.exists() or faiss_text_path.exists():
+                warn("Only one FAISS index found — dual-model search may be degraded")
+            else:
+                warn("No FAISS indexes — run 'hedwig-kg build .' (without --no-embed)")
+
+            conn.close()
+        except sqlite3.DatabaseError as e:
+            fail(f"Cannot open database: {e}")
+    else:
+        warn(f"No database at {db_path} — run 'hedwig-kg build .' to create")
+
+    # Summary
+    console.print()
+    total = checks_passed + checks_failed + checks_warned
+    if checks_failed == 0:
+        emoji = "✅" if checks_warned == 0 else "⚠️"
+        console.print(Panel(
+            f"{emoji} {checks_passed}/{total} checks passed"
+            + (f", {checks_warned} warnings" if checks_warned else ""),
+            title="[bold green]Health Check Complete[/]",
+        ))
+    else:
+        console.print(Panel(
+            f"❌ {checks_failed} failed, {checks_warned} warnings, "
+            f"{checks_passed} passed out of {total}",
+            title="[bold red]Issues Found[/]",
+        ))
+
+
+@cli.command()
 def mcp():
     """Start the hedwig-kg MCP server (stdio transport).
 
