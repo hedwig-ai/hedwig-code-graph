@@ -52,6 +52,7 @@ Issues = "https://github.com/hedwig-ai/hedwig-knowledge-graph/issues"
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "pytest-cov", "ruff"]
 docs = ["pymupdf>=1.24"]
+mcp = ["mcp>=1.0"]
 
 [project.scripts]
 hedwig-kg = "hedwig_kg.cli.main:cli"

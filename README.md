@@ -77,6 +77,20 @@ hedwig-kg aider install
 
 Creates `CONVENTIONS.md` with hedwig-kg rules + adds it to `.aider.conf.yml` read list. Aider will automatically load knowledge graph conventions.
 
+### MCP Server (Universal)
+
+For any MCP-compatible agent, hedwig-kg also ships as an MCP server:
+
+```bash
+# Claude Code
+claude mcp add hedwig-kg -- hedwig-kg mcp
+
+# Cursor / VS Code (.cursor/mcp.json or .vscode/mcp.json)
+{ "mcpServers": { "hedwig-kg": { "command": "hedwig-kg", "args": ["mcp"] } } }
+```
+
+This exposes 5 tools over the Model Context Protocol: `search`, `node`, `stats`, `communities`, `build`. Any MCP client can call them programmatically.
+
 ### How It Works
 
 Each `install` command does two things:

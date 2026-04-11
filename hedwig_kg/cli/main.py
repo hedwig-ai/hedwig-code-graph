@@ -1383,5 +1383,26 @@ def aider_uninstall():
 cli.add_command(aider_group)
 
 
+@cli.command()
+def mcp():
+    """Start the hedwig-kg MCP server (stdio transport).
+
+    Exposes knowledge graph tools to AI agents via the Model Context Protocol.
+    Tools: search, node, stats, communities, build.
+
+    Configure in Claude Code:
+
+        claude mcp add hedwig-kg -- hedwig-kg mcp
+
+    Or in .cursor/mcp.json / .vscode/mcp.json:
+
+        { "mcpServers": { "hedwig-kg": { "command": "hedwig-kg", "args": ["mcp"] } } }
+    """
+    console.print("[bold green]Starting hedwig-kg MCP server...[/]")
+    console.print("[dim]Transport: stdio | Tools: search, node, stats, communities, build[/]")
+    from hedwig_kg.mcp_server import main as mcp_main
+    mcp_main()
+
+
 if __name__ == "__main__":
     cli()
