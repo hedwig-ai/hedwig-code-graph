@@ -50,9 +50,10 @@ class SearchResult:
     file_path: str
     score: float
     source: str  # "vector", "graph", "keyword", "fused"
-    snippet: str = ""
     start_line: int = 0
     end_line: int = 0
+    signature: str = ""
+    docstring: str = ""
     neighbors: list[str] = field(default_factory=list)
     signal_contributions: dict[str, float] = field(default_factory=dict)
     """Per-signal RRF contribution breakdown (e.g. {"code_vector": 0.018, "keyword": 0.012})."""
@@ -135,7 +136,7 @@ RELATION_WEIGHTS: dict[str, float] = {
     "imports": 0.7,
     "references": 0.6,
     "defines": 0.5,
-    "contains": 0.3,
+    "contains": 0.5,
 }
 _DEFAULT_RELATION_WEIGHT = 0.5
 
@@ -247,7 +248,7 @@ def hybrid_search(
     G: nx.DiGraph,
     top_k: int = 10,
     graph_hops: int = 2,
-    vector_candidates: int = 20,
+    vector_candidates: int = 40,
     weights: list[float] | None = None,
     use_cache: bool = True,
     fast: bool = False,
@@ -382,11 +383,10 @@ def hybrid_search(
             file_path=data.get("file_path", ""),
             score=rrf_score,
             source="fused",
-            snippet=_query_relevant_snippet(
-                data.get("source_snippet", ""), terms,
-            ),
             start_line=data.get("start_line", 0),
             end_line=data.get("end_line", 0),
+            signature=data.get("signature", ""),
+            docstring=data.get("docstring", ""),
             neighbors=neighbors,
             signal_contributions=breakdowns.get(node_id, {}),
         ))
@@ -399,3 +399,78 @@ def hybrid_search(
             _search_cache.popitem(last=False)
 
     return results
+
+
+def expanded_search(
+    query: str,
+    store: "KnowledgeStore",
+    G: nx.DiGraph,
+    top_k: int = 10,
+    graph_hops: int = 2,
+    vector_candidates: int = 40,
+    weights: list[float] | None = None,
+    fast: bool = False,
+    text_model: str | None = None,
+) -> list[SearchResult]:
+    """Two-stage query expansion: search, collect neighbor terms, re-search.
+
+    Stage 1: Run standard hybrid_search.
+    Stage 2: Extract service/module names from neighbors of top results,
+             append them to the query, and re-search for broader recall.
+
+    This helps discover cross-service relationships that share no keywords
+    (e.g. "payment" query finding "payperview" via neighbor expansion).
+    """
+    # Stage 1: Initial search
+    first_results = hybrid_search(
+        query, store, G,
+        top_k=top_k,
+        graph_hops=graph_hops,
+        vector_candidates=vector_candidates,
+        weights=weights,
+        use_cache=False,
+        fast=fast,
+        text_model=text_model,
+    )
+
+    if not first_results:
+        return first_results
+
+    # Collect neighbor labels from top results for query expansion
+    neighbor_terms: set[str] = set()
+    existing_labels = {r.label.lower() for r in first_results}
+    for result in first_results[:5]:
+        for nbr_label in result.neighbors:
+            # Only add terms that aren't already in results
+            label_lower = nbr_label.lower().replace(".", "_")
+            if label_lower not in existing_labels and len(label_lower) > 2:
+                neighbor_terms.add(nbr_label)
+
+    if not neighbor_terms:
+        return first_results
+
+    # Stage 2: Re-search with expanded query
+    expansion = " ".join(list(neighbor_terms)[:8])  # Limit expansion size
+    expanded_query = f"{query} {expansion}"
+    logger.debug("Query expansion: '%s' -> '%s'", query, expanded_query)
+
+    second_results = hybrid_search(
+        expanded_query, store, G,
+        top_k=top_k,
+        graph_hops=graph_hops,
+        vector_candidates=vector_candidates,
+        weights=weights,
+        use_cache=False,
+        fast=fast,
+        text_model=text_model,
+    )
+
+    # Merge: keep first results' order, append new discoveries from second pass
+    seen_ids = {r.node_id for r in first_results}
+    merged = list(first_results)
+    for r in second_results:
+        if r.node_id not in seen_ids and len(merged) < top_k:
+            merged.append(r)
+            seen_ids.add(r.node_id)
+
+    return merged[:top_k]

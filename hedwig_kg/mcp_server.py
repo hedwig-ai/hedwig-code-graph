@@ -139,8 +139,10 @@ def search(query: str, top_k: int = 10, fast: bool = False) -> str:
             lines.append(f"- **Signals**: {sigs}")
         if r.neighbors:
             lines.append(f"- **Neighbors**: {', '.join(r.neighbors[:5])}")
-        if r.snippet:
-            lines.append(f"- **Snippet**: `{r.snippet}`")
+        if getattr(r, "signature", ""):
+            lines.append(f"- **Signature**: `{r.signature}`")
+        if getattr(r, "docstring", ""):
+            lines.append(f"- **Docstring**: {r.docstring}")
         lines.append("")
     return "\n".join(lines)
 

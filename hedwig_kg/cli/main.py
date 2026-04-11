@@ -39,7 +39,7 @@ def _suppress_library_logs():
 def _json_out(data) -> None:
     """Print JSON to stdout (no Rich formatting)."""
     import json
-    click.echo(json.dumps(data, indent=2, default=str))
+    click.echo(json.dumps(data, separators=(",", ":"), default=str))
 
 
 def _json_error(message: str) -> None:
@@ -167,15 +167,17 @@ def build(
 @cli.command()
 @click.argument("query")
 @click.option("--db", type=click.Path(), default=None, help="Path to knowledge.db")
-@click.option("--top-k", default=15, type=int, help="Number of results")
+@click.option("--top-k", default=50, type=int, help="Number of results")
 @click.option("--source-dir", type=click.Path(), default=".",
               help="Source dir (to find default DB)")
 @click.option("--fast", is_flag=True, default=False,
               help="Fast mode: text model only (lower latency, slightly reduced accuracy)")
+@click.option("--expand", is_flag=True, default=False,
+              help="Two-stage query expansion: re-search with neighbor terms for broader recall")
 @click.pass_context
-def search(ctx, query: str, db: str | None, top_k: int, source_dir: str, fast: bool):
+def search(ctx, query: str, db: str | None, top_k: int, source_dir: str, fast: bool, expand: bool):
     """Search the knowledge graph with hybrid vector + graph + keyword search."""
-    from hedwig_kg.query.hybrid import hybrid_search
+    from hedwig_kg.query.hybrid import expanded_search, hybrid_search
     from hedwig_kg.storage.store import KnowledgeStore
 
     json_mode = ctx.obj.get("json", False) if ctx.obj else False
@@ -208,7 +210,8 @@ def search(ctx, query: str, db: str | None, top_k: int, source_dir: str, fast: b
 
     # Read text model from DB metadata (set during build)
     text_model = store.get_meta("text_model", None)
-    results = hybrid_search(
+    search_fn = expanded_search if expand else hybrid_search
+    results = search_fn(
         query, store, G, top_k=top_k, fast=fast, text_model=text_model,
     )
 
@@ -221,8 +224,9 @@ def search(ctx, query: str, db: str | None, top_k: int, source_dir: str, fast: b
                 "file_path": r.file_path,
                 "start_line": r.start_line,
                 "end_line": getattr(r, "end_line", None),
-                "score": r.score,
-                "snippet": getattr(r, "snippet", None),
+                "score": round(r.score, 4),
+                "signature": getattr(r, "signature", ""),
+                "docstring": getattr(r, "docstring", ""),
                 "signal_contributions": r.signal_contributions,
                 "neighbors": r.neighbors,
             }
@@ -642,7 +646,7 @@ def clean(source_dir: str, db: str | None, yes: bool):
 @cli.command()
 @click.option("--db", type=click.Path(), default=None, help="Path to knowledge.db")
 @click.option("--source-dir", type=click.Path(), default=".", help="Source dir")
-@click.option("--top-k", default=15, type=int, help="Number of results per query")
+@click.option("--top-k", default=50, type=int, help="Number of results per query")
 def query(db: str | None, source_dir: str, top_k: int):
     """Interactive search REPL for exploring the knowledge graph.
 
