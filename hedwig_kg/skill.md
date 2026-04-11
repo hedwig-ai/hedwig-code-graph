@@ -27,11 +27,11 @@ hedwig-kg --json search "authentication handler"
 ### Search (PRIMARY — use this first)
 
 ```bash
-# 5-signal HybridRAG search — returns JSON array with file_path, start_line, end_line, score, snippet
+# 5-signal HybridRAG search (default: 15 results)
 hedwig-kg --json search "database connection pool"
 
-# More results
-hedwig-kg --json search "error handling" --top-k 20
+# Custom result count
+hedwig-kg --json search "error handling" --top-k 30
 
 # Fast mode (text model only, lower latency)
 hedwig-kg --json search "auth" --fast

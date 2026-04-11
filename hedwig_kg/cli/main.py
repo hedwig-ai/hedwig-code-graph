@@ -160,7 +160,7 @@ def build(
 @cli.command()
 @click.argument("query")
 @click.option("--db", type=click.Path(), default=None, help="Path to knowledge.db")
-@click.option("--top-k", default=10, type=int, help="Number of results")
+@click.option("--top-k", default=15, type=int, help="Number of results")
 @click.option("--source-dir", type=click.Path(), default=".",
               help="Source dir (to find default DB)")
 @click.option("--fast", is_flag=True, default=False,
@@ -631,7 +631,7 @@ def clean(source_dir: str, db: str | None, yes: bool):
 @cli.command()
 @click.option("--db", type=click.Path(), default=None, help="Path to knowledge.db")
 @click.option("--source-dir", type=click.Path(), default=".", help="Source dir")
-@click.option("--top-k", default=10, type=int, help="Number of results per query")
+@click.option("--top-k", default=15, type=int, help="Number of results per query")
 def query(db: str | None, source_dir: str, top_k: int):
     """Interactive search REPL for exploring the knowledge graph.
 
