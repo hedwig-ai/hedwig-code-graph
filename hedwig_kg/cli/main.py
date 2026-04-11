@@ -167,7 +167,7 @@ def build(
 @cli.command()
 @click.argument("query")
 @click.option("--db", type=click.Path(), default=None, help="Path to knowledge.db")
-@click.option("--top-k", default=50, type=int, help="Number of results")
+@click.option("--top-k", default=80, type=int, help="Number of results")
 @click.option("--source-dir", type=click.Path(), default=".",
               help="Source dir (to find default DB)")
 @click.option("--fast", is_flag=True, default=False,
@@ -216,22 +216,29 @@ def search(ctx, query: str, db: str | None, top_k: int, source_dir: str, fast: b
     )
 
     if json_mode:
-        _json_out([
-            {
-                "node_id": r.node_id,
+        # Compact output: omit empty fields, use relative paths, round floats
+        source_dir_str = str(Path(source_dir).resolve()) + "/" if source_dir else ""
+
+        def _compact_result(r):
+            rel_path = r.file_path
+            if source_dir_str and rel_path.startswith(source_dir_str):
+                rel_path = rel_path[len(source_dir_str):]
+            d = {
                 "label": r.label,
                 "kind": r.kind,
-                "file_path": r.file_path,
-                "start_line": r.start_line,
-                "end_line": getattr(r, "end_line", None),
-                "score": round(r.score, 4),
-                "signature": getattr(r, "signature", ""),
-                "docstring": getattr(r, "docstring", ""),
-                "signal_contributions": r.signal_contributions,
-                "neighbors": r.neighbors,
+                "file": rel_path,
+                "lines": [r.start_line, getattr(r, "end_line", 0)],
+                "score": round(r.score, 3),
             }
-            for r in results
-        ])
+            sig = getattr(r, "signature", "")
+            if sig:
+                d["sig"] = sig
+            doc = getattr(r, "docstring", "")
+            if doc:
+                d["doc"] = doc
+            return d
+
+        _json_out([_compact_result(r) for r in results])
         store.close()
         return
 
@@ -646,7 +653,7 @@ def clean(source_dir: str, db: str | None, yes: bool):
 @cli.command()
 @click.option("--db", type=click.Path(), default=None, help="Path to knowledge.db")
 @click.option("--source-dir", type=click.Path(), default=".", help="Source dir")
-@click.option("--top-k", default=50, type=int, help="Number of results per query")
+@click.option("--top-k", default=80, type=int, help="Number of results per query")
 def query(db: str | None, source_dir: str, top_k: int):
     """Interactive search REPL for exploring the knowledge graph.
 
