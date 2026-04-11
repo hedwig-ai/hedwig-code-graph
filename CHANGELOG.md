@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Search result line numbers**: Results now include `start_line`/`end_line` in CLI (`file.py:42`), MCP server (`file.py:42-67`), and SearchResult API — enabling AI agents to navigate directly to code
 
 ### Changed
+- README updated with real benchmarks (9.5s full build, 0.4s incremental, 0.08s warm search), new features (fast search, line numbers, decorator extraction, incremental embedding), and revised optimizations list
 - FAISS index loading now uses `IO_FLAG_MMAP` for lower RSS and faster cold starts on large indices (with automatic fallback)
 - Pipeline automatically clears search result and query embedding caches after rebuild
 

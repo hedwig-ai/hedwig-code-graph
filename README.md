@@ -129,6 +129,9 @@ First build scans all files, extracts AST structures, generates embeddings with 
 ```bash
 # 5-signal HybridRAG search (code vector + text vector + graph + keyword + community)
 hedwig-kg search "authentication handler"
+
+# Fast mode — text model only, 10× lower cold-start latency
+hedwig-kg search "authentication handler" --fast
 ```
 
 ### 3. Integrate with Your Agent
@@ -206,7 +209,7 @@ Source Code/Docs
 | Command | Description |
 |---------|-------------|
 | `build <dir>` | Build knowledge graph (`--incremental`, `--no-embed`, `--model`) |
-| `search <query>` | 5-signal HybridRAG search (`--top-k`, `--source-dir`) |
+| `search <query>` | 5-signal HybridRAG search (`--top-k`, `--fast`) |
 | `query` | Interactive search REPL |
 | `communities` | List and search communities (`--search`, `--level`) |
 | `stats` | Graph statistics (density, clustering, components) |
@@ -226,11 +229,13 @@ Source Code/Docs
 
 - **5-Signal HybridRAG Search** — Dual vector (code + text) + Graph + Keyword + Community → Weighted RRF fusion with per-result signal breakdown
 - **Dual Embedding Models** — Code nodes use `bge-small-en-v1.5`, text nodes use `all-MiniLM-L6-v2` (~220MB total, cached locally)
-- **Tree-sitter AST Extraction** — Python, JavaScript, TypeScript with call graph tracking and class hierarchy
+- **Tree-sitter AST Extraction** — Python, JavaScript, TypeScript with call graph tracking, class hierarchy, and decorator extraction
 - **Weight-Aware Graph Expansion** — Edges scored by semantic similarity, confidence, proximity, and relation type (`calls`/`inherits` > `imports` > `contains`)
 - **Search Explainability** — Each result shows which signals contributed (e.g. `cv:0.019 kw:0.016 g:0.012`)
+- **Fast Search Mode** — `--fast` flag uses text model only for 10× lower cold-start latency
+- **Line Number Navigation** — Results include `file.py:42-67` ranges for direct AI agent code navigation
+- **Incremental Builds + Embedding** — SHA-256 hashing skips unchanged files; DB lookup skips unchanged embeddings (95% faster)
 - **Hierarchical Communities** — Multi-resolution Leiden clustering with auto-generated keyword-rich summaries
-- **Incremental Builds** — SHA-256 content hashing skips unchanged files
 - **MCP Server** — Universal AI agent integration via Model Context Protocol (5 tools over stdio)
 - **7 AI Agent Integrations** — Claude Code, Codex CLI, Gemini CLI, Cursor IDE, Windsurf IDE, Aider CLI + MCP server
 - **100% Local** — SQLite + FTS5 + FAISS, no cloud APIs, no data leaves your machine
@@ -238,29 +243,34 @@ Source Code/Docs
 
 ## Performance
 
-Benchmarks measured on a ~2,300-line Python project (hedwig-kg itself):
+Benchmarks measured on hedwig-kg itself (~3,000 lines, 85 files, 976 nodes):
 
 | Operation | Time | Notes |
 |-----------|------|-------|
-| Full build | ~12s | Detect + extract + embed + cluster + store |
-| Incremental build | ~2s | SHA-256 hash check, skip unchanged files |
-| Cold search (first query) | ~3.2s | Model loading + encoding + 5-signal fusion |
-| Warm search (new query) | ~0.3s | Models cached, encoding only |
-| Cached search (same query) | <1ms | LRU cache hit (query embedding + search result) |
+| Full build | ~9.5s | Detect + extract + embed + cluster + store |
+| Incremental build (changes) | ~4s | Re-embeds only changed-file nodes |
+| Incremental build (no changes) | ~0.4s | All embeddings reused from DB |
+| Cold search (dual model) | ~2.8s | Both models loaded + 5-signal fusion |
+| Cold search (`--fast`) | ~0.2s | Text model only, code index cross-searched |
+| Warm search (new query) | ~0.08s | Models cached, encode + FAISS + fusion |
+| Cached search (same query) | <1ms | LRU cache hit |
+| FAISS search only | ~0.03s | Pure vector similarity (post-model-load) |
 | Embedding models | ~220MB | Downloaded once, cached in `~/.hedwig-kg/models/` |
 | Database size | ~1.5MB | SQLite + FTS5 + FAISS indices |
 
 ### Optimizations
 
-- **FAISS disk persistence** — Vector indices saved to disk, loaded via mmap for lower RSS and faster cold starts
+- **Incremental embedding** — SHA-256 hash + DB embedding lookup skips unchanged nodes (95% faster rebuilds)
+- **Fast search mode** — `--fast` skips code model loading, cross-searches with text vectors only
+- **REPL model preloading** — Background thread loads models while you type your first query
+- **FAISS mmap loading** — Vector indices loaded via `IO_FLAG_MMAP` for lower RSS and faster cold starts
+- **Per-stage timing** — Build shows wall-clock breakdown per stage to identify bottlenecks
 - **Query embedding LRU cache** — 256-entry cache eliminates re-encoding for repeated queries
 - **Search result LRU cache** — 128-entry cache for instant repeated search results
-- **Weighted RRF** — Per-signal weights boost semantic signals (1.2×) and reduce community noise (0.6×)
-- **Stopword filtering** — 80+ English stopwords removed from keyword search for better precision
 - **Memory-bounded embedding** — 2GB RSS budget with streaming batches and automatic GC
-- **External node filtering** — Stdlib/library references excluded from embeddings to reduce vector index noise
-- **Metadata-enriched embeddings** — File paths, parent class context, and signatures included in embedding text for better retrieval
-- **Weight-aware graph traversal** — Edge weights (semantic similarity × confidence × relation type) guide expansion toward high-quality neighbors
+- **Decorator-enriched embeddings** — Python decorators (`@dataclass`, `@route`) included in embedding text
+- **Metadata-enriched embeddings** — File paths, parent class context, signatures, and line numbers in embedding text
+- **Weight-aware graph traversal** — Edge weights (semantic similarity × confidence × relation type) guide expansion
 
 ## Development
 
