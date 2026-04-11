@@ -23,8 +23,13 @@ env/
 .DS_Store
 Thumbs.db
 
-# hedwig-kb databases (generated)
+# hedwig-kg databases (generated)
+.hedwig-kg/
 .hedwig-kb/
+
+# Claude Code
+.claude/
+CLAUDE.md
 
 # Testing
 .pytest_cache/
