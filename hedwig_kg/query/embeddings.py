@@ -162,11 +162,15 @@ def embed_nodes_streaming(
     code_model: str = CODE_MODEL,
     text_model: str = TEXT_MODEL,
     batch_size: int = 64,
+    skip_ids: set[str] | None = None,
 ) -> Generator[tuple[list[str], np.ndarray, str], None, None]:
     """Generate embeddings in memory-bounded batches with dual-model routing.
 
     Nodes are classified as code or text based on their 'kind' attribute,
     then embedded with the appropriate model.
+
+    Args:
+        skip_ids: Node IDs to skip (already embedded). Used for incremental builds.
 
     Yields:
         (node_ids_batch, vectors_batch, model_type) tuples.
@@ -176,12 +180,17 @@ def embed_nodes_streaming(
     text_ids, text_texts = [], []
 
     skipped = 0
+    skipped_incremental = 0
     for node_id, data in G.nodes(data=True):
         kind = data.get("kind", "")
         # Skip external/directory nodes — they lack source code and pollute
         # the vector index with low-information embeddings.
         if kind.lower() in SKIP_KINDS:
             skipped += 1
+            continue
+        # Skip nodes that already have embeddings (incremental build)
+        if skip_ids and node_id in skip_ids:
+            skipped_incremental += 1
             continue
         text = _node_text(data)
         if not text.strip():
@@ -193,9 +202,15 @@ def embed_nodes_streaming(
             text_ids.append(node_id)
             text_texts.append(text)
 
+    if skipped_incremental:
+        logger.info(
+            "Incremental embedding: skipped %d already-embedded nodes",
+            skipped_incremental,
+        )
+
     logger.debug(
-        "Dual-model split: %d code nodes, %d text nodes, %d skipped",
-        len(code_ids), len(text_ids), skipped,
+        "Dual-model split: %d code nodes, %d text nodes, %d skipped, %d incremental-skip",
+        len(code_ids), len(text_ids), skipped, skipped_incremental,
     )
 
     # Embed code nodes

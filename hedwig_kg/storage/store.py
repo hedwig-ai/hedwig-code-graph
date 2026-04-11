@@ -223,6 +223,14 @@ class KnowledgeStore:
             )
         self.conn.commit()
 
+    def get_embedded_node_ids(self) -> set[str]:
+        """Return the set of node IDs that already have embeddings in the DB.
+
+        Used by incremental builds to skip re-embedding unchanged nodes.
+        """
+        rows = self.conn.execute("SELECT node_id FROM embeddings").fetchall()
+        return {r["node_id"] for r in rows}
+
     def load_embeddings(self) -> dict[str, np.ndarray]:
         """Load embeddings from SQLite."""
         result = {}

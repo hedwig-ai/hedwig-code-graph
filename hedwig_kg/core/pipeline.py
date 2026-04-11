@@ -204,11 +204,30 @@ def run_pipeline(
 
             _progress("embed", f"Dual-model: code={CODE_MODEL}, text={TEXT_MODEL}")
 
+            # Incremental embedding: skip nodes that already have embeddings
+            skip_ids: set[str] | None = None
+            if incremental:
+                existing_ids = store.get_embedded_node_ids()
+                # Only skip nodes from unchanged files (re-extracted files need fresh embeddings)
+                re_extracted_files = set()
+                for ext in result.extractions:
+                    for node in ext.nodes:
+                        if node.file_path:
+                            re_extracted_files.add(node.file_path)
+                # Nodes from re-extracted files should NOT be skipped
+                nodes_from_changed = {
+                    n for n, d in result.graph.nodes(data=True)
+                    if d.get("file_path", "") in re_extracted_files
+                }
+                skip_ids = existing_ids - nodes_from_changed
+                if skip_ids:
+                    _progress("embed", f"Incremental: reusing {len(skip_ids)} existing embeddings")
+
             total_count = 0
             code_count = 0
             text_count = 0
             for batch_ids, batch_vecs, model_type in embed_nodes_streaming(
-                result.graph
+                result.graph, skip_ids=skip_ids,
             ):
                 batch_dict = dict(zip(batch_ids, batch_vecs))
                 model_label = CODE_MODEL if model_type == "code" else TEXT_MODEL
