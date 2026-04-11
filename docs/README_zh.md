@@ -18,15 +18,13 @@
 
 ## 为什么选择 hedwig-kg？
 
-用Claude Code开发时，你是否感觉到某些不对劲的地方？
+用Claude Code开发时，你是否觉得少了点什么？
 
-比如，在开发支付领域时，我们自然会联想到信用卡、Stripe、钱——这些概念直觉地联系在一起。
+构建支付系统时，我们自然会看到全貌——卡片、账单、退款、欺诈检测作为一个完整的流程相互关联。但编程代理只会搜索"Payment"，找到`payment_service.py`。同一事务流中的`fraud_detector.py`和`billing_engine.py`，因为文件名不包含"payment"，所以完全被忽略。
 
-但编程代理看不到这些联系。它只是反复搜索"Payment"这个词。对它来说，"Payment"和"Card"是完全不相关的。
+有了知识图谱就不同了。`PaymentService` → `CardValidator` → `FraudDetector` → `BillingEngine`——代理沿着代码间的关系追踪，能够看到完整的上下文。
 
-为了弥合这个差距，我构建了一个通过创建知识图谱为知识赋予意义的产品——让编程代理能够像人类一样推理。
-
-有了它，Claude Code可以更直观地探索代码库，节省token，甚至发现以前找不到的代码。
+使用hedwig-kg，编程代理不再只是匹配关键词，而是像人类一样沿着关联进行探索。更少的token，更好的结果，以前找不到的代码也能被发现。
 
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 

@@ -18,15 +18,13 @@
 
 ## Warum hedwig-kg?
 
-Haben Sie beim Entwickeln mit Claude Code schon einmal etwas Seltsames bemerkt?
+Haben Sie beim Entwickeln mit Claude Code schon einmal das Gefuehl gehabt, dass etwas fehlt?
 
-Wenn wir beispielsweise im Zahlungsbereich entwickeln, denken wir natuerlich an Karten, Stripe, Geld — verwandte Konzepte, die intuitiv zusammengehoeren.
+Wenn wir ein Zahlungssystem bauen, sehen wir natuerlich das Gesamtbild — Karten, Abrechnung, Rueckerstattungen und Betrugserkennung als zusammenhaengender Ablauf. Aber ein Coding-Agent sucht nach "Payment" und findet nur `payment_service.py`. `fraud_detector.py` und `billing_engine.py` im selben Transaktionsfluss werden uebersehen, weil ihre Dateinamen kein "payment" enthalten.
 
-Aber ein Coding-Agent sieht diese Verbindungen nicht. Er sucht einfach immer wieder nach dem Wort "Payment". Fuer ihn sind "Payment" und "Card" voellig getrennte Begriffe.
+Mit einem Knowledge Graph aendert sich das. `PaymentService` → `CardValidator` → `FraudDetector` → `BillingEngine` — der Agent folgt den Beziehungen zwischen Code-Elementen und kann den vollstaendigen Kontext erfassen.
 
-Um diese Luecke zu schliessen, habe ich ein Produkt entwickelt, das Wissen durch die Erstellung eines Knowledge Graphs mit Bedeutung versieht — damit Coding-Agents aehnlich wie Menschen denken koennen.
-
-Damit kann Claude Code Codebasen intuitiver erkunden, Tokens sparen und sogar Code entdecken, der sonst uebersehen worden waere.
+Mit hedwig-kg erkunden Coding-Agents Codebasen wie Menschen — sie folgen Zusammenhaengen statt nur Schluesselwoerter abzugleichen. Weniger Tokens, bessere Ergebnisse, und bisher uebersehener Code wird gefunden.
 
 <img width="1919" height="991" alt="Knowledge Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 
