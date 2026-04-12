@@ -112,44 +112,18 @@ def _get_process_rss() -> int:
 def _node_text(data: dict) -> str:
     """Build embedding text from node attributes.
 
-    Includes file path context so queries like "store.py methods" or
-    "functions in analyze.py" match via cosine similarity.
-    Also extracts parent class context from dotted labels (e.g.
-    "ClassName.method_name") so that method embeddings encode their
-    class membership — enabling queries like "AuthHandler methods".
+    Only semantic information is included — label, signature, docstring,
+    and source snippet. Structural information (kind, file path, decorators,
+    class membership) is intentionally excluded because the graph signal
+    already covers structural relationships via edges and community detection.
+    Keeping embeddings purely semantic improves vector discrimination:
+    without shared structural tokens (e.g. "function" on every function node),
+    cosine similarity better reflects actual meaning differences.
     """
     parts = []
-    kind = data.get("kind", "")
     label = data.get("label", "")
-    if kind:
-        parts.append(kind)
     if label:
         parts.append(label)
-    # Include decorator names so searches like "route handler", "dataclass",
-    # or "staticmethod" match decorated functions/classes.
-    decos = data.get("decorators", [])
-    if decos:
-        parts.append("decorated with " + " ".join(decos))
-    # Extract parent class context from dotted label (e.g. "MyClass.my_method")
-    # This enriches method embeddings with class membership information.
-    if kind in ("method", "constructor", "property") and "." in label:
-        class_name = label.rsplit(".", 1)[0]
-        parts.append(f"method of {class_name}")
-    # Add file path context for service/module discovery.
-    # Includes parent directory names (up to 3 levels) so that embeddings
-    # encode service context automatically — e.g. "payperview/infra/purchase_v2.go"
-    # embeds "payperview" enabling cross-service search without manual curation.
-    fp = data.get("file_path", "")
-    if fp:
-        from pathlib import PurePosixPath
-        p = PurePosixPath(fp)
-        fname = p.name
-        if fname:
-            parts.append(f"in {fname}")
-        # Include up to 3 parent directory names as service/module context
-        dir_parts = list(p.parts[:-1])[-3:]  # last 3 dirs before filename
-        if dir_parts:
-            parts.append(f"path {'/'.join(dir_parts)}")
     if data.get("signature"):
         parts.append(data["signature"])
     if data.get("docstring"):
