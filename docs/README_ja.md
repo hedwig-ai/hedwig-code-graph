@@ -2,9 +2,9 @@
 <img width="2048" height="1138" alt="hegwid-cg" src="https://github.com/user-attachments/assets/2875669b-e7e3-45df-9e50-90110e2abbf1" />
 <h1 align="center">hedwig-cg</h1>
   <p align="center">
-    "ヘドウィグはきっと知らせを届けに戻ってくる"
+    "With hedwig-cg, your coding agent knows what to read."
     <br />
-    <a href="#クイックスタート">クイックスタート</a> · <a href="#対応言語">言語</a> · <a href="#aiエージェント統合">統合</a> · <a href="#アーキテクチャ">アーキテクチャ</a> · <a href="../README.md">English</a> · <a href="README_ko.md">한국어</a> · <a href="README_zh.md">中文</a> · <a href="README_de.md">Deutsch</a>
+    <a href="#クイックスタート">クイックスタート</a> · <a href="../README.md">English</a> · <a href="README_ko.md">한국어</a> · <a href="README_zh.md">中文</a> · <a href="README_de.md">Deutsch</a>
   </p>
 </p>
 

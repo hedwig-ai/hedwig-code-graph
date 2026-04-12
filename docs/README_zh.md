@@ -2,9 +2,9 @@
 <img width="2048" height="1138" alt="hegwid-cg" src="https://github.com/user-attachments/assets/2875669b-e7e3-45df-9e50-90110e2abbf1" />
 <h1 align="center">hedwig-cg</h1>
   <p align="center">
-    "海德薇一定会带着消息回来的"
+    "With hedwig-cg, your coding agent knows what to read."
     <br />
-    <a href="#快速开始">快速开始</a> · <a href="#支持的语言">语言</a> · <a href="#ai代理集成">集成</a> · <a href="#架构">架构</a> · <a href="../README.md">English</a> · <a href="README_ko.md">한국어</a> · <a href="README_ja.md">日本語</a> · <a href="README_de.md">Deutsch</a>
+    <a href="#快速开始">快速开始</a> · <a href="../README.md">English</a> · <a href="README_ko.md">한국어</a> · <a href="README_ja.md">日本語</a> · <a href="README_de.md">Deutsch</a>
   </p>
 </p>
 
