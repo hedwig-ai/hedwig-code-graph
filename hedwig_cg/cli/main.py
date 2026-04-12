@@ -1618,7 +1618,8 @@ def doctor():
         else:
             warn("models", "Model cache exists but empty — models will download on first build")
     else:
-        warn("models", "No model cache at ~/.hedwig-cg/models/ — models will download on first build")
+        warn("models",
+             "No model cache at ~/.hedwig-cg/models/ — models will download on first build")
 
     # 6. Code graph database
     cwd = Path.cwd()

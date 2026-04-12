@@ -33,9 +33,7 @@ Then tell Claude Code:
 
 > "Build a code graph for this project"
 
-That's it. Claude Code will build the graph, and from then on, consult it before every search. When the code changes, just say:
-
-> "Rebuild the code graph"
+That's it. Claude Code will build the graph, and from then on, consult it before every search. The graph auto-rebuilds when your session ends.
 
 ## Supported Languages
 
