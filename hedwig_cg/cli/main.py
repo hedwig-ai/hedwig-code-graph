@@ -909,7 +909,6 @@ def export_nodes(ctx, db: str | None, source_dir: str, batch_size: int):
     Outputs JSON with nodes grouped by directory into batches,
     plus existing edges. Designed for AI agent subagent dispatch.
     """
-    import json as _json
     from collections import defaultdict
     from pathlib import PurePosixPath
 
