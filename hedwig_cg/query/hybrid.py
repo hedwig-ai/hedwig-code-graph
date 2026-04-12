@@ -117,13 +117,13 @@ def reciprocal_rank_fusion(
 
 
 # Default signal weights: [code_vector, text_vector, graph, keyword, community]
-# Tuned via empirical testing on code search queries:
-# - Vector signals (1.0): primary semantic matching
+# Tuned for AI agent queries (natural-language-heavy, not exact symbol names):
+# - Code vector (1.3): primary semantic matching for code constructs
+# - Text vector (1.2): semantic matching for docs/comments
 # - Graph (0.8): structural context from call/inheritance edges
-# - Keyword (1.5): boosted for precise term matching — ensures code entities
-#   with exact name matches rank above loosely-similar document nodes
+# - Keyword (1.0): baseline — still valuable for exact matches but not dominant
 # - Community (0.7): thematic grouping boost
-DEFAULT_WEIGHTS = [1.0, 1.0, 0.8, 1.5, 0.7]
+DEFAULT_WEIGHTS = [1.3, 1.2, 0.8, 1.0, 0.7]
 
 
 # --- Relation-type weights for graph expansion ---
