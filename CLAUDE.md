@@ -97,8 +97,8 @@ Default location: `<source_dir>/.hedwig-cg/knowledge.db` (SQLite with FTS5)
 This project has a hedwig-cg code graph at `.hedwig-cg/`.
 
 Rules:
-- **Always use `hedwig-cg --json search "<query>"` as the primary search method.** It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) in a single call — no need to run separate community or keyword searches.
-- Before grepping raw files with Glob/Grep, run `hedwig-cg --json search` first. Only fall back to Grep if the code graph has no results.
+- **Always use `hedwig-cg search "<query>"` as the primary search method.** It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) in a single call — no need to run separate community or keyword searches.
+- Before grepping raw files with Glob/Grep, run `hedwig-cg search` first. Only fall back to Grep if the code graph has no results.
 - After modifying code files, run `hedwig-cg build . --incremental` to keep the graph current
 - Use `hedwig-cg communities` (without `--search`) only when you need to list or browse the community structure, not as a search substitute.
 - Use `hedwig-cg stats` for structural overview (god nodes, communities, density)

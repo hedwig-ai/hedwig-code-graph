@@ -18,7 +18,7 @@
 
 ## Why hedwig-cg?
 
-hedwig-cg builds a unified code graph from your code, docs, and dependencies — so coding agents can truly understand your entire project, not just search keywords. Install it, and Claude Code sees the full picture — no extra tokens, no extra commands, everything runs 100% locally.
+hedwig-cg builds a unified code graph from your code, docs, and dependencies — built to handle enterprise codebases with 10,000+ files. 5-signal hybrid search (vector + graph + keyword + community → RRF fusion) lets coding agents truly understand your entire project, not just search keywords. Install it, and Claude Code sees the full picture — no extra tokens, no extra commands, everything runs 100% locally.
 
 <img width="1919" height="991" alt="Code Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 
@@ -144,7 +144,7 @@ Every search query runs through five independent retrieval signals, then fuses t
 
 ## CLI Reference
 
-**Global flag:** `--json` outputs compact JSON for AI agent consumption.
+All commands output compact JSON by default (designed for AI agent consumption).
 
 | Command | Description |
 |---------|-------------|

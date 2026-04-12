@@ -123,7 +123,8 @@ class TestCLIBuild:
         result = runner.invoke(cli, ["build", str(src), "--no-embed",
                                      "--output", str(tmp_path / "out")])
         assert result.exit_code == 0
-        assert "Build Summary" in result.output
+        data = json.loads(result.output)
+        assert "nodes" in data
         assert (tmp_path / "out" / "knowledge.db").exists()
 
     def test_build_nonexistent_dir(self):
@@ -140,17 +141,19 @@ class TestCLIStats:
         runner = CliRunner()
         result = runner.invoke(cli, ["stats", "--source-dir", str(project_dir)])
         assert result.exit_code == 0
-        assert "Nodes" in result.output
-        assert "Edges" in result.output
+        data = json.loads(result.output)
+        assert "nodes" in data
+        assert "edges" in data
 
     def test_stats_shows_graph_quality(self, tmp_path):
         project_dir = _create_test_db(tmp_path)
         runner = CliRunner()
         result = runner.invoke(cli, ["stats", "--source-dir", str(project_dir)])
         assert result.exit_code == 0
-        assert "Density" in result.output
-        assert "Connected components" in result.output
-        assert "clustering" in result.output.lower()
+        data = json.loads(result.output)
+        assert "density" in data
+        assert "connected_components" in data
+        assert "avg_clustering_coeff" in data
 
     def test_stats_no_db(self, tmp_path):
         runner = CliRunner()
@@ -194,7 +197,8 @@ class TestCLICommunities:
         runner = CliRunner()
         result = runner.invoke(cli, ["communities", "--source-dir", str(project_dir)])
         assert result.exit_code == 0
-        assert "Communities" in result.output
+        data = json.loads(result.output)
+        assert isinstance(data, list)
 
     def test_communities_search(self, tmp_path):
         project_dir = _create_test_db(tmp_path)
@@ -289,7 +293,7 @@ class TestCLIVisualize:
         assert '<script src="https://d3js.org/d3.v7.min.js">' not in html
         assert len(html) > 280000  # ~280KB D3 inlined
         assert "d3.forceSimulation" in html
-        assert "Offline mode" in result.output
+        assert "Offline mode" in result.output or "offline" in result.output.lower()
 
     def test_visualize_no_db(self, tmp_path):
         runner = CliRunner()
@@ -327,8 +331,9 @@ class TestCLIQuery:
             "query", "--source-dir", str(project_dir),
         ], input=":quit\n")
         assert result.exit_code == 0
-        assert "hedwig-cg query REPL" in result.output
-        assert "Session ended" in result.output
+        data = json.loads(result.output.splitlines()[0])
+        assert data["status"] == "ready"
+        assert "session_ended" in result.output
 
     def test_query_search_and_exit(self, tmp_path):
         project_dir = _create_test_db(tmp_path)
@@ -337,7 +342,8 @@ class TestCLIQuery:
             "query", "--source-dir", str(project_dir),
         ], input="App\nexit\n")
         assert result.exit_code == 0
-        assert "hedwig-cg query REPL" in result.output
+        data = json.loads(result.output.splitlines()[0])
+        assert data["status"] == "ready"
 
     def test_query_stats_command(self, tmp_path):
         project_dir = _create_test_db(tmp_path)
@@ -346,7 +352,7 @@ class TestCLIQuery:
             "query", "--source-dir", str(project_dir),
         ], input=":stats\n:quit\n")
         assert result.exit_code == 0
-        assert "Nodes:" in result.output
+        assert '"nodes":' in result.output
 
     def test_query_node_command(self, tmp_path):
         project_dir = _create_test_db(tmp_path)
@@ -429,8 +435,9 @@ class TestCLINode:
             "node", "NonExistentNode12345",
             "--source-dir", str(project_dir),
         ])
-        assert result.exit_code == 0
-        assert "not found" in result.output.lower()
+        assert result.exit_code == 1
+        data = json.loads(result.output)
+        assert "not found" in data["error"].lower()
 
 
 # ---------------------------------------------------------------------------
@@ -479,4 +486,4 @@ class TestClineIntegration:
         with runner.isolated_filesystem(temp_dir=tmp_path):
             result = runner.invoke(cli, ["cline", "uninstall"])
             assert result.exit_code == 0
-            assert "no .clinerules" in result.output.lower()
+            assert "not_found" in result.output.lower()
