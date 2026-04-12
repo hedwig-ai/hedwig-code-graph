@@ -104,9 +104,23 @@ SHA-256 content hashing per file. Only changed files are re-extracted and re-emb
 
 4GB memory budget with stage-wise release. The pipeline generates → stores → frees at each stage: extraction results are freed after graph build, embeddings are streamed in batches and freed after DB write, and the full graph is released after persistence. GC triggers proactively at 75% threshold.
 
+### 5-Signal Hybrid Search
+
+Every search query runs through five independent retrieval signals, then fuses them via Weighted RRF into a single ranked result:
+
+| Signal | Engine | What it finds |
+|--------|--------|---------------|
+| **Code Vector** | FAISS + `bge-small-en-v1.5` | Semantically similar code (functions, classes, methods) |
+| **Text Vector** | FAISS + `multilingual-e5-small` | Docs, comments, markdown in 100+ languages |
+| **Graph Expansion** | NetworkX weighted BFS | Structurally connected nodes (callers, callees, imports) + INFERRED edges |
+| **Full-Text Search** | SQLite FTS5 + BM25 | Exact keyword matches across source code |
+| **Community Context** | Leiden hierarchical clustering | Related nodes from the same functional cluster |
+
+LLM semantic enrichment strengthens the Graph Expansion and Community signals — INFERRED edges create paths between nodes that AST alone would never connect.
+
 ### LLM Semantic Enrichment
 
-AST extraction finds structural relationships (imports, calls, inheritance). LLM semantic enrichment goes further — discovering design patterns, behavioral dependencies, and cross-module connections that no static analysis can detect. When built inside an AI coding agent, the agent's LLM automatically analyzes node batches in parallel and injects INFERRED edges into the graph. No separate API key needed.
+When built inside an AI coding agent, the agent's LLM automatically analyzes code node batches in parallel and injects INFERRED edges — design patterns, behavioral dependencies, and cross-module connections that no static analysis can detect. No separate API key needed.
 
 ---
 
