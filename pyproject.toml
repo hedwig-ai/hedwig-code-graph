@@ -43,6 +43,7 @@ dependencies = [
     "igraph>=0.11",
     "numpy>=1.26",
     "pathspec>=0.12",
+    "pymupdf>=1.24",
 ]
 
 [project.urls]
@@ -52,7 +53,6 @@ Issues = "https://github.com/hedwig-ai/hedwig-code-graph/issues"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "pytest-cov", "ruff", "mcp>=1.0"]
-docs = ["pymupdf>=1.24"]
 mcp = ["mcp>=1.0"]
 
 [project.scripts]
