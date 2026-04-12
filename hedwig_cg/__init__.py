@@ -1,5 +1,5 @@
-"""hedwig-cg: Local-first code graph builder with hybrid vector + graph search."""
+"""hedwig-cg: Code graph builder with LLM semantic enrichment and 5-signal hybrid search."""
 
-__version__ = "0.9.1"
+__version__ = "0.10.0"
 
 __all__ = ["__version__", "core", "query", "storage", "cli"]

@@ -55,7 +55,7 @@ def _json_error(message: str) -> None:
               help="Output as JSON (for AI agent consumption). Suppresses all non-JSON output.")
 @click.pass_context
 def cli(ctx, json_output: bool):
-    """hedwig-cg: Local-first code graph with hybrid search."""
+    """hedwig-cg: Code graph with LLM semantic enrichment and hybrid search."""
     ctx.ensure_object(dict)
     ctx.obj["json"] = json_output
     if json_output:

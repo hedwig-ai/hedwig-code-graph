@@ -1,11 +1,11 @@
 ---
 name: hedwig-cg
-description: Local-first code graph builder with 5-signal hybrid search. Use when analyzing codebases, searching for code architecture, exploring dependencies, or building code graphs from source code and documents.
+description: Code graph builder with LLM semantic enrichment and 5-signal hybrid search. Use when analyzing codebases, searching for code architecture, exploring dependencies, or building code graphs from source code and documents.
 ---
 
 # hedwig-cg
 
-Builds code graphs from source code and documents. Searches with 5-signal hybrid search (code vector + text vector + graph traversal + FTS5 keyword + community → RRF fusion). Supports 17 languages with deep AST extraction. 100% local.
+Builds code graphs with LLM semantic enrichment. AST extraction for 17 languages plus LLM-powered INFERRED edges. Searches with 5-signal hybrid search (code vector + text vector + graph traversal + FTS5 keyword + community → RRF fusion).
 
 **IMPORTANT: Always use `--json` flag.**
 
@@ -82,10 +82,138 @@ The code graph connects code by calls, imports, and inheritance — so each sear
 
 ## Build
 
+When building a code graph, **always run the full pipeline** — AST structural extraction followed by LLM semantic enrichment. This produces both EXTRACTED edges (imports, calls, inheritance) and INFERRED edges (design patterns, behavioral dependencies, cross-module relationships) in a single pass.
+
+### Full pipeline (always use this)
+
+**Step 1 — AST structural extraction**
+
 ```bash
-hedwig-cg --json build .                # Full build
-hedwig-cg --json build . --incremental  # Only changed files
+hedwig-cg --json build .
 ```
+
+For incremental rebuilds (only changed files):
+```bash
+hedwig-cg --json build . --incremental
+```
+
+This produces the base graph with EXTRACTED edges from AST analysis + embeddings + community detection.
+
+**Step 2 — Read graph stats to prepare semantic enrichment**
+
+```bash
+hedwig-cg --json stats
+```
+
+Note the node count. If < 5 nodes, skip semantic enrichment.
+
+**Step 3 — Semantic enrichment via subagents**
+
+Read the code graph nodes by searching for high-connectivity nodes, then dispatch subagents to find semantic relationships.
+
+Run a broad search to get the important nodes:
+```bash
+hedwig-cg --json search "*" --top-k 200
+```
+
+Group the results by directory (nodes with similar `file` paths). Split into chunks of ~20 nodes each. For each chunk, dispatch an Agent tool with `subagent_type="general-purpose"`.
+
+**MANDATORY: Dispatch ALL agents in a single message for parallel execution.**
+
+Each subagent receives this prompt (substitute NODE_LIST and EXISTING_EDGES):
+
+```
+You are a code architecture analyst. Analyze these code nodes and identify semantic
+relationships NOT already captured by structural analysis (imports, calls, inheritance).
+
+Focus on:
+- Design pattern connections (handler implements strategy pattern)
+- Behavioral dependencies (module A's output format must match module B's input)
+- Alternative implementations (two modules solve the same problem differently)
+- Synchronization needs (two files that must stay in sync)
+- Conceptual extensions (module B extends the concept introduced in module A)
+- Wrapping/delegation (module A wraps module B's functionality)
+
+## Nodes
+NODE_LIST
+
+## Existing structural edges (do NOT duplicate these)
+EXISTING_EDGES
+
+Return ONLY a valid JSON array. Each element:
+{"source": "<exact node id from file::kind::name format>",
+ "target": "<exact node id>",
+ "relation": "<one of: semantically_similar_to, alternative_to, depends_on_behavior, implements_pattern, synchronize_with, extends_concept, wraps, delegates_to>",
+ "rationale": "<1 sentence explaining WHY this relationship exists>"}
+
+Rules:
+- Use node IDs EXACTLY as provided (file_path::kind::name format)
+- Do NOT duplicate existing structural edges listed above
+- Return [] if no meaningful semantic relationships exist
+- Maximum 10 relationships per batch
+- Every relationship must have a specific, non-generic rationale
+```
+
+Also dispatch one **cross-directory batch** with the top ~20 highest-score nodes from different directories to find cross-module relationships.
+
+**Step 4 — Inject INFERRED edges into the graph**
+
+Collect all subagent JSON responses. For each valid edge, add it to the graph:
+
+```python
+# Run this Python snippet to inject edges into the SQLite database
+python3 -c "
+import json, sqlite3
+from pathlib import Path
+
+db = Path('.hedwig-cg/knowledge.db')
+conn = sqlite3.connect(str(db))
+
+# All edges from subagents (paste merged JSON here or read from file)
+edges = MERGED_EDGES_JSON
+
+nodes = {r[0] for r in conn.execute('SELECT id FROM nodes').fetchall()}
+added = 0
+for e in edges:
+    src, tgt = e.get('source',''), e.get('target','')
+    rel = e.get('relation','')
+    if src in nodes and tgt in nodes and src != tgt:
+        conn.execute(
+            'INSERT OR IGNORE INTO edges (source, target, relation, confidence, rationale) VALUES (?,?,?,?,?)',
+            (src, tgt, rel, 'INFERRED', e.get('rationale',''))
+        )
+        added += 1
+conn.commit()
+conn.close()
+print(f'Added {added} INFERRED edges')
+"
+```
+
+After injection, clear the search cache so new edges are reflected:
+```python
+python3 -c "
+from hedwig_cg.query.hybrid import clear_search_cache
+clear_search_cache()
+print('Search cache cleared')
+"
+```
+
+**Step 5 — Verify**
+
+```bash
+hedwig-cg --json stats
+```
+
+Compare edge count before and after. The new INFERRED edges strengthen graph N-hop traversal and community detection signals in search.
+
+### Why this matters
+
+AST extraction finds structural relationships (who imports whom, who calls whom). But it misses:
+- `rate_limiter` ↔ `billing_module` — "rate limit triggers billing policy changes"
+- `migration_v3` ↔ `deprecated_handler` — "handler is deletion target after migration"
+- `error_codes.py` ↔ `frontend/errors.ts` — "these two files must stay in sync"
+
+LLM semantic enrichment finds these. Combined with 5-signal HybridRAG search, the graph becomes significantly more useful.
 
 ## Inspect
 

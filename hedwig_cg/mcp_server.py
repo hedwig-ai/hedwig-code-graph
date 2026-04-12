@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 mcp = FastMCP(
     "hedwig-cg",
     instructions=(
-        "Local-first code graph for code and document search. "
+        "Code graph with LLM semantic enrichment for code and document search. "
         "START with 'search' — it is the primary tool and handles most queries. "
         "Only use 'node' when you need full details about a specific entity "
         "found in search results. Use 'stats' for a structural overview. "

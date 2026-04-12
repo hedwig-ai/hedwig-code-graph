@@ -1,11 +1,11 @@
 ---
 name: hedwig-cg
-description: Local-first code graph builder with 5-signal hybrid search. Use when analyzing codebases, searching for code architecture, exploring dependencies, or building code graphs from source code and documents.
+description: Code graph builder with LLM semantic enrichment and 5-signal hybrid search. Use when analyzing codebases, searching for code architecture, exploring dependencies, or building code graphs from source code and documents.
 ---
 
 # hedwig-cg
 
-Builds code graphs from source code and documents. Searches with 5-signal hybrid search (code vector + text vector + graph traversal + FTS5 keyword + community → RRF fusion). Supports 17 languages with deep AST extraction. 100% local.
+Builds code graphs from source code and documents with LLM semantic enrichment. Searches with 5-signal hybrid search (code vector + text vector + graph traversal + FTS5 keyword + community → RRF fusion). AST extraction for 17 languages plus LLM-powered INFERRED edges for design patterns, behavioral dependencies, and cross-module relationships.
 
 **IMPORTANT: Always use `--json` flag.**
 

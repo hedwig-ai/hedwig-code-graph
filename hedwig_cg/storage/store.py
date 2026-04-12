@@ -1,7 +1,4 @@
-"""Unified storage: SQLite for graph/metadata + FAISS for vector similarity.
-
-All data stays local. No external database required.
-"""
+"""Unified storage: SQLite for graph/metadata + FAISS for vector similarity."""
 
 from __future__ import annotations
 
@@ -17,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class KnowledgeStore:
-    """Local-first knowledge store combining SQLite + FAISS vector index."""
+    """Knowledge store combining SQLite + FAISS vector index."""
 
     def __init__(self, db_path: str | Path):
         self.db_path = Path(db_path)

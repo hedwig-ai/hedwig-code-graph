@@ -18,7 +18,7 @@
 
 ## Why hedwig-cg?
 
-hedwig-cg builds a unified code graph from your code, docs, and dependencies — so coding agents can truly understand your entire project, not just search keywords. Install it, and Claude Code sees the full picture — no extra tokens, no extra commands, everything runs 100% locally.
+hedwig-cg builds a unified code graph from your code, docs, and dependencies — so coding agents can truly understand your entire project, not just search keywords. Install it, and Claude Code sees the full picture — no extra tokens, no extra commands. AST structural extraction plus LLM-powered semantic enrichment discovers both explicit and hidden cross-module relationships automatically.
 
 <img width="1919" height="991" alt="Code Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 
@@ -29,13 +29,17 @@ pip install hedwig-cg
 hedwig-cg claude install
 ```
 
-Then tell Claude Code:
+Then in Claude Code:
 
-> "Build a code graph for this project"
+```
+/hedwig-cg build .
+```
 
-That's it. Claude Code will build the graph, and from then on, consult it before every search. When the code changes, just say:
+AST extraction + LLM semantic enrichment runs automatically — structural relationships (imports, calls, inheritance) and hidden semantic connections (design patterns, behavioral dependencies, cross-module relationships) are all discovered in one pass. From then on, every search consults the enriched graph. When the code changes:
 
-> "Rebuild the code graph"
+```
+/hedwig-cg build . --incremental
+```
 
 ## Supported Languages
 
@@ -100,47 +104,11 @@ SHA-256 content hashing per file. Only changed files are re-extracted and re-emb
 
 4GB memory budget with stage-wise release. The pipeline generates → stores → frees at each stage: extraction results are freed after graph build, embeddings are streamed in batches and freed after DB write, and the full graph is released after persistence. GC triggers proactively at 75% threshold.
 
-### 100% Local
+### LLM Semantic Enrichment
 
-No cloud services, no API keys, no telemetry. SQLite + FAISS for storage, sentence-transformers for embeddings. All data stays on your machine.
+AST extraction finds structural relationships (imports, calls, inheritance). LLM semantic enrichment goes further — discovering design patterns, behavioral dependencies, and cross-module connections that no static analysis can detect. When built inside an AI coding agent, the agent's LLM automatically analyzes node batches in parallel and injects INFERRED edges into the graph. No separate API key needed.
 
 ---
-
-## Architecture
-
-```
-Source Code/Docs
-       |
-       v
-   Detect ──> Extract ──> Build ──> Embed ──> Cluster ──> Analyze ──> Store
-              tags.scm    NetworkX   dual       Leiden      PageRank    SQLite
-              (17 langs)  DiGraph    FAISS      hierarchy   god nodes   FTS5+FAISS
-```
-
-### 5-Signal Hybrid Search
-
-Every search query runs through five independent retrieval signals, then fuses them into a single ranked result:
-
-```
-  Query: "authentication handler"
-    |
-    |-> 1. Code Vector (bge-small)  -> FAISS cosine similarity
-    |-> 2. Text Vector (e5-small)   -> FAISS cosine similarity
-    |-> 3. Graph Expansion          -> weighted BFS (2-hop neighbors)
-    |-> 4. Full-Text Search (FTS5)  -> BM25 ranking
-    |-> 5. Community Context        -> Leiden cluster summary match
-    |
-    +-> Weighted RRF Fusion -> Final ranked results
-```
-
-| Signal | Engine | What it finds |
-|--------|--------|---------------|
-| **Code Vector** | FAISS + `bge-small-en-v1.5` | Semantically similar code (functions, classes, methods) |
-| **Text Vector** | FAISS + `multilingual-e5-small` | Docs, comments, markdown in 100+ languages |
-| **Graph Expansion** | NetworkX weighted BFS | Structurally connected nodes (callers, callees, imports) |
-| **Full-Text Search** | SQLite FTS5 + BM25 | Exact keyword matches across source code, no snippet limits |
-| **Community Context** | Leiden clustering | Related nodes from the same functional cluster |
-| **RRF Fusion** | Weighted Reciprocal Rank | Combines all signals — nodes found by multiple signals rank higher |
 
 ## CLI Reference
 

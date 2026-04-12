@@ -1,6 +1,9 @@
 """Pipeline orchestrator — runs the full code graph build pipeline.
 
-detect → extract → build → embed → cluster → analyze → store
+detect → extract → build → [semantic] → embed → cluster → analyze → store
+
+Semantic enrichment (LLM-based INFERRED edges) is handled by the AI coding
+agent via SKILL.md workflow, not by this pipeline directly.
 """
 
 from __future__ import annotations
@@ -87,7 +90,6 @@ def run_pipeline(
         incremental: Skip unchanged files (based on content hash).
         lang: Language mode — "auto" (detect from text nodes), "en" (English-only
             models), or "multilingual" (force multilingual text model).
-
     Returns:
         PipelineResult with all intermediate and final results.
     """

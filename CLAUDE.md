@@ -1,7 +1,7 @@
-# hedwig-cg — Local-First Code Graph Builder
+# hedwig-cg — Code Graph Builder with LLM Semantic Enrichment
 
 ## Project Overview
-hedwig-cg analyzes source code and documents to build code graphs, providing 5-signal HybridRAG search with dual embedding models (code + text) fused via RRF. Everything runs locally — no cloud services required.
+hedwig-cg analyzes source code and documents to build code graphs, providing 5-signal HybridRAG search with dual embedding models (code + text) fused via RRF. AST structural extraction captures explicit relationships; LLM semantic enrichment discovers hidden cross-module connections automatically when built inside an AI coding agent.
 
 ## Quick Start
 ```bash
@@ -39,7 +39,8 @@ hedwig-cg visualize --max-nodes 300 -o my_graph.html
 
 ## Architecture
 ```
-detect → extract → build → embed → cluster → summarize → analyze → store
+detect → extract → build → semantic → embed → cluster → summarize → analyze → store
+                           LLM enrichment (agent analyzes nodes, injects INFERRED edges)
 ```
 
 - **detect**: Scans directories, classifies files (20+ languages), respects .hedwig-cg-ignore
@@ -67,7 +68,7 @@ detect → extract → build → embed → cluster → summarize → analyze →
 | `hedwig-cg mcp` | Start MCP server (stdio) — exposes search, node, stats, communities, build tools |
 
 ## Key Design Decisions
-- **100% local**: No cloud services. SQLite + FAISS for storage, sentence-transformers for embeddings
+- **LLM semantic enrichment**: AI coding agent analyzes node batches in parallel, injecting INFERRED edges (design patterns, behavioral deps, cross-module relationships) that AST cannot detect. No separate API key — uses the agent's own LLM context
 - **5-signal HybridRAG**: Code vector + Text vector → Graph N-hop → FTS5 keyword → Community summary → RRF fusion
 - **Dual embedding models**: Code nodes (bge-small-en-v1.5) + Text nodes (all-MiniLM-L6-v2 or multilingual-e5-small), both 384-dim, cached in ~/.hedwig-cg/models/
 - **Multilingual support**: `--lang auto|en|multilingual` — auto-detects non-English text nodes via Unicode script analysis, switches text model to `intfloat/multilingual-e5-small` (100+ languages). Code model stays English-optimized.
@@ -75,7 +76,7 @@ detect → extract → build → embed → cluster → summarize → analyze →
 - **Markdown extraction**: Headings → section nodes with hierarchy, internal links → reference edges
 - **Hierarchical communities**: Multi-resolution Leiden (0.25, 0.5, 1.0, 2.0) with auto-generated summaries
 - **Incremental builds**: SHA-256 content hashing to skip unchanged files
-- **Privacy-first**: No data leaves the machine
+- **Privacy-aware**: Graph data stored locally in SQLite + FAISS. Semantic enrichment sends only node summaries (names, signatures, snippets) to the agent's LLM
 - **No manual curation features**: Do NOT add features that require users to manually create/maintain configuration files (e.g. synonym dictionaries, term mappings, custom ontologies). All search quality improvements must be algorithmic and automatic. Manual curation doesn't scale and creates maintenance burden.
 
 ## Database
