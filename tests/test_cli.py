@@ -486,4 +486,4 @@ class TestClineIntegration:
         with runner.isolated_filesystem(temp_dir=tmp_path):
             result = runner.invoke(cli, ["cline", "uninstall"])
             assert result.exit_code == 0
-            assert "not_found" in result.output.lower()
+            assert "not found" in result.output.lower()
