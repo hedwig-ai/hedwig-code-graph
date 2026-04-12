@@ -25,6 +25,9 @@ Thumbs.db
 
 # hedwig-cg databases (generated)
 .hedwig-cg/
+.hedwig-kg/
+.hedwig-kb/
+knowledge_graph.html
 .hedwig-cb/
 
 # Claude Code

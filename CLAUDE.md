@@ -39,8 +39,8 @@ hedwig-cg visualize --max-nodes 300 -o my_graph.html
 
 ## Architecture
 ```
-detect → extract → build → semantic → embed → cluster → summarize → analyze → store
-                           LLM enrichment (agent analyzes nodes, injects INFERRED edges)
+detect → extract → build → [semantic] → embed → cluster → summarize → analyze → store
+                            LLM enrichment (agent analyzes nodes, injects INFERRED edges)
 ```
 
 - **detect**: Scans directories, classifies files (20+ languages), respects .hedwig-cg-ignore

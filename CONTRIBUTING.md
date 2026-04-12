@@ -81,16 +81,18 @@ hedwig_cg/
 The pipeline follows a linear flow:
 
 ```
-detect → extract → build → embed → cluster → analyze → store
+detect → extract → build → [semantic] → embed → cluster → summarize → analyze → store
 ```
 
 - **detect**: Scans directories, classifies files by language.
 - **extract**: Tree-sitter AST extraction with regex fallback.
 - **build**: Assembles a NetworkX DiGraph with deduplication.
-- **embed**: Generates sentence-transformer embeddings locally.
-- **cluster**: Hierarchical Leiden community detection.
+- **[semantic]**: LLM semantic enrichment — handled by AI coding agent via skill workflow, not the pipeline directly. Injects INFERRED edges (design patterns, behavioral deps, cross-module relationships).
+- **embed**: Generates dual-model embeddings (code: bge-small, text: multilingual-e5-small).
+- **cluster**: Hierarchical Leiden community detection with auto-generated summaries.
+- **summarize**: Keyword-rich community summaries from node attributes.
 - **analyze**: Structural analysis (god nodes, hubs, quality metrics).
-- **store**: SQLite + FTS5 + FAISS vector index, all in a single file.
+- **store**: SQLite + FTS5 + FAISS vector index, all in a single directory.
 
 ## Reporting Issues
 
