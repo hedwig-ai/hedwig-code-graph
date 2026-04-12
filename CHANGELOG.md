@@ -5,6 +5,64 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.1] - 2026-04-12
+
+### Fixed
+- **Package skill.md missing semantic build workflow**: The skill.md bundled with `pip install` was missing the LLM semantic enrichment Steps 2-5. Other machines running `hedwig-cg claude install` would get a skill without semantic enrichment. Now synced with SKILL.md.
+
+## [0.10.0] - 2026-04-12
+
+### Added
+- **LLM Semantic Enrichment**: When built inside an AI coding agent (Claude Code, Codex, etc.), the agent's LLM automatically analyzes code node batches in parallel and injects INFERRED edges — design patterns, behavioral dependencies, cross-module relationships that AST cannot detect
+- **SKILL.md semantic build workflow**: 5-step pipeline (AST build → stats → subagent dispatch → edge injection → verify) enabling agent-driven enrichment without separate API keys
+- **5-Signal Hybrid Search in README Features**: Restored signal table with INFERRED edge support noted in Graph Expansion signal
+
+### Changed
+- Project positioning changed from "100% local" to "LLM semantic enrichment + 5-signal hybrid search"
+- Updated descriptions across pyproject.toml, `__init__.py`, CLI help, MCP server, skill.md
+- Updated all translated READMEs (ko, ja, zh, de) with new positioning and Quick Start
+- Quick Start now uses `/hedwig-cg build .` command instead of natural language prompt
+- Removed Architecture section from README (internal detail moved to CLAUDE.md)
+
+## [0.9.1] - 2026-04-12
+
+### Changed
+- Bump version for documentation updates
+
+## [0.9.0] - 2026-04-12
+
+### Added
+- **gitignore-spec support**: `.gitignore` and `.hedwig-cg-ignore` now use full gitignore spec via `pathspec` library (negation `!`, `**` globs, directory-only patterns)
+- **Features section in README**: Auto-rebuild, smart ignore, incremental builds, memory management
+
+### Changed
+- **4GB memory budget**: Stage-wise memory release with aggressive GC at 75% threshold
+- Free intermediate objects during embed stage, fix MCP build memory usage
+
+## [0.3.1] - 2026-04-11
+
+### Added
+- Unified `--json` flag across all CLI commands for AI agent consumption
+- Slim JSON search response (~140 bytes/result) with signature/docstring instead of raw snippets
+- Drill-down search strategy with few-shot examples in skill.md
+
+### Changed
+- Default search `--top-k` increased to 80
+- Removed 300-char embedding snippet cap for better vector quality
+- `type_alias` added to `CODE_KINDS` for embedding routing
+
+## [0.3.0] - 2026-04-11
+
+### Added
+- **17-language tree-sitter tags.scm extraction**: Universal structural extraction (Go, Rust, Java, C, C++, C#, Ruby, Swift, Scala, Lua, PHP, Elixir, Kotlin, Objective-C) in addition to Python, JS, TS
+- **Aider CLI integration** (`hedwig-cg aider install`) as 7th platform
+- **Two-stage query expansion** (`--expand` flag): Broadens search with related terms
+- **PDF, HTML, CSV document extraction**: New file types indexed into the graph
+
+### Changed
+- Rename: hedwig-kg → hedwig-cg (code graph)
+- Simplified README with story-first structure
+
 ## [0.2.0] - 2026-04-11
 
 ### Added
@@ -108,20 +166,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - HybridRAG search engine combining vector similarity, graph traversal, and FTS5 keyword matching with RRF fusion
 - Tree-sitter AST extraction for Python, JavaScript, TypeScript with regex fallback
 - Hierarchical Leiden community detection at multiple resolutions (0.25, 0.5, 1.0, 2.0)
-- Local embeddings via sentence-transformers (nomic-ai/nomic-embed-code)
+- Local embeddings via sentence-transformers (initially nomic-ai/nomic-embed-code, later switched to dual-model: bge-small + multilingual-e5-small)
 - FAISS vector index for cosine similarity search
 - SQLite + FTS5 full-text search with BM25 ranking
 - CLI commands: `build`, `search`, `stats`, `node`, `export`
 - Graph analysis: PageRank, god node detection, hub analysis, quality metrics
 - File detection for 20+ programming languages
 - `.hedwig-cg-ignore` for excluding files from analysis
-- Privacy-first design: 100% local, no cloud services
+- Privacy-aware design: graph data stored locally (SQLite + FAISS). As of v0.10.0, optional LLM semantic enrichment sends node summaries to the agent's LLM
 - Claude Code skill documentation for AI tool integration
 - Multi-language README (English, Korean, Japanese)
 - GitHub Actions CI (Python 3.10-3.12, Ubuntu + macOS)
 - CONTRIBUTING.md with development guide
 
-[Unreleased]: https://github.com/hedwig-ai/hedwig-code-graph/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/hedwig-ai/hedwig-code-graph/compare/v0.10.1...HEAD
+[0.10.1]: https://github.com/hedwig-ai/hedwig-code-graph/compare/v0.10.0...v0.10.1
+[0.10.0]: https://github.com/hedwig-ai/hedwig-code-graph/compare/v0.9.1...v0.10.0
+[0.9.1]: https://github.com/hedwig-ai/hedwig-code-graph/compare/v0.9.0...v0.9.1
+[0.9.0]: https://github.com/hedwig-ai/hedwig-code-graph/compare/v0.3.1...v0.9.0
+[0.3.1]: https://github.com/hedwig-ai/hedwig-code-graph/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/hedwig-ai/hedwig-code-graph/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/hedwig-ai/hedwig-code-graph/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/hedwig-ai/hedwig-code-graph/compare/v0.1.0...v0.1.2
 [0.1.0]: https://github.com/hedwig-ai/hedwig-code-graph/releases/tag/v0.1.0
