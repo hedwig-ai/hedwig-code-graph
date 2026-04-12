@@ -1,5 +1,6 @@
 <p align="center">
-  <h1 align="center">hedwig-cg</h1>
+<img width="2048" height="1138" alt="hegwid-cg" src="https://github.com/user-attachments/assets/2875669b-e7e3-45df-9e50-90110e2abbf1" />
+<h1 align="center">hedwig-cg</h1>
   <p align="center">
     "Hedwig will be back with the word"
     <br />
@@ -19,8 +20,6 @@
 ## Why hedwig-cg?
 
 hedwig-cg builds a unified code graph from your code, docs, and dependencies — built to handle enterprise codebases with 10,000+ files. 5-signal hybrid search (vector + graph + keyword + community → RRF fusion) lets coding agents truly understand your entire project, not just search keywords. Install it, and Claude Code sees the full picture — no extra tokens, no extra commands, everything runs 100% locally.
-
-<img width="1919" height="991" alt="Code Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 
 ## Quick Start
 
