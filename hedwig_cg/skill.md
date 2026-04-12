@@ -107,58 +107,60 @@ hedwig-cg stats
 
 Note the node count. If < 5 nodes, skip semantic enrichment.
 
-**Step 3 — Semantic enrichment via subagents**
+**Step 3 — Semantic enrichment via subagents (file-based)**
 
-Export nodes grouped into batches for semantic analysis:
+Get the file list grouped by directory:
 
 ```bash
-hedwig-cg nodes --page 1              # first 5 batches
-hedwig-cg nodes --page 2              # next 5 batches
-hedwig-cg nodes --page 1 --page-size 3  # first 3 batches
-hedwig-cg nodes                        # all batches (small projects)
+hedwig-cg files --page 1           # first 3 chunks
+hedwig-cg files --page 2           # next 3 chunks
+hedwig-cg files                    # all chunks (small projects)
 ```
 
-Returns nodes grouped by directory into batches of ~20, plus existing edges within each batch and a cross-directory batch of top PageRank nodes. Response includes `total_pages` for pagination.
+Each chunk contains ~20 files from the same directory plus existing AST edges between them. Response includes `total_pages` for pagination.
 
-For each page, dispatch Agent tools for each batch with `subagent_type="general-purpose"`. Process page by page until `page == total_pages`.
+For each chunk, dispatch an Agent with `subagent_type="general-purpose"`. The subagent **reads the actual files** and extracts semantic relationships. Process page by page until `page == total_pages`.
 
-**MANDATORY: Dispatch ALL agents in a single message for parallel execution.**
+**MANDATORY: Dispatch ALL agents for the current page in a single message for parallel execution.**
 
-Each subagent receives this prompt (substitute NODE_LIST and EXISTING_EDGES):
+Each subagent receives this prompt (substitute FILE_LIST and EXISTING_EDGES):
 
 ```
-You are a code architecture analyst. Analyze these code nodes and identify semantic
+You are a code architecture analyst. Read the files listed below and identify semantic
 relationships NOT already captured by structural analysis (imports, calls, inheritance).
 
-Focus on:
+**Read each file using the Read tool**, then analyze the actual code to find:
 - Design pattern connections (handler implements strategy pattern)
 - Behavioral dependencies (module A's output format must match module B's input)
 - Alternative implementations (two modules solve the same problem differently)
 - Synchronization needs (two files that must stay in sync)
 - Conceptual extensions (module B extends the concept introduced in module A)
 - Wrapping/delegation (module A wraps module B's functionality)
-- Rationale edges: if a comment, docstring, or section explains WHY a design decision
-  was made, create a `rationale_for` edge from the explaining node to the concept node
+- Rationale: if comments or docstrings explain WHY a design decision was made,
+  create a `rationale_for` edge
 
-## Nodes
-NODE_LIST
+## Files to read
+FILE_LIST
 
-## Existing structural edges (do NOT duplicate these)
+## Existing structural edges (do NOT duplicate these — AST already found them)
 EXISTING_EDGES
 
-Return ONLY valid JSON matching this schema:
+After reading ALL files, return ONLY valid JSON matching this schema:
 {
   "edges": [
     {
-      "source": "<exact node id>",
-      "target": "<exact node id>",
+      "source": "<file_path::kind::name format>",
+      "target": "<file_path::kind::name format>",
       "relation": "<relation type>",
       "confidence": "<INFERRED or AMBIGUOUS>",
       "confidence_score": <0.0-1.0>,
-      "rationale": "<1 sentence explaining WHY>"
+      "rationale": "<1 sentence explaining WHY based on what you read>"
     }
   ]
 }
+
+Node ID format: file_path::kind::name (e.g. "src/auth.py::class::AuthHandler")
+Kind values: function, class, method, module, document, section, variable
 
 Valid relation types:
   semantically_similar_to, alternative_to, depends_on_behavior,
@@ -174,22 +176,16 @@ confidence_score is REQUIRED on every edge — never omit, never default to 0.5:
 - Reasonable inference with some uncertainty: 0.6-0.7
 - Weak or speculative: 0.4-0.5 (mark as AMBIGUOUS)
 
-Semantic similarity: if two nodes solve the same problem or represent the same idea
-without any structural link, add a `semantically_similar_to` edge with confidence_score
-reflecting similarity (0.6-0.95). Examples:
-- Two functions that both validate user input but never call each other
-- Two error handlers for the same failure mode in different modules
-Only add when the similarity is genuinely non-obvious and cross-cutting.
+Semantic similarity: if two entities solve the same problem without any structural link,
+add a `semantically_similar_to` edge. Only when genuinely non-obvious and cross-cutting.
 
 Rules:
-- Use node IDs EXACTLY as provided (file_path::kind::name format)
+- Read the actual files — do not guess from file names alone
 - Do NOT duplicate existing structural edges listed above
 - Return {"edges": []} if no meaningful relationships exist
-- Maximum 15 relationships per batch
-- Every relationship must have a specific, non-generic rationale
+- Maximum 15 relationships per chunk
+- Every relationship must have a specific rationale based on code you actually read
 ```
-
-Also dispatch one **cross-directory batch** with the top ~20 highest-score nodes from different directories to find cross-module relationships.
 
 **Step 4 — Inject INFERRED edges into the graph**
 

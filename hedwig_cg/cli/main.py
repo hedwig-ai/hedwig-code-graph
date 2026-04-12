@@ -785,6 +785,105 @@ def export_nodes(ctx, db: str | None, source_dir: str, batch_size: int,
         _json_out({"total_nodes": total_nodes, "batches": batches})
 
 
+@cli.command(name="files")
+@click.option("--db", type=click.Path(), default=None)
+@click.option("--source-dir", "-d", type=click.Path(), default=".")
+@click.option("--chunk-size", default=20, type=int,
+              help="Files per chunk for semantic enrichment (default: 20)")
+@click.option("--page", default=None, type=int,
+              help="Page number (1-based). Omit to get all chunks.")
+@click.option("--page-size", default=3, type=int,
+              help="Number of chunks per page (default: 3)")
+@click.pass_context
+def export_files(ctx, db: str | None, source_dir: str, chunk_size: int,
+                 page: int | None, page_size: int):
+    """Export file list grouped by directory for LLM semantic enrichment.
+
+    Subagents read these files directly to extract semantic relationships.
+    Files are grouped by directory so related code lands in the same chunk.
+
+    \b
+    Examples:
+      hedwig-cg files                    # all chunks
+      hedwig-cg files --page 1           # first 3 chunks
+      hedwig-cg files --page 2           # next 3 chunks
+    """
+    from collections import defaultdict
+    from pathlib import PurePosixPath
+
+    db_path = _resolve_db(db, source_dir)
+    if not db_path:
+        _json_error("No database found. Run 'hedwig-cg build' first.")
+
+    from hedwig_cg.storage.store import KnowledgeStore
+    store = KnowledgeStore(db_path)
+    G = store.load_graph()
+
+    if G.number_of_nodes() == 0:
+        store.close()
+        _json_error("Graph is empty. Run 'hedwig-cg build' first.")
+
+    # Collect unique file paths from graph nodes
+    skip_kinds = {"external", "directory"}
+    dir_files: dict[str, set[str]] = defaultdict(set)
+    for _, data in G.nodes(data=True):
+        if data.get("kind") in skip_kinds:
+            continue
+        fp = data.get("file_path", "")
+        if fp:
+            dir_key = str(PurePosixPath(fp).parent)
+            dir_files[dir_key].add(fp)
+
+    # Build chunks grouped by directory
+    chunks = []
+    for dir_key, files in sorted(dir_files.items()):
+        file_list = sorted(files)
+        for i in range(0, len(file_list), chunk_size):
+            chunk_files = file_list[i:i + chunk_size]
+            # Get existing AST edges between nodes in these files
+            file_set = set(chunk_files)
+            existing = []
+            for u, v, edata in G.edges(data=True):
+                u_file = G.nodes[u].get("file_path", "") if G.has_node(u) else ""
+                v_file = G.nodes[v].get("file_path", "") if G.has_node(v) else ""
+                if u_file in file_set and v_file in file_set:
+                    rel = edata.get("relation", "?")
+                    u_label = G.nodes[u].get("label", u)
+                    v_label = G.nodes[v].get("label", v)
+                    existing.append(f"{u_label} --[{rel}]--> {v_label}")
+            chunks.append({
+                "chunk_id": len(chunks),
+                "directory": dir_key,
+                "files": chunk_files,
+                "file_count": len(chunk_files),
+                "existing_edges": existing[:100],
+            })
+
+    store.close()
+
+    total_files = sum(c["file_count"] for c in chunks)
+    total_chunks = len(chunks)
+
+    if page is not None:
+        start = (page - 1) * page_size
+        end = start + page_size
+        page_chunks = chunks[start:end]
+        total_pages = (total_chunks + page_size - 1) // page_size
+        _json_out({
+            "total_files": total_files,
+            "total_chunks": total_chunks,
+            "page": page,
+            "total_pages": total_pages,
+            "chunks": page_chunks,
+        })
+    else:
+        _json_out({
+            "total_files": total_files,
+            "total_chunks": total_chunks,
+            "chunks": chunks,
+        })
+
+
 def _auto_rebuild_command() -> str:
     """Return the shell command for auto-rebuild on session stop."""
     script = Path(__file__).parent.parent / "scripts" / "auto_rebuild.sh"
