@@ -1,5 +1,6 @@
 <p align="center">
-  <h1 align="center">hedwig-cg</h1>
+<img width="2048" height="1138" alt="hegwid-cg" src="https://github.com/user-attachments/assets/2875669b-e7e3-45df-9e50-90110e2abbf1" />
+<h1 align="center">hedwig-cg</h1>
   <p align="center">
     "海德薇一定会带着消息回来的"
     <br />
@@ -18,9 +19,7 @@
 
 ## 为什么选择 hedwig-cg？
 
-hedwig-cg从代码、文档和依赖关系构建统一的知识图谱——让编程代理真正理解你的整个项目，而不仅仅是搜索关键词。安装后，Claude Code就能看到全貌——无需额外的token，无需额外的命令，一切100%本地运行。
-
-<img width="1919" height="991" alt="Code Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
+hedwig-cg从代码、文档和依赖关系构建统一的代码图——专为10,000+文件的企业级代码库设计。5信号混合搜索（向量+图+关键词+社区→RRF融合）让编程代理真正理解你的整个项目，而不仅仅是搜索关键词。安装后Claude Code即可看到全貌——无需额外的token，无需额外的命令，一切100%本地运行。
 
 ## 快速开始
 
@@ -31,11 +30,26 @@ hedwig-cg claude install
 
 然后告诉Claude Code：
 
-> "为这个项目构建知识图谱"
+> "为这个项目构建代码图"
 
-就这样。Claude Code会构建图谱，之后每次搜索都会自动参考。代码变更后：
+就这样。Claude Code会构建图，之后每次搜索都会自动参考。会话结束时图会自动重建。
 
-> "重新构建知识图谱"
+## AI代理集成
+
+hedwig-cg通过一个命令与主要AI编程代理集成：
+
+| 代理 | 安装 | 说明 |
+|------|------|------|
+| **Claude Code** | `hedwig-cg claude install` | Skill + CLAUDE.md + PreToolUse钩子 |
+| **Codex CLI** | `hedwig-cg codex install` | AGENTS.md + PreToolUse钩子 |
+| **Gemini CLI** | `hedwig-cg gemini install` | GEMINI.md + BeforeTool钩子 |
+| **Cursor IDE** | `hedwig-cg cursor install` | `.cursor/rules/`规则文件 |
+| **Windsurf IDE** | `hedwig-cg windsurf install` | `.windsurf/rules/`规则文件 |
+| **Cline** | `hedwig-cg cline install` | `.clinerules`文件 |
+| **Aider CLI** | `hedwig-cg aider install` | CONVENTIONS.md + `.aider.conf.yml` |
+| **MCP服务器** | `claude mcp add hedwig-cg -- hedwig-cg mcp` | Model Context Protocol 5个工具 |
+
+每个`install`会写入上下文文件，并（在支持的平台上）注册工具调用前的钩子。卸载：`hedwig-cg <platform> uninstall`。
 
 ## 支持的语言
 
@@ -56,23 +70,6 @@ hedwig-cg使用[tree-sitter tags.scm](https://tree-sitter.github.io/tree-sitter/
 ### 多语言自然语言支持
 
 文本节点（文档、注释、markdown）使用`intfloat/multilingual-e5-small`嵌入，支持**100多种自然语言**——中文、韩语、日语、德语、法语等。用你的语言搜索，找到任何语言的结果。
-
-## AI代理集成
-
-hedwig-cg通过一个命令与主要AI编程代理集成：
-
-| 代理 | 安装 | 说明 |
-|------|------|------|
-| **Claude Code** | `hedwig-cg claude install` | Skill + CLAUDE.md + PreToolUse钩子 |
-| **Codex CLI** | `hedwig-cg codex install` | AGENTS.md + PreToolUse钩子 |
-| **Gemini CLI** | `hedwig-cg gemini install` | GEMINI.md + BeforeTool钩子 |
-| **Cursor IDE** | `hedwig-cg cursor install` | `.cursor/rules/`规则文件 |
-| **Windsurf IDE** | `hedwig-cg windsurf install` | `.windsurf/rules/`规则文件 |
-| **Cline** | `hedwig-cg cline install` | `.clinerules`文件 |
-| **Aider CLI** | `hedwig-cg aider install` | CONVENTIONS.md + `.aider.conf.yml` |
-| **MCP服务器** | `claude mcp add hedwig-cg -- hedwig-cg mcp` | Model Context Protocol 5个工具 |
-
-每个`install`会写入上下文文件，并（在支持的平台上）注册工具调用前的钩子。卸载：`hedwig-cg <platform> uninstall`。
 
 ---
 
@@ -106,29 +103,35 @@ hedwig-cg通过一个命令与主要AI编程代理集成：
 
 ---
 
-## 架构
+## 5信号混合搜索
 
-```
-源代码/文档
-       |
-       v
-   检测 ──> 提取 ──> 构建 ──> 嵌入 ──> 聚类 ──> 分析 ──> 存储
-           tags.scm  NetworkX  双模型    Leiden    PageRank  SQLite
-           (17种)    DiGraph   FAISS    层次结构   核心节点  FTS5+FAISS
-```
+所有查询经过5个信号，通过逆排名融合（RRF）统合：
 
-### 5信号混合搜索
+| 信号 | 搜索内容 |
+|------|----------|
+| **代码向量** | 语义相似的代码 |
+| **文本向量** | 100+语言的文档和注释 |
+| **图扩展** | 结构连接的节点（调用者、导入） |
+| **全文搜索** | 精确关键词匹配（BM25） |
+| **社区上下文** | 同一集群的相关节点 |
 
-每个搜索查询经过5个独立的检索信号，然后融合为单一排名结果：
+## CLI参考
 
-| 信号 | 引擎 | 搜索内容 |
-|------|------|----------|
-| **代码向量** | FAISS + `bge-small-en-v1.5` | 语义相似的代码（函数、类、方法） |
-| **文本向量** | FAISS + `multilingual-e5-small` | 文档、注释、Markdown（100+语言） |
-| **图扩展** | NetworkX加权BFS | 结构连接的节点（调用者、被调用者、导入） |
-| **全文搜索** | SQLite FTS5 + BM25 | 源代码全文精确关键词匹配 |
-| **社区上下文** | Leiden聚类 | 同一功能集群的相关节点 |
-| **RRF融合** | 加权逆排名融合 | 组合所有信号——被多个信号发现的节点排名更高 |
+所有命令默认输出紧凑JSON（为AI代理消费而设计）。
+
+| 命令 | 说明 |
+|------|------|
+| `build <dir>` | 构建代码图（`--incremental`、`--no-embed`） |
+| `search <query>` | 5信号混合搜索（`--top-k`、`--fast`、`--expand`） |
+| `query` | 交互式搜索REPL |
+| `communities` | 列出和搜索社区（`--search`、`--level`） |
+| `stats` | 图统计 |
+| `node <id>` | 模糊匹配节点详情 |
+| `export` | 导出为JSON、GraphML或D3.js |
+| `visualize` | 交互式HTML可视化 |
+| `clean` | 删除.hedwig-cg/数据库 |
+| `doctor` | 检查安装状态 |
+| `mcp` | 启动MCP服务器（stdio） |
 
 ## 性能
 
@@ -144,10 +147,27 @@ hedwig-cg通过一个命令与主要AI编程代理集成：
 | 热搜索 | ~0.08秒 |
 | 缓存命中 | <1ms |
 
+- **嵌入模型**: ~470MB，仅下载一次到`~/.hedwig-cg/models/`
+- **数据库**: ~2MB（SQLite + FTS5 + FAISS索引）
+- **增量构建**: SHA-256哈希，比完整构建快95%+
+
 ## 要求
 
 - Python 3.10+
 - 嵌入模型 ~470MB（首次使用时缓存）
+
+```bash
+# 可选：PDF提取
+pip install hedwig-cg[docs]
+```
+
+## 开发
+
+```bash
+pip install -e ".[dev]"
+pytest
+ruff check hedwig_cg/
+```
 
 ## 许可证
 

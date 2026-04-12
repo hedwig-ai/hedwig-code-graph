@@ -1,5 +1,6 @@
 <p align="center">
-  <h1 align="center">hedwig-cg</h1>
+<img width="2048" height="1138" alt="hegwid-cg" src="https://github.com/user-attachments/assets/2875669b-e7e3-45df-9e50-90110e2abbf1" />
+<h1 align="center">hedwig-cg</h1>
   <p align="center">
     "Hedwig wird mit der Nachricht zurueckkommen"
     <br />
@@ -18,9 +19,7 @@
 
 ## Warum hedwig-cg?
 
-hedwig-cg erstellt einen einheitlichen Code Graph aus Code, Dokumentation und Abhaengigkeiten — damit Coding-Agents Ihr gesamtes Projekt wirklich verstehen, statt nur Schluesselwoerter zu suchen. Installieren Sie es, und Claude Code sieht das Gesamtbild — keine zusaetzlichen Tokens, keine zusaetzlichen Befehle, alles laeuft 100% lokal.
-
-<img width="1919" height="991" alt="Code Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
+hedwig-cg erstellt einen einheitlichen Code Graph aus Code, Dokumentation und Abhaengigkeiten — konzipiert fuer Enterprise-Codebasen mit 10.000+ Dateien. 5-Signal-Hybridsuche (Vektor + Graph + Keyword + Community → RRF-Fusion) ermoeglicht Coding-Agents, Ihr gesamtes Projekt wirklich zu verstehen. Installieren Sie es, und Claude Code sieht das Gesamtbild — keine zusaetzlichen Tokens, keine zusaetzlichen Befehle, alles laeuft 100% lokal.
 
 ## Schnellstart
 
@@ -33,9 +32,24 @@ Sagen Sie Claude Code:
 
 > "Baue einen Code Graph fuer dieses Projekt"
 
-Das war's. Claude Code baut den Graph und konsultiert ihn ab sofort bei jeder Suche. Bei Code-Aenderungen:
+Das war's. Claude Code baut den Graph und konsultiert ihn ab sofort bei jeder Suche. Der Graph wird automatisch neu gebaut, wenn Ihre Sitzung endet.
 
-> "Code Graph neu bauen"
+## AI-Agent-Integrationen
+
+hedwig-cg integriert sich mit einem Befehl in fuehrende AI Coding Agents:
+
+| Agent | Installation | Beschreibung |
+|-------|-------------|-------------|
+| **Claude Code** | `hedwig-cg claude install` | Skill + CLAUDE.md + PreToolUse-Hook |
+| **Codex CLI** | `hedwig-cg codex install` | AGENTS.md + PreToolUse-Hook |
+| **Gemini CLI** | `hedwig-cg gemini install` | GEMINI.md + BeforeTool-Hook |
+| **Cursor IDE** | `hedwig-cg cursor install` | `.cursor/rules/`-Regeldatei |
+| **Windsurf IDE** | `hedwig-cg windsurf install` | `.windsurf/rules/`-Regeldatei |
+| **Cline** | `hedwig-cg cline install` | `.clinerules`-Datei |
+| **Aider CLI** | `hedwig-cg aider install` | CONVENTIONS.md + `.aider.conf.yml` |
+| **MCP-Server** | `claude mcp add hedwig-cg -- hedwig-cg mcp` | Model Context Protocol 5 Tools |
+
+Jeder `install`-Befehl schreibt eine Kontextdatei und registriert (bei unterstuetzten Plattformen) einen Hook vor Tool-Aufrufen. Entfernen: `hedwig-cg <platform> uninstall`.
 
 ## Unterstuetzte Sprachen
 
@@ -56,23 +70,6 @@ Zusaetzlich erkannt und indiziert: Markdown, PDF, HTML, CSV, YAML, JSON, TOML, S
 ### Mehrsprachige natuerliche Sprache
 
 Textknoten (Dokumente, Kommentare, Markdown) werden mit `intfloat/multilingual-e5-small` eingebettet und unterstuetzen **100+ natuerliche Sprachen** — Deutsch, Koreanisch, Japanisch, Chinesisch, Franzoesisch und mehr. Suchen Sie in Ihrer Sprache, finden Sie Ergebnisse in jeder Sprache.
-
-## AI-Agent-Integrationen
-
-hedwig-cg integriert sich mit einem Befehl in fuehrende AI Coding Agents:
-
-| Agent | Installation | Beschreibung |
-|-------|-------------|-------------|
-| **Claude Code** | `hedwig-cg claude install` | Skill + CLAUDE.md + PreToolUse-Hook |
-| **Codex CLI** | `hedwig-cg codex install` | AGENTS.md + PreToolUse-Hook |
-| **Gemini CLI** | `hedwig-cg gemini install` | GEMINI.md + BeforeTool-Hook |
-| **Cursor IDE** | `hedwig-cg cursor install` | `.cursor/rules/`-Regeldatei |
-| **Windsurf IDE** | `hedwig-cg windsurf install` | `.windsurf/rules/`-Regeldatei |
-| **Cline** | `hedwig-cg cline install` | `.clinerules`-Datei |
-| **Aider CLI** | `hedwig-cg aider install` | CONVENTIONS.md + `.aider.conf.yml` |
-| **MCP-Server** | `claude mcp add hedwig-cg -- hedwig-cg mcp` | Model Context Protocol 5 Tools |
-
-Jeder `install`-Befehl schreibt eine Kontextdatei und registriert (bei unterstuetzten Plattformen) einen Hook vor Tool-Aufrufen. Entfernen: `hedwig-cg <platform> uninstall`.
 
 ---
 
@@ -106,29 +103,35 @@ Keine Cloud-Dienste, keine API-Schluessel, keine Telemetrie. SQLite + FAISS fuer
 
 ---
 
-## Architektur
+## 5-Signal-Hybridsuche
 
-```
-Quellcode/Dokumente
-       |
-       v
-   Erkennen ──> Extrahieren ──> Bauen ──> Einbetten ──> Clustern ──> Analysieren ──> Speichern
-                tags.scm       NetworkX   Dual-        Leiden       PageRank       SQLite
-                (17 Sprachen)  DiGraph    FAISS        Hierarchie   God-Nodes      FTS5+FAISS
-```
+Alle Abfragen durchlaufen fünf Signale, fusioniert durch Reciprocal Rank Fusion (RRF):
 
-### 5-Signal-Hybridsuche
+| Signal | Findet |
+|--------|--------|
+| **Code-Vektor** | Semantisch ähnlichen Code |
+| **Text-Vektor** | Dokumentation und Kommentare in 100+ Sprachen |
+| **Graph-Expansion** | Strukturell verbundene Knoten (Aufrufer, Imports) |
+| **Volltextsuche** | Exakte Keyword-Treffer (BM25) |
+| **Community-Kontext** | Verwandte Knoten aus demselben Cluster |
 
-Jede Suchanfrage durchlaeuft fuenf unabhaengige Abrufsignale und wird dann zu einem einzigen Ranking-Ergebnis fusioniert:
+## CLI-Referenz
 
-| Signal | Engine | Findet |
-|--------|--------|--------|
-| **Code-Vektor** | FAISS + `bge-small-en-v1.5` | Semantisch aehnlichen Code (Funktionen, Klassen, Methoden) |
-| **Text-Vektor** | FAISS + `multilingual-e5-small` | Dokumentation, Kommentare, Markdown (100+ Sprachen) |
-| **Graph-Expansion** | NetworkX gewichtete BFS | Strukturell verbundene Knoten (Aufrufer, Aufgerufene, Imports) |
-| **Volltextsuche** | SQLite FTS5 + BM25 | Exakte Keyword-Treffer im gesamten Quellcode |
-| **Community-Kontext** | Leiden-Clustering | Verwandte Knoten aus demselben funktionalen Cluster |
-| **RRF-Fusion** | Gewichtete reziproke Rang-Fusion | Kombiniert alle Signale — Knoten aus mehreren Signalen ranken hoeher |
+Alle Befehle geben standardmaessig kompaktes JSON aus (fuer AI-Agent-Nutzung konzipiert).
+
+| Befehl | Beschreibung |
+|--------|-------------|
+| `build <dir>` | Code-Graph erstellen (`--incremental`, `--no-embed`) |
+| `search <query>` | 5-Signal-Hybridsuche (`--top-k`, `--fast`, `--expand`) |
+| `query` | Interaktive Such-REPL |
+| `communities` | Communities auflisten und durchsuchen (`--search`, `--level`) |
+| `stats` | Graph-Statistiken |
+| `node <id>` | Knotendetails mit Fuzzy-Matching |
+| `export` | Export als JSON, GraphML oder D3.js |
+| `visualize` | Interaktive HTML-Visualisierung |
+| `clean` | .hedwig-cg/-Datenbank entfernen |
+| `doctor` | Installationsstatus pruefen |
+| `mcp` | MCP-Server starten (stdio) |
 
 ## Leistung
 
@@ -144,10 +147,27 @@ Benchmarks auf der eigenen Codebasis von hedwig-cg (~3.500 Zeilen, 90 Dateien, 1
 | Warme Suche | ~0,08s |
 | Cache-Treffer | <1ms |
 
+- **Einbettungsmodelle**: ~470MB, einmalig nach `~/.hedwig-cg/models/` heruntergeladen
+- **Datenbank**: ~2MB (SQLite + FTS5 + FAISS-Indizes)
+- **Inkrementelle Builds**: SHA-256-Hashing, 95%+ schneller als vollstaendiger Build
+
 ## Anforderungen
 
 - Python 3.10+
 - Einbettungsmodelle ~470MB (beim ersten Gebrauch gecacht)
+
+```bash
+# Optional: PDF-Extraktion
+pip install hedwig-cg[docs]
+```
+
+## Entwicklung
+
+```bash
+pip install -e ".[dev]"
+pytest
+ruff check hedwig_cg/
+```
 
 ## Lizenz
 

@@ -34,6 +34,23 @@ Then tell Claude Code:
 
 That's it. Claude Code will build the graph, and from then on, consult it before every search. The graph auto-rebuilds when your session ends.
 
+## AI Agent Integrations
+
+hedwig-cg integrates with major AI coding agents in one command:
+
+| Agent | Install | What it does |
+|-------|---------|-------------|
+| **Claude Code** | `hedwig-cg claude install` | Skill + CLAUDE.md + PreToolUse hook |
+| **Codex CLI** | `hedwig-cg codex install` | AGENTS.md + PreToolUse hook |
+| **Gemini CLI** | `hedwig-cg gemini install` | GEMINI.md + BeforeTool hook |
+| **Cursor IDE** | `hedwig-cg cursor install` | `.cursor/rules/` rule file |
+| **Windsurf IDE** | `hedwig-cg windsurf install` | `.windsurf/rules/` rule file |
+| **Cline** | `hedwig-cg cline install` | `.clinerules` file |
+| **Aider CLI** | `hedwig-cg aider install` | CONVENTIONS.md + `.aider.conf.yml` |
+| **MCP Server** | `claude mcp add hedwig-cg -- hedwig-cg mcp` | 5 tools over Model Context Protocol |
+
+Each `install` does two things: writes a context file with rules, and (where supported) registers a hook that fires before tool calls. To remove: `hedwig-cg <platform> uninstall`.
+
 ## Supported Languages
 
 ### Deep AST Extraction (17 languages)
@@ -53,23 +70,6 @@ Additionally detects and indexes: Markdown, PDF, HTML, CSV, YAML, JSON, TOML, Sh
 ### Multilingual Natural Language
 
 Text nodes (docs, comments, markdown) are embedded with `intfloat/multilingual-e5-small` supporting **100+ natural languages** — Korean, Japanese, Chinese, German, French, and more. Search in your language, find results in any language.
-
-## AI Agent Integrations
-
-hedwig-cg integrates with major AI coding agents in one command:
-
-| Agent | Install | What it does |
-|-------|---------|-------------|
-| **Claude Code** | `hedwig-cg claude install` | Skill + CLAUDE.md + PreToolUse hook |
-| **Codex CLI** | `hedwig-cg codex install` | AGENTS.md + PreToolUse hook |
-| **Gemini CLI** | `hedwig-cg gemini install` | GEMINI.md + BeforeTool hook |
-| **Cursor IDE** | `hedwig-cg cursor install` | `.cursor/rules/` rule file |
-| **Windsurf IDE** | `hedwig-cg windsurf install` | `.windsurf/rules/` rule file |
-| **Cline** | `hedwig-cg cline install` | `.clinerules` file |
-| **Aider CLI** | `hedwig-cg aider install` | CONVENTIONS.md + `.aider.conf.yml` |
-| **MCP Server** | `claude mcp add hedwig-cg -- hedwig-cg mcp` | 5 tools over Model Context Protocol |
-
-Each `install` does two things: writes a context file with rules, and (where supported) registers a hook that fires before tool calls. To remove: `hedwig-cg <platform> uninstall`.
 
 ---
 
@@ -103,41 +103,17 @@ No cloud services, no API keys, no telemetry. SQLite + FAISS for storage, senten
 
 ---
 
-## Architecture
+## 5-Signal Hybrid Search
 
-```
-Source Code/Docs
-       |
-       v
-   Detect ──> Extract ──> Build ──> Embed ──> Cluster ──> Analyze ──> Store
-              tags.scm    NetworkX   dual       Leiden      PageRank    SQLite
-              (17 langs)  DiGraph    FAISS      hierarchy   god nodes   FTS5+FAISS
-```
+Every query runs through five signals fused via Reciprocal Rank Fusion (RRF):
 
-### 5-Signal Hybrid Search
-
-Every search query runs through five independent retrieval signals, then fuses them into a single ranked result:
-
-```
-  Query: "authentication handler"
-    |
-    |-> 1. Code Vector (bge-small)  -> FAISS cosine similarity
-    |-> 2. Text Vector (e5-small)   -> FAISS cosine similarity
-    |-> 3. Graph Expansion          -> weighted BFS (2-hop neighbors)
-    |-> 4. Full-Text Search (FTS5)  -> BM25 ranking
-    |-> 5. Community Context        -> Leiden cluster summary match
-    |
-    +-> Weighted RRF Fusion -> Final ranked results
-```
-
-| Signal | Engine | What it finds |
-|--------|--------|---------------|
-| **Code Vector** | FAISS + `bge-small-en-v1.5` | Semantically similar code (functions, classes, methods) |
-| **Text Vector** | FAISS + `multilingual-e5-small` | Docs, comments, markdown in 100+ languages |
-| **Graph Expansion** | NetworkX weighted BFS | Structurally connected nodes (callers, callees, imports) |
-| **Full-Text Search** | SQLite FTS5 + BM25 | Exact keyword matches across source code, no snippet limits |
-| **Community Context** | Leiden clustering | Related nodes from the same functional cluster |
-| **RRF Fusion** | Weighted Reciprocal Rank | Combines all signals — nodes found by multiple signals rank higher |
+| Signal | What it finds |
+|--------|---------------|
+| **Code Vector** | Semantically similar code |
+| **Text Vector** | Docs and comments in 100+ languages |
+| **Graph Expansion** | Structurally connected nodes (callers, imports) |
+| **Full-Text Search** | Exact keyword matches (BM25) |
+| **Community Context** | Related nodes from the same cluster |
 
 ## CLI Reference
 
