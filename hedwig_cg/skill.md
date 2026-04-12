@@ -126,18 +126,24 @@ For each chunk, dispatch an Agent with `subagent_type="general-purpose"`. The su
 Each subagent receives this prompt (substitute FILE_LIST and EXISTING_EDGES):
 
 ```
-You are a code architecture analyst. Read the files listed below and identify semantic
-relationships NOT already captured by structural analysis (imports, calls, inheritance).
+You are a code architecture analyst. Read the files listed below and extract a knowledge
+graph fragment — both NEW concept nodes and semantic edges that AST extraction missed.
 
-**Read each file using the Read tool**, then analyze the actual code to find:
-- Design pattern connections (handler implements strategy pattern)
-- Behavioral dependencies (module A's output format must match module B's input)
-- Alternative implementations (two modules solve the same problem differently)
-- Synchronization needs (two files that must stay in sync)
-- Conceptual extensions (module B extends the concept introduced in module A)
-- Wrapping/delegation (module A wraps module B's functionality)
-- Rationale: if comments or docstrings explain WHY a design decision was made,
-  create a `rationale_for` edge
+**Read each file using the Read tool**, then:
+
+1. Extract CONCEPT NODES — abstract ideas, patterns, or cross-cutting concerns that
+   are NOT individual functions/classes but represent higher-level architectural concepts.
+   Examples: "AuthenticationFlow", "ErrorHandlingStrategy", "CachingLayer"
+   Only create concept nodes when they add information beyond what AST already captured.
+
+2. Extract SEMANTIC EDGES between any nodes (existing AST nodes or new concept nodes).
+   Focus on relationships AST cannot find:
+   - Design pattern connections (handler implements strategy pattern)
+   - Behavioral dependencies (module A's output format must match module B's input)
+   - Shared data / synchronization needs (two files that must stay in sync)
+   - Conceptual relationships (module B extends the concept from module A)
+   - Rationale: comments/docstrings explaining WHY → `rationale_for` edge
+   - Semantic similarity: two entities solving the same problem without structural link
 
 ## Files to read
 FILE_LIST
@@ -145,54 +151,58 @@ FILE_LIST
 ## Existing structural edges (do NOT duplicate these — AST already found them)
 EXISTING_EDGES
 
-After reading ALL files, return ONLY valid JSON matching this schema:
+After reading ALL files, output EXACTLY this JSON (no other text):
 {
+  "nodes": [
+    {
+      "id": "concept_snake_case_name",
+      "label": "Human Readable Name",
+      "kind": "concept",
+      "file_path": "source/file.py",
+      "docstring": "Brief description of this concept"
+    }
+  ],
   "edges": [
     {
-      "source": "<file_path::kind::name format>",
-      "target": "<file_path::kind::name format>",
-      "relation": "<relation type>",
-      "confidence": "<INFERRED or AMBIGUOUS>",
-      "confidence_score": <0.0-1.0>,
-      "rationale": "<1 sentence explaining WHY based on what you read>"
+      "source": "node_id",
+      "target": "node_id",
+      "relation": "relation_type",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "rationale": "Why this relationship exists"
     }
   ]
 }
 
-Node ID format: file_path::kind::name (e.g. "src/auth.py::class::AuthHandler")
-Kind values: function, class, method, module, document, section, variable
+Node ID format for EXISTING nodes: file_path::kind::name
+Node ID format for NEW concept nodes: concept_snake_case_name
 
-Valid relation types:
-  semantically_similar_to, alternative_to, depends_on_behavior,
-  implements_pattern, synchronize_with, extends_concept, wraps,
-  delegates_to, rationale_for
+Edge relation types:
+  calls, implements, references, conceptually_related_to, shares_data_with,
+  semantically_similar_to, depends_on_behavior, synchronize_with,
+  extends_concept, wraps, delegates_to, rationale_for
 
 Confidence tagging:
-- INFERRED: reasonable inference with evidence from the code
-- AMBIGUOUS: uncertain relationship — flag for review, do NOT omit
+- EXTRACTED: relationship explicit in source (confidence_score = 1.0)
+- INFERRED: reasonable inference with evidence (confidence_score = 0.6-0.9)
+- AMBIGUOUS: uncertain — flag for review, do NOT omit (confidence_score = 0.1-0.3)
 
-confidence_score is REQUIRED on every edge — never omit, never default to 0.5:
-- Direct structural evidence (shared data structure, clear dependency): 0.8-0.9
-- Reasonable inference with some uncertainty: 0.6-0.7
-- Weak or speculative: 0.4-0.5 (mark as AMBIGUOUS)
-
-Semantic similarity: if two entities solve the same problem without any structural link,
-add a `semantically_similar_to` edge. Only when genuinely non-obvious and cross-cutting.
+confidence_score is REQUIRED on every edge — never omit, never default to 0.5.
 
 Rules:
 - Read the actual files — do not guess from file names alone
 - Do NOT duplicate existing structural edges listed above
-- Return {"edges": []} if no meaningful relationships exist
-- Maximum 15 relationships per chunk
-- Every relationship must have a specific rationale based on code you actually read
+- Only create concept nodes when they represent genuine architectural abstractions
+- Return {"nodes": [], "edges": []} if nothing meaningful found
+- Maximum 10 concept nodes and 15 edges per chunk
+- Every edge must have a specific rationale based on code you actually read
 ```
 
-**Step 4 — Inject INFERRED edges into the graph**
+**Step 4 — Inject nodes and edges into the graph**
 
-Collect all subagent JSON responses. For each valid edge, add it to the graph:
+Collect all subagent JSON responses. Merge and inject both new nodes and edges:
 
 ```python
-# Run this Python snippet to inject edges into the SQLite database
 python3 -c "
 import json, sqlite3
 from pathlib import Path
@@ -200,23 +210,47 @@ from pathlib import Path
 db = Path('.hedwig-cg/knowledge.db')
 conn = sqlite3.connect(str(db))
 
-# All edges from subagents (paste merged JSON here or read from file)
-edges = MERGED_EDGES_JSON
+# All results from subagents merged into one dict
+data = MERGED_RESULTS_JSON  # {'nodes': [...], 'edges': [...]}
 
-nodes = {r[0] for r in conn.execute('SELECT id FROM nodes').fetchall()}
-added = 0
-for e in edges:
-    src, tgt = e.get('source',''), e.get('target','')
-    rel = e.get('relation','')
-    if src in nodes and tgt in nodes and src != tgt:
+# Inject new concept nodes
+nodes_added = 0
+for n in data.get('nodes', []):
+    nid = n.get('id', '')
+    if not nid:
+        continue
+    try:
         conn.execute(
-            'INSERT OR IGNORE INTO edges (source, target, relation, confidence, rationale) VALUES (?,?,?,?,?)',
-            (src, tgt, rel, 'INFERRED', e.get('rationale',''))
+            'INSERT OR IGNORE INTO nodes (id, label, kind, file_path, docstring) VALUES (?,?,?,?,?)',
+            (nid, n.get('label', ''), n.get('kind', 'concept'),
+             n.get('file_path', ''), n.get('docstring', ''))
         )
-        added += 1
+        nodes_added += 1
+    except Exception:
+        pass
+
+# Inject edges (between existing + new nodes)
+all_nodes = {r[0] for r in conn.execute('SELECT id FROM nodes').fetchall()}
+edges_added = 0
+for e in data.get('edges', []):
+    src, tgt = e.get('source', ''), e.get('target', '')
+    rel = e.get('relation', '')
+    conf = e.get('confidence', 'INFERRED')
+    score = e.get('confidence_score', 0.5)
+    rationale = e.get('rationale', '')
+    if src in all_nodes and tgt in all_nodes and src != tgt:
+        try:
+            conn.execute(
+                'INSERT OR IGNORE INTO edges (source, target, relation, confidence, rationale) VALUES (?,?,?,?,?)',
+                (src, tgt, rel, conf, rationale)
+            )
+            edges_added += 1
+        except Exception:
+            pass
+
 conn.commit()
 conn.close()
-print(f'Added {added} INFERRED edges')
+print(f'Added {nodes_added} concept nodes, {edges_added} INFERRED edges')
 "
 ```
 
