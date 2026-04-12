@@ -132,6 +132,8 @@ Focus on:
 - Synchronization needs (two files that must stay in sync)
 - Conceptual extensions (module B extends the concept introduced in module A)
 - Wrapping/delegation (module A wraps module B's functionality)
+- Rationale edges: if a comment, docstring, or section explains WHY a design decision
+  was made, create a `rationale_for` edge from the explaining node to the concept node
 
 ## Nodes
 NODE_LIST
@@ -139,17 +141,46 @@ NODE_LIST
 ## Existing structural edges (do NOT duplicate these)
 EXISTING_EDGES
 
-Return ONLY a valid JSON array. Each element:
-{"source": "<exact node id from file::kind::name format>",
- "target": "<exact node id>",
- "relation": "<one of: semantically_similar_to, alternative_to, depends_on_behavior, implements_pattern, synchronize_with, extends_concept, wraps, delegates_to>",
- "rationale": "<1 sentence explaining WHY this relationship exists>"}
+Return ONLY valid JSON matching this schema:
+{
+  "edges": [
+    {
+      "source": "<exact node id>",
+      "target": "<exact node id>",
+      "relation": "<relation type>",
+      "confidence": "<INFERRED or AMBIGUOUS>",
+      "confidence_score": <0.0-1.0>,
+      "rationale": "<1 sentence explaining WHY>"
+    }
+  ]
+}
+
+Valid relation types:
+  semantically_similar_to, alternative_to, depends_on_behavior,
+  implements_pattern, synchronize_with, extends_concept, wraps,
+  delegates_to, rationale_for
+
+Confidence tagging:
+- INFERRED: reasonable inference with evidence from the code
+- AMBIGUOUS: uncertain relationship — flag for review, do NOT omit
+
+confidence_score is REQUIRED on every edge — never omit, never default to 0.5:
+- Direct structural evidence (shared data structure, clear dependency): 0.8-0.9
+- Reasonable inference with some uncertainty: 0.6-0.7
+- Weak or speculative: 0.4-0.5 (mark as AMBIGUOUS)
+
+Semantic similarity: if two nodes solve the same problem or represent the same idea
+without any structural link, add a `semantically_similar_to` edge with confidence_score
+reflecting similarity (0.6-0.95). Examples:
+- Two functions that both validate user input but never call each other
+- Two error handlers for the same failure mode in different modules
+Only add when the similarity is genuinely non-obvious and cross-cutting.
 
 Rules:
 - Use node IDs EXACTLY as provided (file_path::kind::name format)
 - Do NOT duplicate existing structural edges listed above
-- Return [] if no meaningful semantic relationships exist
-- Maximum 10 relationships per batch
+- Return {"edges": []} if no meaningful relationships exist
+- Maximum 15 relationships per batch
 - Every relationship must have a specific, non-generic rationale
 ```
 
