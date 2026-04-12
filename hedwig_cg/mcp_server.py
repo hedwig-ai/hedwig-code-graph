@@ -328,6 +328,18 @@ def build(directory: str = ".", incremental: bool = True) -> str:
 
     result = run_pipeline(str(target), incremental=incremental)
 
+    nodes = getattr(result, "node_count", 0) or (
+        result.graph.number_of_nodes() if getattr(result, "graph", None) else 0
+    )
+    edges = getattr(result, "edge_count", 0) or (
+        result.graph.number_of_edges() if getattr(result, "graph", None) else 0
+    )
+    files = len(result.detect_result.files) if getattr(result, "detect_result", None) else 0
+
+    # Free large in-memory objects after DB persistence
+    if hasattr(result, "release_memory"):
+        result.release_memory()
+
     # Force reload after build
     _reload()
 
@@ -335,9 +347,9 @@ def build(directory: str = ".", incremental: bool = True) -> str:
         f"## Build Complete\n\n"
         f"- **Directory**: {target}\n"
         f"- **Mode**: {'incremental' if incremental else 'full'}\n"
-        f"- **Nodes**: {result.graph.number_of_nodes()}\n"
-        f"- **Edges**: {result.graph.number_of_edges()}\n"
-        f"- **Files detected**: {len(result.detected_files)}\n"
+        f"- **Nodes**: {nodes}\n"
+        f"- **Edges**: {edges}\n"
+        f"- **Files detected**: {files}\n"
         f"- **Database**: {_get_db_path()}\n"
     )
 

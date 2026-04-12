@@ -248,6 +248,11 @@ def run_pipeline(
                 if skip_ids:
                     _progress("embed", f"Incremental: reusing {len(skip_ids)} existing embeddings")
 
+            # Free incremental tracking sets — no longer needed
+            del re_extracted_files
+            if skip_ids is not None:
+                del existing_ids, nodes_from_changed
+
             total_count = 0
             code_count = 0
             text_count = 0
@@ -262,6 +267,7 @@ def run_pipeline(
                     batch_dict, model_name=model_label, model_type=model_type,
                 )
                 all_embeddings.update(batch_dict)
+                del batch_dict  # free batch immediately after use
                 total_count += len(batch_ids)
                 if model_type == "code":
                     code_count += len(batch_ids)
