@@ -47,6 +47,10 @@ def claude_install(scope: str | None):
         scope = human_choose(
             "Where should hedwig-cg be installed?",
             ["user", "project"],
+            descriptions=[
+                "Global (~/.claude/skills/) — available in ALL projects",
+                "Local (.claude/skills/) — available only in THIS project",
+            ],
             default=1,
         )
 

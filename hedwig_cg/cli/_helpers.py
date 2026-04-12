@@ -77,31 +77,89 @@ def human_done(msg: str = "Done!") -> None:
     click.echo(f"\n{_GREEN}{msg}{_RESET}")
 
 
-def human_choose(prompt: str, choices: list[str], default: int = 1) -> str:
-    """Show a numbered menu and return the chosen value.
+def human_choose(
+    prompt: str,
+    choices: list[str],
+    descriptions: list[str] | None = None,
+    default: int = 1,
+) -> str:
+    """Show an interactive arrow-key menu and return the chosen value.
 
-    Args:
-        prompt: Question text.
-        choices: List of options.
-        default: 1-based default choice.
+    Falls back to numbered input if terminal doesn't support raw mode.
     """
-    click.echo(f"{prompt}\n")
-    for i, choice in enumerate(choices, 1):
-        marker = f"{_BOLD}>{_RESET}" if i == default else " "
-        click.echo(f"  {marker} {i}) {choice}")
-    click.echo()
-    while True:
-        raw = click.prompt(
-            f"Choose [1-{len(choices)}]",
-            default=str(default),
-        )
+    import sys
+
+    selected = default - 1  # 0-based
+
+    def _render(sel: int, clear: bool = False) -> None:
+        """Render the menu. If clear=True, move cursor up and overwrite."""
+        if clear:
+            # Move up len(choices) lines and clear each
+            sys.stdout.write(f"\033[{len(choices)}A")
+        for i, choice in enumerate(choices):
+            desc = f"  {_DIM}{descriptions[i]}{_RESET}" if descriptions else ""
+            if i == sel:
+                line = f"  {_GREEN}{_BOLD}> {choice}{_RESET}{desc}"
+            else:
+                line = f"    {_DIM}{choice}{_RESET}{desc}"
+            sys.stdout.write(f"\033[2K{line}\n")
+        sys.stdout.flush()
+
+    # Try interactive mode (Unix only, needs tty)
+    try:
+        import termios
+        import tty
+
+        if not sys.stdin.isatty():
+            raise OSError("not a tty")
+
+        click.echo(f"{prompt}  {_DIM}(↑↓ to select, Enter to confirm){_RESET}\n")
+        _render(selected)
+
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
         try:
-            idx = int(raw)
-            if 1 <= idx <= len(choices):
+            tty.setraw(fd)
+            while True:
+                ch = sys.stdin.read(1)
+                if ch == "\r" or ch == "\n":
+                    break
+                if ch == "\x03":  # Ctrl+C
+                    raise KeyboardInterrupt
+                if ch == "\x1b":  # Escape sequence
+                    seq = sys.stdin.read(2)
+                    if seq == "[A":  # Up arrow
+                        selected = (selected - 1) % len(choices)
+                    elif seq == "[B":  # Down arrow
+                        selected = (selected + 1) % len(choices)
+                    _render(selected, clear=True)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+        click.echo()  # newline after selection
+        return choices[selected]
+
+    except (ImportError, OSError):
+        # Fallback: numbered input (Windows or non-tty)
+        click.echo(f"{prompt}\n")
+        for i, choice in enumerate(choices, 1):
+            desc = f"  {_DIM}{descriptions[i - 1]}{_RESET}" if descriptions else ""
+            marker = f"{_BOLD}>{_RESET}" if i == default else " "
+            click.echo(f"  {marker} {i}) {choice}{desc}")
+        click.echo()
+        valid = [str(i) for i in range(1, len(choices) + 1)] + choices
+        while True:
+            raw = click.prompt(
+                f"Choose [1-{len(choices)}]",
+                type=click.Choice(valid, case_sensitive=False),
+                default=str(default),
+                show_choices=False,
+            )
+            try:
+                idx = int(raw)
                 return choices[idx - 1]
-        except ValueError:
-            pass
-        click.echo(f"  Please enter a number between 1 and {len(choices)}.")
+            except ValueError:
+                return raw.lower()
 
 
 # --- Utilities ---
