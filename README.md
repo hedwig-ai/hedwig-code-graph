@@ -76,6 +76,36 @@ Each `install` does two things: writes a context file with rules, and (where sup
 
 ---
 
+## Features
+
+### Auto-Rebuild
+
+When integrated with AI coding agents (Claude Code, Codex, etc.), hedwig-cg **automatically rebuilds** the graph when code changes. The Stop/SessionEnd hook detects modified files via `git diff` and triggers an incremental rebuild in the background — zero manual intervention.
+
+### Smart Ignore
+
+hedwig-cg respects ignore patterns from three sources, all using **full gitignore spec** (negation `!`, `**` globs, directory-only patterns):
+
+| Source | Description |
+|--------|-------------|
+| Built-in | `.git`, `node_modules`, `__pycache__`, `dist`, `build`, etc. |
+| `.gitignore` | Auto-read from project root — your existing git ignores just work |
+| `.hedwig-cg-ignore` | Project-specific overrides for the code graph |
+
+### Incremental Builds
+
+SHA-256 content hashing per file. Only changed files are re-extracted and re-embedded. Unchanged files are merged from the existing graph — typically **95%+ faster** than a full rebuild.
+
+### Memory Management
+
+4GB memory budget with stage-wise release. The pipeline generates → stores → frees at each stage: extraction results are freed after graph build, embeddings are streamed in batches and freed after DB write, and the full graph is released after persistence. GC triggers proactively at 75% threshold.
+
+### 100% Local
+
+No cloud services, no API keys, no telemetry. SQLite + FAISS for storage, sentence-transformers for embeddings. All data stays on your machine.
+
+---
+
 ## Architecture
 
 ```
@@ -87,26 +117,30 @@ Source Code/Docs
               (17 langs)  DiGraph    FAISS      hierarchy   god nodes   FTS5+FAISS
 ```
 
-### Hybrid Search (5 Signals)
+### 5-Signal Hybrid Search
+
+Every search query runs through five independent retrieval signals, then fuses them into a single ranked result:
 
 ```
   Query: "authentication handler"
     |
-    |-> 1. Code Vector (bge-small)  -> FAISS cosine
-    |-> 2. Text Vector (e5-small)   -> FAISS cosine
-    |-> 3. Graph Expansion          -> weighted BFS (2-hop)
-    |-> 4. Keyword (FTS5)           -> BM25 ranking
-    |-> 5. Community                -> summary match
+    |-> 1. Code Vector (bge-small)  -> FAISS cosine similarity
+    |-> 2. Text Vector (e5-small)   -> FAISS cosine similarity
+    |-> 3. Graph Expansion          -> weighted BFS (2-hop neighbors)
+    |-> 4. Full-Text Search (FTS5)  -> BM25 ranking
+    |-> 5. Community Context        -> Leiden cluster summary match
     |
     +-> Weighted RRF Fusion -> Final ranked results
 ```
 
-1. **Code Vector** — `BAAI/bge-small-en-v1.5` embeds code nodes, FAISS cosine search
-2. **Text Vector** — `intfloat/multilingual-e5-small` embeds text nodes (100+ languages)
-3. **Graph Expansion** — BFS from vector hits, weighted by edge quality (calls > imports > contains)
-4. **Keyword** — FTS5 full-text over complete source code (no snippet limits)
-5. **Community** — Leiden clustering summaries boost related nodes
-6. **RRF Fusion** — Weighted Reciprocal Rank Fusion combines all signals
+| Signal | Engine | What it finds |
+|--------|--------|---------------|
+| **Code Vector** | FAISS + `bge-small-en-v1.5` | Semantically similar code (functions, classes, methods) |
+| **Text Vector** | FAISS + `multilingual-e5-small` | Docs, comments, markdown in 100+ languages |
+| **Graph Expansion** | NetworkX weighted BFS | Structurally connected nodes (callers, callees, imports) |
+| **Full-Text Search** | SQLite FTS5 + BM25 | Exact keyword matches across source code, no snippet limits |
+| **Community Context** | Leiden clustering | Related nodes from the same functional cluster |
+| **RRF Fusion** | Weighted Reciprocal Rank | Combines all signals — nodes found by multiple signals rank higher |
 
 ## CLI Reference
 

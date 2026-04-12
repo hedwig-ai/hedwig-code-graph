@@ -76,6 +76,36 @@ Jeder `install`-Befehl schreibt eine Kontextdatei und registriert (bei unterstue
 
 ---
 
+## Funktionen
+
+### Automatischer Rebuild
+
+Bei Integration mit KI-Coding-Agenten (Claude Code, Codex usw.) **baut hedwig-cg den Graphen automatisch neu**, wenn sich Code aendert. Der Stop/SessionEnd-Hook erkennt geaenderte Dateien ueber `git diff` und fuehrt im Hintergrund einen inkrementellen Build durch — kein manuelles Eingreifen noetig.
+
+### Intelligentes Ignore
+
+Unterstuetzt Ignore-Muster aus drei Quellen, alle mit **vollstaendiger gitignore-Spezifikation** (Negation `!`, `**`-Globs, verzeichnisspezifische Muster):
+
+| Quelle | Beschreibung |
+|--------|-------------|
+| Eingebaut | `.git`, `node_modules`, `__pycache__`, `dist`, `build` usw. |
+| `.gitignore` | Automatisches Lesen aus dem Projektstamm — bestehende Git-Ignores funktionieren einfach |
+| `.hedwig-cg-ignore` | Projektspezifische Ueberschreibungen fuer den Code-Graphen |
+
+### Inkrementelle Builds
+
+SHA-256-Content-Hashing pro Datei. Nur geaenderte Dateien werden neu extrahiert und neu eingebettet. Unveraenderte Dateien werden aus dem bestehenden Graphen uebernommen — typischerweise **95%+ schneller** als ein vollstaendiger Build.
+
+### Speicherverwaltung
+
+4GB Speicherbudget mit stufenweiser Freigabe. Die Pipeline erzeugt → speichert → gibt frei in jeder Phase: Extraktionsergebnisse werden nach dem Graph-Aufbau freigegeben, Embeddings werden batchweise gestreamt und nach DB-Schreiben freigegeben, der gesamte Graph wird nach der Persistierung freigegeben. GC wird bei 75% Schwellenwert praeventiv ausgeloest.
+
+### 100% Lokal
+
+Keine Cloud-Dienste, keine API-Schluessel, keine Telemetrie. SQLite + FAISS fuer Speicherung, sentence-transformers fuer Embeddings. Alle Daten bleiben auf Ihrem Rechner.
+
+---
+
 ## Architektur
 
 ```
@@ -87,14 +117,18 @@ Quellcode/Dokumente
                 (17 Sprachen)  DiGraph    FAISS        Hierarchie   God-Nodes      FTS5+FAISS
 ```
 
-### Hybridsuche (5 Signale)
+### 5-Signal-Hybridsuche
 
-1. **Code-Vektor** — `BAAI/bge-small-en-v1.5` bettet Code-Knoten ein, FAISS-Kosinus-Suche
-2. **Text-Vektor** — `intfloat/multilingual-e5-small` bettet Textknoten ein (100+ Sprachen)
-3. **Graph-Expansion** — BFS von Vektor-Treffern, gewichtet nach Kantenqualitaet
-4. **Keyword** — FTS5-Volltextsuche ueber vollstaendigen Quellcode
-5. **Community** — Leiden-Clustering-Zusammenfassungen boosten verwandte Knoten
-6. **RRF-Fusion** — Gewichtete reziproke Rang-Fusion kombiniert alle Signale
+Jede Suchanfrage durchlaeuft fuenf unabhaengige Abrufsignale und wird dann zu einem einzigen Ranking-Ergebnis fusioniert:
+
+| Signal | Engine | Findet |
+|--------|--------|--------|
+| **Code-Vektor** | FAISS + `bge-small-en-v1.5` | Semantisch aehnlichen Code (Funktionen, Klassen, Methoden) |
+| **Text-Vektor** | FAISS + `multilingual-e5-small` | Dokumentation, Kommentare, Markdown (100+ Sprachen) |
+| **Graph-Expansion** | NetworkX gewichtete BFS | Strukturell verbundene Knoten (Aufrufer, Aufgerufene, Imports) |
+| **Volltextsuche** | SQLite FTS5 + BM25 | Exakte Keyword-Treffer im gesamten Quellcode |
+| **Community-Kontext** | Leiden-Clustering | Verwandte Knoten aus demselben funktionalen Cluster |
+| **RRF-Fusion** | Gewichtete reziproke Rang-Fusion | Kombiniert alle Signale — Knoten aus mehreren Signalen ranken hoeher |
 
 ## Leistung
 
