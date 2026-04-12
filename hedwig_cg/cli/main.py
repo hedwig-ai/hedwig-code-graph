@@ -666,12 +666,24 @@ def show_node(ctx, node_id: str, db: str | None, source_dir: str):
 @click.option("--source-dir", "-d", type=click.Path(), default=".")
 @click.option("--batch-size", default=20, type=int,
               help="Nodes per batch for semantic enrichment (default: 20)")
+@click.option("--page", default=None, type=int,
+              help="Page number (1-based). Omit to get all batches.")
+@click.option("--page-size", default=5, type=int,
+              help="Number of batches per page (default: 5)")
 @click.pass_context
-def export_nodes(ctx, db: str | None, source_dir: str, batch_size: int):
-    """Export all nodes and edges for LLM semantic enrichment.
+def export_nodes(ctx, db: str | None, source_dir: str, batch_size: int,
+                 page: int | None, page_size: int):
+    """Export nodes and edges for LLM semantic enrichment.
 
     Outputs JSON with nodes grouped by directory into batches,
-    plus existing edges. Designed for AI agent subagent dispatch.
+    plus existing edges. Supports pagination for large graphs.
+
+    \b
+    Examples:
+      hedwig-cg nodes                  # all batches
+      hedwig-cg nodes --page 1         # first 5 batches
+      hedwig-cg nodes --page 2         # next 5 batches
+      hedwig-cg nodes --page 1 --page-size 3  # first 3 batches
     """
     from collections import defaultdict
     from pathlib import PurePosixPath
@@ -755,7 +767,22 @@ def export_nodes(ctx, db: str | None, source_dir: str, batch_size: int):
     store.close()
 
     total_nodes = sum(len(b["nodes"]) for b in batches)
-    _json_out({"total_nodes": total_nodes, "batches": batches})
+    total_batches = len(batches)
+
+    if page is not None:
+        start = (page - 1) * page_size
+        end = start + page_size
+        page_batches = batches[start:end]
+        total_pages = (total_batches + page_size - 1) // page_size
+        _json_out({
+            "total_nodes": total_nodes,
+            "total_batches": total_batches,
+            "page": page,
+            "total_pages": total_pages,
+            "batches": page_batches,
+        })
+    else:
+        _json_out({"total_nodes": total_nodes, "batches": batches})
 
 
 def _auto_rebuild_command() -> str:

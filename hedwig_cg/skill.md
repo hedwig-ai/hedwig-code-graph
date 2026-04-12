@@ -12,10 +12,10 @@ Builds code graphs from source code and documents with LLM semantic enrichment. 
 ## Search (PRIMARY — use this first)
 
 ```bash
-hedwig-cgsearch "database connection pool"       # default: 80 results
-hedwig-cgsearch "auth" --fast                    # text model only, faster
-hedwig-cgsearch "payment billing" --expand       # two-stage query expansion
-hedwig-cgsearch "error handling" --top-k 30      # custom count
+hedwig-cg search "database connection pool"       # default: 80 results
+hedwig-cg search "auth" --fast                    # text model only, faster
+hedwig-cg search "payment billing" --expand       # two-stage query expansion
+hedwig-cg search "error handling" --top-k 30      # custom count
 ```
 
 Response (~140 bytes/result, compact JSON):
@@ -35,25 +35,25 @@ Response (~140 bytes/result, compact JSON):
 
 **Round 1** — Start broad with natural language:
 ```bash
-hedwig-cgsearch "payment processing"
+hedwig-cg search "payment processing"
 ```
 → Results mention `StripeClient`, `checkout_handler`, `PaymentProvider`
 
 **Round 2** — Drill into discovered terms:
 ```bash
-hedwig-cgsearch "StripeClient"
+hedwig-cg search "StripeClient"
 ```
 → Results reveal `create_charge`, `refund_payment`, `validate_card`, `WebhookHandler`
 
 **Round 3** — Follow interesting connections:
 ```bash
-hedwig-cgsearch "webhook payment callback"
+hedwig-cg search "webhook payment callback"
 ```
 → Found `StripeWebhookHandler`, `handle_charge_succeeded`, `update_order_status`
 
 **Round 4** — Explore the related service:
 ```bash
-hedwig-cgsearch "order status update"
+hedwig-cg search "order status update"
 ```
 → Found `OrderService.complete_order`, `NotificationService.send_receipt`
 
@@ -61,13 +61,13 @@ Now you have the full picture: Stripe → Webhook → Order → Notification.
 
 ### Example: "인증 로직 이해하고 싶어"
 
-**Round 1**: `hedwig-cgsearch "authentication login"`
+**Round 1**: `hedwig-cg search "authentication login"`
 → Found `AuthMiddleware`, `JWTTokenManager`, `SessionStore`
 
-**Round 2**: `hedwig-cgsearch "JWTTokenManager"`
+**Round 2**: `hedwig-cg search "JWTTokenManager"`
 → Found `generate_token`, `verify_token`, `refresh_token`, `token_blacklist`
 
-**Round 3**: `hedwig-cgsearch "token blacklist refresh"`
+**Round 3**: `hedwig-cg search "token blacklist refresh"`
 → Found `RedisTokenStore`, `cleanup_expired_tokens`, `rotate_refresh_token`
 
 ### The pattern:
@@ -89,12 +89,12 @@ When building a code graph, **always run the full pipeline** — AST structural 
 **Step 1 — AST structural extraction**
 
 ```bash
-hedwig-cgbuild .
+hedwig-cg build .
 ```
 
 For incremental rebuilds (only changed files):
 ```bash
-hedwig-cgbuild . --incremental
+hedwig-cg build . --incremental
 ```
 
 This produces the base graph with EXTRACTED edges from AST analysis + embeddings + community detection.
@@ -102,20 +102,25 @@ This produces the base graph with EXTRACTED edges from AST analysis + embeddings
 **Step 2 — Read graph stats to prepare semantic enrichment**
 
 ```bash
-hedwig-cgstats
+hedwig-cg stats
 ```
 
 Note the node count. If < 5 nodes, skip semantic enrichment.
 
 **Step 3 — Semantic enrichment via subagents**
 
-Export all nodes grouped into batches for semantic analysis:
+Export nodes grouped into batches for semantic analysis:
 
 ```bash
-hedwig-cgnodes
+hedwig-cg nodes --page 1              # first 5 batches
+hedwig-cg nodes --page 2              # next 5 batches
+hedwig-cg nodes --page 1 --page-size 3  # first 3 batches
+hedwig-cg nodes                        # all batches (small projects)
 ```
 
-This returns all nodes grouped by directory into batches of ~20, plus existing edges within each batch and a cross-directory batch of top PageRank nodes. For each batch, dispatch an Agent tool with `subagent_type="general-purpose"`.
+Returns nodes grouped by directory into batches of ~20, plus existing edges within each batch and a cross-directory batch of top PageRank nodes. Response includes `total_pages` for pagination.
+
+For each page, dispatch Agent tools for each batch with `subagent_type="general-purpose"`. Process page by page until `page == total_pages`.
 
 **MANDATORY: Dispatch ALL agents in a single message for parallel execution.**
 
@@ -231,7 +236,7 @@ print('Search cache cleared')
 **Step 5 — Verify**
 
 ```bash
-hedwig-cgstats
+hedwig-cg stats
 ```
 
 Compare edge count before and after. The new INFERRED edges strengthen graph N-hop traversal and community detection signals in search.
@@ -248,14 +253,14 @@ LLM semantic enrichment finds these. Combined with 5-signal HybridRAG search, th
 ## Inspect
 
 ```bash
-hedwig-cgstats                  # Graph overview
-hedwig-cgnode "AuthHandler"     # Node details (partial match)
+hedwig-cg stats                  # Graph overview
+hedwig-cg node "AuthHandler"     # Node details (partial match)
 ```
 
 ## Rules
 
-- **Always search before grepping.** `hedwig-cgsearch` covers vector, graph, keyword, and community in one call.
+- **Always search before grepping.** `hedwig-cg search` covers vector, graph, keyword, and community in one call.
 - **Don't stop at first results.** Drill into discovered terms for deeper understanding.
 - Use `file` and `lines` from results to read code — don't rely on search output alone.
-- Run `hedwig-cgbuild . --incremental` after code changes.
+- Run `hedwig-cg build . --incremental` after code changes.
 - Errors return `{"error": "message"}`.
