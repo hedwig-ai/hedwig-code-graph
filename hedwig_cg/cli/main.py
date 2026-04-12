@@ -897,6 +897,120 @@ def show_node(ctx, node_id: str, db: str | None, source_dir: str):
     store.close()
 
 
+@cli.command(name="nodes")
+@click.option("--db", type=click.Path(), default=None)
+@click.option("--source-dir", "-d", type=click.Path(), default=".")
+@click.option("--batch-size", default=20, type=int,
+              help="Nodes per batch for semantic enrichment (default: 20)")
+@click.pass_context
+def export_nodes(ctx, db: str | None, source_dir: str, batch_size: int):
+    """Export all nodes and edges for LLM semantic enrichment.
+
+    Outputs JSON with nodes grouped by directory into batches,
+    plus existing edges. Designed for AI agent subagent dispatch.
+    """
+    import json as _json
+    from collections import defaultdict
+    from pathlib import PurePosixPath
+
+    json_mode = ctx.obj.get("json", False) if ctx.obj else False
+    db_path = _resolve_db(db, source_dir)
+    if not db_path:
+        if json_mode:
+            _json_error("No database found. Run 'hedwig-cg build' first.")
+        console.print("[red]No database found.[/] Run 'hedwig-cg build' first.")
+        return
+
+    from hedwig_cg.storage.store import KnowledgeStore
+    store = KnowledgeStore(db_path)
+    G = store.load_graph()
+
+    if G.number_of_nodes() == 0:
+        store.close()
+        if json_mode:
+            _json_error("Graph is empty. Run 'hedwig-cg build' first.")
+        console.print("[red]Graph is empty.[/]")
+        return
+
+    # Collect nodes (skip external/directory)
+    skip_kinds = {"external", "directory"}
+    dir_groups: dict[str, list[dict]] = defaultdict(list)
+    for node_id, data in G.nodes(data=True):
+        if data.get("kind") in skip_kinds:
+            continue
+        node_info = {
+            "id": node_id,
+            "label": data.get("label", ""),
+            "kind": data.get("kind", ""),
+            "file": data.get("file_path", ""),
+            "sig": data.get("signature", "") or "",
+            "doc": (data.get("docstring", "") or "")[:200],
+            "snippet": (data.get("source_snippet", "") or "")[:500],
+        }
+        fp = data.get("file_path", "")
+        dir_key = str(PurePosixPath(fp).parent) if fp else "__no_file__"
+        dir_groups[dir_key].append(node_info)
+
+    # Build batches grouped by directory
+    batches = []
+    for dir_key, nodes in dir_groups.items():
+        for i in range(0, len(nodes), batch_size):
+            chunk = nodes[i:i + batch_size]
+            chunk_ids = {n["id"] for n in chunk}
+            # Existing edges within this batch
+            existing = []
+            for u, v, edata in G.edges(data=True):
+                if u in chunk_ids and v in chunk_ids:
+                    existing.append(f"{u} --[{edata.get('relation', '?')}]--> {v}")
+            batches.append({
+                "batch_id": len(batches),
+                "directory": dir_key,
+                "nodes": chunk,
+                "existing_edges": existing[:50],
+            })
+
+    # Cross-directory batch from top PageRank nodes
+    scored = []
+    for node_id, data in G.nodes(data=True):
+        if data.get("kind") not in skip_kinds:
+            scored.append((data.get("pagerank", 0), node_id))
+    scored.sort(reverse=True)
+    top_ids = [nid for _, nid in scored[:batch_size]]
+    if len(top_ids) >= 2:
+        cross_nodes = []
+        for nid in top_ids:
+            d = dict(G.nodes[nid])
+            cross_nodes.append({
+                "id": nid,
+                "label": d.get("label", ""),
+                "kind": d.get("kind", ""),
+                "file": d.get("file_path", ""),
+                "sig": d.get("signature", "") or "",
+                "doc": (d.get("docstring", "") or "")[:200],
+                "snippet": (d.get("source_snippet", "") or "")[:500],
+            })
+        batches.append({
+            "batch_id": len(batches),
+            "directory": "__cross_directory__",
+            "nodes": cross_nodes,
+            "existing_edges": [],
+        })
+
+    store.close()
+
+    total_nodes = sum(len(b["nodes"]) for b in batches)
+
+    if json_mode:
+        _json_out({"total_nodes": total_nodes, "batches": batches})
+    else:
+        console.print(f"[green]{total_nodes} nodes[/] in {len(batches)} batches")
+        for b in batches:
+            console.print(
+                f"  Batch {b['batch_id']}: {len(b['nodes'])} nodes "
+                f"({b['directory']}, {len(b['existing_edges'])} existing edges)"
+            )
+
+
 def _auto_rebuild_command() -> str:
     """Return the shell command for auto-rebuild on session stop."""
     script = Path(__file__).parent.parent / "scripts" / "auto_rebuild.sh"

@@ -109,14 +109,13 @@ Note the node count. If < 5 nodes, skip semantic enrichment.
 
 **Step 3 — Semantic enrichment via subagents**
 
-Read the code graph nodes by searching for high-connectivity nodes, then dispatch subagents to find semantic relationships.
+Export all nodes grouped into batches for semantic analysis:
 
-Run a broad search to get the important nodes:
 ```bash
-hedwig-cg --json search "*" --top-k 200
+hedwig-cg --json nodes
 ```
 
-Group the results by directory (nodes with similar `file` paths). Split into chunks of ~20 nodes each. For each chunk, dispatch an Agent tool with `subagent_type="general-purpose"`.
+This returns all nodes grouped by directory into batches of ~20, plus existing edges within each batch and a cross-directory batch of top PageRank nodes. For each batch, dispatch an Agent tool with `subagent_type="general-purpose"`.
 
 **MANDATORY: Dispatch ALL agents in a single message for parallel execution.**
 
