@@ -123,7 +123,7 @@ class TestCLIBuild:
         result = runner.invoke(cli, ["build", str(src), "--no-embed",
                                      "--output", str(tmp_path / "out")])
         assert result.exit_code == 0
-        assert "Build Summary" in result.output
+        assert "nodes" in result.output  # JSON output contains node count
         assert (tmp_path / "out" / "knowledge.db").exists()
 
     def test_build_nonexistent_dir(self):
@@ -140,17 +140,16 @@ class TestCLIStats:
         runner = CliRunner()
         result = runner.invoke(cli, ["stats", "--source-dir", str(project_dir)])
         assert result.exit_code == 0
-        assert "Nodes" in result.output
-        assert "Edges" in result.output
+        assert "nodes" in result.output
+        assert "edges" in result.output
 
     def test_stats_shows_graph_quality(self, tmp_path):
         project_dir = _create_test_db(tmp_path)
         runner = CliRunner()
         result = runner.invoke(cli, ["stats", "--source-dir", str(project_dir)])
         assert result.exit_code == 0
-        assert "Density" in result.output
-        assert "Connected components" in result.output
-        assert "clustering" in result.output.lower()
+        assert "density" in result.output
+        assert "components" in result.output
 
     def test_stats_no_db(self, tmp_path):
         runner = CliRunner()
@@ -194,7 +193,7 @@ class TestCLICommunities:
         runner = CliRunner()
         result = runner.invoke(cli, ["communities", "--source-dir", str(project_dir)])
         assert result.exit_code == 0
-        assert "Communities" in result.output
+        assert "id" in result.output  # JSON array of community objects
 
     def test_communities_search(self, tmp_path):
         project_dir = _create_test_db(tmp_path)
@@ -289,7 +288,7 @@ class TestCLIVisualize:
         assert '<script src="https://d3js.org/d3.v7.min.js">' not in html
         assert len(html) > 280000  # ~280KB D3 inlined
         assert "d3.forceSimulation" in html
-        assert "Offline mode" in result.output
+        assert "offline" in result.output  # JSON output includes offline flag
 
     def test_visualize_no_db(self, tmp_path):
         runner = CliRunner()
@@ -429,7 +428,7 @@ class TestCLINode:
             "node", "NonExistentNode12345",
             "--source-dir", str(project_dir),
         ])
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         assert "not found" in result.output.lower()
 
 
