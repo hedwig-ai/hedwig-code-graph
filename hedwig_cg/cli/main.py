@@ -9,25 +9,17 @@ Usage:
 
 from __future__ import annotations
 
+import logging
+import os
+import warnings
 from pathlib import Path
 
 import click
-from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.table import Table
-
-console = Console()
 
 
 def _suppress_library_logs():
-    """Suppress noisy library logs for JSON output mode."""
-    import logging
-    import os
-    import warnings
-
     warnings.filterwarnings("ignore")
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
-    # Disable tqdm progress bars (used by sentence-transformers "Loading weights")
     os.environ["TQDM_DISABLE"] = "1"
     for name in [
         "sentence_transformers", "transformers", "torch", "huggingface_hub",
@@ -37,7 +29,7 @@ def _suppress_library_logs():
 
 
 def _json_out(data) -> None:
-    """Print JSON to stdout (no Rich formatting)."""
+    """Print JSON to stdout."""
     import json
     click.echo(json.dumps(data, separators=(",", ":"), default=str))
 
@@ -51,15 +43,11 @@ def _json_error(message: str) -> None:
 
 @click.group()
 @click.version_option(version=None, prog_name="hedwig-cg", package_name="hedwig-cg")
-@click.option("--json", "json_output", is_flag=True, default=False,
-              help="Output as JSON (for AI agent consumption). Suppresses all non-JSON output.")
 @click.pass_context
-def cli(ctx, json_output: bool):
+def cli(ctx):
     """hedwig-cg: Code graph with LLM semantic enrichment and hybrid search."""
     ctx.ensure_object(dict)
-    ctx.obj["json"] = json_output
-    if json_output:
-        _suppress_library_logs()
+    _suppress_library_logs()
 
 
 @cli.command()
@@ -84,40 +72,16 @@ def build(
     """Build code graph from a source directory."""
     from hedwig_cg.core.pipeline import run_pipeline
 
-    json_mode = ctx.obj.get("json", False) if ctx.obj else False
-
-    if json_mode:
-        result = run_pipeline(
-            source_dir=source_dir,
-            output_dir=output,
-            embed=not no_embed,
-            model_name=model,
-            max_file_size=max_file_size,
-            on_progress=None,
-            incremental=incremental,
-            lang=lang,
-        )
-    else:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
-            task = progress.add_task("Starting...", total=None)
-
-            def on_progress(stage: str, detail: str):
-                progress.update(task, description=f"[cyan]{stage}[/]: {detail}")
-
-            result = run_pipeline(
-                source_dir=source_dir,
-                output_dir=output,
-                embed=not no_embed,
-                model_name=model,
-                max_file_size=max_file_size,
-                on_progress=on_progress,
-                incremental=incremental,
-                lang=lang,
-            )
+    result = run_pipeline(
+        source_dir=source_dir,
+        output_dir=output,
+        embed=not no_embed,
+        model_name=model,
+        max_file_size=max_file_size,
+        on_progress=None,
+        incremental=incremental,
+        lang=lang,
+    )
 
     # Capture summary values before releasing memory
     files_detected = len(result.detect_result.files) if result.detect_result else 0
@@ -132,46 +96,16 @@ def build(
     # Release large in-memory objects (all data is persisted in SQLite)
     result.release_memory()
 
-    if json_mode:
-        _json_out({
-            "files_detected": files_detected,
-            "files_skipped": files_skipped,
-            "nodes": nodes,
-            "edges": edges,
-            "communities": communities,
-            "embeddings": embeddings,
-            "database": db_path,
-            "stage_timings": stage_timings,
-        })
-        return
-
-    # Summary (Rich mode)
-    console.print()
-    table = Table(title="Build Summary")
-    table.add_column("Metric", style="bold")
-    table.add_column("Value", justify="right")
-
-    table.add_row("Files detected", str(files_detected))
-    table.add_row("Files skipped", str(files_skipped))
-    table.add_row("Nodes", str(nodes))
-    table.add_row("Edges", str(edges))
-    table.add_row("Communities", str(communities))
-    table.add_row("Embeddings", str(embeddings))
-    table.add_row("Database", db_path)
-
-    console.print(table)
-
-    # Show per-stage timing breakdown
-    if stage_timings:
-        timing_table = Table(title="Stage Timings")
-        timing_table.add_column("Stage", style="bold")
-        timing_table.add_column("Time", justify="right")
-        for stage, secs in stage_timings.items():
-            if stage == "total":
-                timing_table.add_row(f"[bold]{stage}[/bold]", f"[bold]{secs:.1f}s[/bold]")
-            else:
-                timing_table.add_row(stage, f"{secs:.1f}s")
-        console.print(timing_table)
+    _json_out({
+        "files_detected": files_detected,
+        "files_skipped": files_skipped,
+        "nodes": nodes,
+        "edges": edges,
+        "communities": communities,
+        "embeddings": embeddings,
+        "database": db_path,
+        "stage_timings": stage_timings,
+    })
 
 
 @cli.command()
@@ -190,24 +124,15 @@ def search(ctx, query: str, db: str | None, top_k: int, source_dir: str, fast: b
     from hedwig_cg.query.hybrid import expanded_search, hybrid_search
     from hedwig_cg.storage.store import KnowledgeStore
 
-    json_mode = ctx.obj.get("json", False) if ctx.obj else False
-
     db_path = _resolve_db(db, source_dir)
     if not db_path:
-        if json_mode:
-            _json_error("No knowledge base found. Run 'hedwig-cg build' first.")
-        console.print("[red]No knowledge base found. Run 'hedwig-cg build' first.[/]")
-        raise SystemExit(1)
+        _json_error("No knowledge base found. Run 'hedwig-cg build' first.")
 
     store = KnowledgeStore(db_path)
     G = store.load_graph()
 
     if G.number_of_nodes() == 0:
-        if json_mode:
-            _json_out([])
-            store.close()
-            return
-        console.print("[yellow]Knowledge base is empty.[/]")
+        _json_out([])
         store.close()
         return
 
@@ -215,8 +140,7 @@ def search(ctx, query: str, db: str | None, top_k: int, source_dir: str, fast: b
     try:
         store.build_vector_index()
     except Exception:
-        if not json_mode:
-            console.print("[dim]Vector index not available, keyword search only.[/]")
+        pass
 
     # Read text model from DB metadata (set during build)
     text_model = store.get_meta("text_model", None)
@@ -225,34 +149,29 @@ def search(ctx, query: str, db: str | None, top_k: int, source_dir: str, fast: b
         query, store, G, top_k=top_k, fast=fast, text_model=text_model,
     )
 
-    if json_mode:
-        # Compact output: omit empty fields, use relative paths, round floats
-        source_dir_str = str(Path(source_dir).resolve()) + "/" if source_dir else ""
+    # Compact output: omit empty fields, use relative paths, round floats
+    source_dir_str = str(Path(source_dir).resolve()) + "/" if source_dir else ""
 
-        def _compact_result(r):
-            rel_path = r.file_path
-            if source_dir_str and rel_path.startswith(source_dir_str):
-                rel_path = rel_path[len(source_dir_str):]
-            d = {
-                "label": r.label,
-                "kind": r.kind,
-                "file": rel_path,
-                "lines": [r.start_line, getattr(r, "end_line", 0)],
-                "score": round(r.score, 3),
-            }
-            sig = getattr(r, "signature", "")
-            if sig:
-                d["sig"] = sig
-            doc = getattr(r, "docstring", "")
-            if doc:
-                d["doc"] = doc
-            return d
+    def _compact_result(r):
+        rel_path = r.file_path
+        if source_dir_str and rel_path.startswith(source_dir_str):
+            rel_path = rel_path[len(source_dir_str):]
+        d = {
+            "label": r.label,
+            "kind": r.kind,
+            "file": rel_path,
+            "lines": [r.start_line, getattr(r, "end_line", 0)],
+            "score": round(r.score, 3),
+        }
+        sig = getattr(r, "signature", "")
+        if sig:
+            d["sig"] = sig
+        doc = getattr(r, "docstring", "")
+        if doc:
+            d["doc"] = doc
+        return d
 
-        _json_out([_compact_result(r) for r in results])
-        store.close()
-        return
-
-    _print_search_results(query, results)
+    _json_out([_compact_result(r) for r in results])
     store.close()
 
 
@@ -264,42 +183,6 @@ def _file_loc(r) -> str:
     return name
 
 
-def _print_search_results(query: str, results: list) -> None:
-    """Print search results as a Rich table."""
-    if not results:
-        console.print("[yellow]No results found.[/]")
-        return
-
-    table = Table(title=f"Search: '{query}'")
-    table.add_column("#", style="dim", width=3)
-    table.add_column("Label", style="bold")
-    table.add_column("Kind")
-    table.add_column("File")
-    table.add_column("Score", justify="right")
-    table.add_column("Signals", style="dim")
-    table.add_column("Neighbors", style="dim")
-
-    for i, r in enumerate(results, 1):
-        # Format signal contributions as compact abbreviations
-        sig_parts = []
-        abbrev = {"code_vector": "cv", "text_vector": "tv", "graph": "g",
-                  "keyword": "kw", "community": "cm"}
-        for sname, sval in sorted(r.signal_contributions.items(), key=lambda x: -x[1]):
-            if sval > 0:
-                sig_parts.append(f"{abbrev.get(sname, sname[:2])}:{sval:.3f}")
-        table.add_row(
-            str(i),
-            r.label,
-            r.kind,
-            _file_loc(r) if r.file_path else "",
-            f"{r.score:.4f}",
-            " ".join(sig_parts[:3]),
-            ", ".join(r.neighbors[:3]),
-        )
-
-    console.print(table)
-
-
 @cli.command()
 @click.option("--db", type=click.Path(), default=None, help="Path to knowledge.db")
 @click.option("--source-dir", type=click.Path(), default=".", help="Source dir")
@@ -308,14 +191,9 @@ def stats(ctx, db: str | None, source_dir: str):
     """Show code graph statistics."""
     from hedwig_cg.storage.store import KnowledgeStore
 
-    json_mode = ctx.obj.get("json", False) if ctx.obj else False
-
     db_path = _resolve_db(db, source_dir)
     if not db_path:
-        if json_mode:
-            _json_error("No knowledge base found. Run 'hedwig-cg build' first.")
-        console.print("[red]No knowledge base found. Run 'hedwig-cg build' first.[/]")
-        raise SystemExit(1)
+        _json_error("No knowledge base found. Run 'hedwig-cg build' first.")
 
     store = KnowledgeStore(db_path)
     G = store.load_graph()
@@ -349,49 +227,19 @@ def stats(ctx, db: str | None, source_dir: str):
     comm_count = store.conn.execute("SELECT COUNT(*) FROM communities").fetchone()[0]
     emb_count = store.conn.execute("SELECT COUNT(*) FROM embeddings").fetchone()[0]
 
-    if json_mode:
-        _json_out({
-            "nodes": G.number_of_nodes(),
-            "edges": G.number_of_edges(),
-            "node_kinds": kinds,
-            "edge_confidence": conf,
-            "density": density,
-            "connected_components": components,
-            "avg_clustering_coeff": avg_clustering,
-            "communities": comm_count,
-            "embeddings": emb_count,
-            "database": str(db_path),
-            "source": store.get_meta("source_dir", "unknown"),
-        })
-        store.close()
-        return
-
-    table = Table(title="Knowledge Base Statistics")
-    table.add_column("Metric", style="bold")
-    table.add_column("Value", justify="right")
-
-    table.add_row("Nodes", str(G.number_of_nodes()))
-    table.add_row("Edges", str(G.number_of_edges()))
-
-    for k, v in sorted(kinds.items(), key=lambda x: -x[1]):
-        table.add_row(f"  {k}", str(v))
-
-    for c, v in sorted(conf.items()):
-        table.add_row(f"  {c} edges", str(v))
-
-    if density is not None:
-        table.add_row("Density", f"{density:.4f}")
-    if components is not None:
-        table.add_row("Connected components", str(components))
-    if avg_clustering is not None:
-        table.add_row("Avg clustering coeff", f"{avg_clustering:.4f}")
-
-    table.add_row("Communities", str(comm_count))
-    table.add_row("Embeddings", str(emb_count))
-    table.add_row("Database", str(db_path))
-    table.add_row("Source", store.get_meta("source_dir", "unknown"))
-
-    console.print(table)
+    _json_out({
+        "nodes": G.number_of_nodes(),
+        "edges": G.number_of_edges(),
+        "node_kinds": kinds,
+        "edge_confidence": conf,
+        "density": density,
+        "connected_components": components,
+        "avg_clustering_coeff": avg_clustering,
+        "communities": comm_count,
+        "embeddings": emb_count,
+        "database": str(db_path),
+        "source": store.get_meta("source_dir", "unknown"),
+    })
     store.close()
 
 
@@ -405,94 +253,46 @@ def communities(ctx, db: str | None, source_dir: str, level: int | None, query: 
     """List and search communities in the code graph."""
     from hedwig_cg.storage.store import KnowledgeStore
 
-    json_mode = ctx.obj.get("json", False) if ctx.obj else False
-
     db_path = _resolve_db(db, source_dir)
     if not db_path:
-        if json_mode:
-            _json_error("No knowledge base found. Run 'hedwig-cg build' first.")
-        console.print("[red]No knowledge base found. Run 'hedwig-cg build' first.[/]")
-        raise SystemExit(1)
+        _json_error("No knowledge base found. Run 'hedwig-cg build' first.")
 
     store = KnowledgeStore(db_path)
 
     if query:
         terms = [t.lower() for t in query.split() if len(t) > 2]
         results = store.community_search(terms, top_k=10)
-        if json_mode:
-            _json_out([
-                {
-                    "community_id": r["community_id"],
-                    "level": r["level"],
-                    "node_count": len(r["node_ids"]),
-                    "score": r["score"],
-                    "summary": r["summary"],
-                    "node_ids": r["node_ids"],
-                }
-                for r in results
-            ])
-            store.close()
-            return
-        if not results:
-            console.print("[yellow]No matching communities found.[/]")
-            store.close()
-            return
-        table = Table(title=f"Communities matching '{query}'")
-        table.add_column("ID", justify="right")
-        table.add_column("Level", justify="right")
-        table.add_column("Nodes", justify="right")
-        table.add_column("Score", justify="right")
-        table.add_column("Summary", max_width=60)
-        for r in results:
-            table.add_row(
-                str(r["community_id"]),
-                str(r["level"]),
-                str(len(r["node_ids"])),
-                f"{r['score']:.1f}",
-                (r["summary"] or "")[:60],
-            )
-        console.print(table)
-    else:
-        sql = "SELECT id, level, resolution, summary FROM communities"
-        params: list = []
-        if level is not None:
-            sql += " WHERE level = ?"
-            params.append(level)
-        sql += " ORDER BY level, id"
-        rows = store.conn.execute(sql, params).fetchall()
+        _json_out([
+            {
+                "community_id": r["community_id"],
+                "level": r["level"],
+                "node_count": len(r["node_ids"]),
+                "score": r["score"],
+                "summary": r["summary"],
+                "node_ids": r["node_ids"],
+            }
+            for r in results
+        ])
+        store.close()
+        return
 
-        if json_mode:
-            _json_out([
-                {
-                    "id": row["id"],
-                    "level": row["level"],
-                    "resolution": row["resolution"],
-                    "summary": row["summary"],
-                }
-                for row in rows
-            ])
-            store.close()
-            return
+    sql = "SELECT id, level, resolution, summary FROM communities"
+    params: list = []
+    if level is not None:
+        sql += " WHERE level = ?"
+        params.append(level)
+    sql += " ORDER BY level, id"
+    rows = store.conn.execute(sql, params).fetchall()
 
-        if not rows:
-            console.print("[yellow]No communities found.[/]")
-            store.close()
-            return
-
-        table = Table(title="Communities")
-        table.add_column("ID", justify="right")
-        table.add_column("Level", justify="right")
-        table.add_column("Resolution", justify="right")
-        table.add_column("Summary", max_width=70)
-        for row in rows:
-            table.add_row(
-                str(row["id"]),
-                str(row["level"]),
-                f"{row['resolution']:.2f}",
-                (row["summary"] or "")[:70],
-            )
-        console.print(table)
-
+    _json_out([
+        {
+            "id": row["id"],
+            "level": row["level"],
+            "resolution": row["resolution"],
+            "summary": row["summary"],
+        }
+        for row in rows
+    ])
     store.close()
 
 
@@ -511,8 +311,7 @@ def export(db: str | None, source_dir: str, fmt: str, output: str | None):
 
     db_path = _resolve_db(db, source_dir)
     if not db_path:
-        console.print("[red]No knowledge base found.[/]")
-        raise SystemExit(1)
+        _json_error("No knowledge base found.")
 
     store = KnowledgeStore(db_path)
     G = store.load_graph()
@@ -535,7 +334,7 @@ def export(db: str | None, source_dir: str, fmt: str, output: str | None):
         out = output or "code_graph.graphml"
         nx.write_graphml(G2, out)
 
-    console.print(f"[green]Exported to {out}[/]")
+    _json_out({"exported": out})
     store.close()
 
 
@@ -603,8 +402,7 @@ def visualize(
 
     db_path = _resolve_db(db, source_dir)
     if not db_path:
-        console.print("[red]No knowledge base found. Run 'hedwig-cg build' first.[/]")
-        raise SystemExit(1)
+        _json_error("No knowledge base found. Run 'hedwig-cg build' first.")
 
     store = KnowledgeStore(db_path)
     G = store.load_graph()
@@ -621,12 +419,12 @@ def visualize(
     out = output or "code_graph.html"
     Path(out).write_text(html)
 
-    console.print(f"[green]Visualization saved to {out}[/]")
-    console.print(f"  Nodes: {d3_data['metadata']['node_count']}, "
-                  f"Links: {d3_data['metadata']['link_count']}")
-    if offline:
-        console.print("  [dim]Offline mode: D3.js inlined (~280KB)[/]")
-    console.print(f"  Open in browser: file://{Path(out).resolve()}")
+    _json_out({
+        "file": str(Path(out).resolve()),
+        "nodes": d3_data["metadata"]["node_count"],
+        "links": d3_data["metadata"]["link_count"],
+        "offline": offline,
+    })
     store.close()
 
 
@@ -643,21 +441,21 @@ def clean(source_dir: str, db: str | None, yes: bool):
     if db:
         target = Path(db)
         if not target.exists():
-            console.print("[yellow]Database not found.[/]")
+            print("Database not found.")
             return
         if not yes:
             click.confirm(f"Delete {target}?", abort=True)
         target.unlink()
-        console.print(f"[green]Removed {target}[/]")
+        print(f"Removed {target}")
     else:
         kb_dir = Path(source_dir).resolve() / ".hedwig-cg"
         if not kb_dir.exists():
-            console.print("[yellow]No .hedwig-cg/ directory found.[/]")
+            print("No .hedwig-cg/ directory found.")
             return
         if not yes:
             click.confirm(f"Delete {kb_dir}/?", abort=True)
         shutil.rmtree(kb_dir)
-        console.print(f"[green]Removed {kb_dir}/[/]")
+        print(f"Removed {kb_dir}/")
 
 
 @cli.command()
@@ -680,24 +478,25 @@ def query(db: str | None, source_dir: str, top_k: int):
 
     db_path = _resolve_db(db, source_dir)
     if not db_path:
-        console.print("[red]No knowledge base found. Run 'hedwig-cg build' first.[/]")
+        print("No knowledge base found. Run 'hedwig-cg build' first.")
         raise SystemExit(1)
 
     store = KnowledgeStore(db_path)
     G = store.load_graph()
 
     if G.number_of_nodes() == 0:
-        console.print("[yellow]Knowledge base is empty.[/]")
+        print("Knowledge base is empty.")
         store.close()
         return
 
     try:
         store.build_vector_index()
     except Exception:
-        console.print("[dim]Vector index not available, keyword search only.[/]")
+        print("Vector index not available, keyword search only.")
 
     # Preload embedding models in background thread so first search is fast
     import threading
+
     def _preload_models():
         try:
             from hedwig_cg.query.embeddings import CODE_MODEL, TEXT_MODEL, _get_model
@@ -707,10 +506,9 @@ def query(db: str | None, source_dir: str, top_k: int):
             pass
     threading.Thread(target=_preload_models, daemon=True).start()
 
-    console.print(f"[bold green]hedwig-cg query REPL[/] — "
-                  f"{G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
-    console.print("[dim]Type a query to search. :quit to exit. :node <id> for details.[/]")
-    console.print("[dim]Models loading in background...[/]\n")
+    print(f"hedwig-cg query REPL — {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
+    print("Type a query to search. :quit to exit. :node <id> for details.")
+    print("Models loading in background...\n")
 
     while True:
         try:
@@ -728,14 +526,18 @@ def query(db: str | None, source_dir: str, top_k: int):
             node_id = user_input[6:].strip()
             _repl_show_node(G, node_id)
         elif user_input == ":stats":
-            console.print(f"  Nodes: {G.number_of_nodes()}, "
-                          f"Edges: {G.number_of_edges()}")
+            print(f"  Nodes: {G.number_of_nodes()}, Edges: {G.number_of_edges()}")
         else:
             results = hybrid_search(user_input, store, G, top_k=top_k)
-            _print_search_results(user_input, results)
+            _json_out([{
+                "label": r.label,
+                "kind": r.kind,
+                "file": r.file_path,
+                "score": round(r.score, 3),
+            } for r in results])
 
     store.close()
-    console.print("[dim]Session ended.[/]")
+    print("Session ended.")
 
 
 def _repl_show_node(G, node_id: str) -> None:
@@ -743,17 +545,17 @@ def _repl_show_node(G, node_id: str) -> None:
     if node_id not in G:
         matches = [n for n in G.nodes() if node_id.lower() in n.lower()]
         if not matches:
-            console.print(f"[red]Node '{node_id}' not found.[/]")
+            print(f"Node '{node_id}' not found.")
             return
         node_id = matches[0]
 
     data = G.nodes[node_id]
-    console.print(f"  [bold]{data.get('label', node_id)}[/] ({data.get('kind', '')})")
-    console.print(f"  File: {data.get('file_path', '')}")
-    console.print(f"  PageRank: {data.get('pagerank', 0):.6f}")
+    print(f"  {data.get('label', node_id)} ({data.get('kind', '')})")
+    print(f"  File: {data.get('file_path', '')}")
+    print(f"  PageRank: {data.get('pagerank', 0):.6f}")
     out_count = len(list(G.out_edges(node_id)))
     in_count = len(list(G.in_edges(node_id)))
-    console.print(f"  Edges: {out_count} outgoing, {in_count} incoming")
+    print(f"  Edges: {out_count} outgoing, {in_count} incoming")
 
 
 def _build_viz_html(d3_data: dict, *, offline: bool = False) -> str:
@@ -813,14 +615,9 @@ def show_node(ctx, node_id: str, db: str | None, source_dir: str):
     """Show details of a specific node."""
     from hedwig_cg.storage.store import KnowledgeStore
 
-    json_mode = ctx.obj.get("json", False) if ctx.obj else False
-
     db_path = _resolve_db(db, source_dir)
     if not db_path:
-        if json_mode:
-            _json_error("No knowledge base found.")
-        console.print("[red]No knowledge base found.[/]")
-        raise SystemExit(1)
+        _json_error("No knowledge base found.")
 
     store = KnowledgeStore(db_path)
     G = store.load_graph()
@@ -829,71 +626,38 @@ def show_node(ctx, node_id: str, db: str | None, source_dir: str):
         # Try fuzzy match
         matches = [n for n in G.nodes() if node_id.lower() in n.lower()]
         if not matches:
-            if json_mode:
-                _json_error(f"Node '{node_id}' not found.")
-            console.print(f"[red]Node '{node_id}' not found.[/]")
-            store.close()
-            return
+            _json_error(f"Node '{node_id}' not found.")
         node_id = matches[0]
-        if len(matches) > 1 and not json_mode:
-            console.print(f"[yellow]Multiple matches, showing: {node_id}[/]")
 
     data = G.nodes[node_id]
 
-    if json_mode:
-        _json_out({
-            "node_id": node_id,
-            "label": data.get("label", node_id),
-            "kind": data.get("kind", ""),
-            "file_path": data.get("file_path", ""),
-            "start_line": data.get("start_line"),
-            "pagerank": data.get("pagerank", 0),
-            "signature": data.get("signature"),
-            "outgoing": [
-                {
-                    "target": target,
-                    "target_label": G.nodes[target].get("label", target) if target in G else target,
-                    "relation": edata.get("relation", ""),
-                    "confidence": edata.get("confidence", ""),
-                }
-                for _, target, edata in G.out_edges(node_id, data=True)
-            ],
-            "incoming": [
-                {
-                    "source": source,
-                    "source_label": G.nodes[source].get("label", source) if source in G else source,
-                    "relation": edata.get("relation", ""),
-                    "confidence": edata.get("confidence", ""),
-                }
-                for source, _, edata in G.in_edges(node_id, data=True)
-            ],
-        })
-        store.close()
-        return
-
-    console.print(f"\n[bold]{data.get('label', node_id)}[/] ({data.get('kind', '')})")
-    console.print(f"  File: {data.get('file_path', '')}")
-    console.print(f"  Line: {data.get('start_line', '')}")
-    console.print(f"  PageRank: {data.get('pagerank', 0):.6f}")
-
-    if data.get("signature"):
-        console.print(f"  Signature: {data['signature']}")
-
-    # Show edges
-    console.print("\n[bold]Outgoing:[/]")
-    for _, target, edata in G.out_edges(node_id, data=True):
-        t_label = G.nodes[target].get("label", target) if target in G else target
-        rel = edata.get('relation', '')
-        conf = edata.get('confidence', '')
-        console.print(f"  → {t_label} [{rel}] ({conf})")
-
-    console.print("\n[bold]Incoming:[/]")
-    for source, _, edata in G.in_edges(node_id, data=True):
-        s_label = G.nodes[source].get("label", source) if source in G else source
-        rel = edata.get('relation', '')
-        conf = edata.get('confidence', '')
-        console.print(f"  ← {s_label} [{rel}] ({conf})")
-
+    _json_out({
+        "node_id": node_id,
+        "label": data.get("label", node_id),
+        "kind": data.get("kind", ""),
+        "file_path": data.get("file_path", ""),
+        "start_line": data.get("start_line"),
+        "pagerank": data.get("pagerank", 0),
+        "signature": data.get("signature"),
+        "outgoing": [
+            {
+                "target": target,
+                "target_label": G.nodes[target].get("label", target) if target in G else target,
+                "relation": edata.get("relation", ""),
+                "confidence": edata.get("confidence", ""),
+            }
+            for _, target, edata in G.out_edges(node_id, data=True)
+        ],
+        "incoming": [
+            {
+                "source": source,
+                "source_label": G.nodes[source].get("label", source) if source in G else source,
+                "relation": edata.get("relation", ""),
+                "confidence": edata.get("confidence", ""),
+            }
+            for source, _, edata in G.in_edges(node_id, data=True)
+        ],
+    })
     store.close()
 
 
@@ -912,13 +676,9 @@ def export_nodes(ctx, db: str | None, source_dir: str, batch_size: int):
     from collections import defaultdict
     from pathlib import PurePosixPath
 
-    json_mode = ctx.obj.get("json", False) if ctx.obj else False
     db_path = _resolve_db(db, source_dir)
     if not db_path:
-        if json_mode:
-            _json_error("No database found. Run 'hedwig-cg build' first.")
-        console.print("[red]No database found.[/] Run 'hedwig-cg build' first.")
-        return
+        _json_error("No database found. Run 'hedwig-cg build' first.")
 
     from hedwig_cg.storage.store import KnowledgeStore
     store = KnowledgeStore(db_path)
@@ -926,10 +686,7 @@ def export_nodes(ctx, db: str | None, source_dir: str, batch_size: int):
 
     if G.number_of_nodes() == 0:
         store.close()
-        if json_mode:
-            _json_error("Graph is empty. Run 'hedwig-cg build' first.")
-        console.print("[red]Graph is empty.[/]")
-        return
+        _json_error("Graph is empty. Run 'hedwig-cg build' first.")
 
     # Collect nodes (skip external/directory)
     skip_kinds = {"external", "directory"}
@@ -998,16 +755,7 @@ def export_nodes(ctx, db: str | None, source_dir: str, batch_size: int):
     store.close()
 
     total_nodes = sum(len(b["nodes"]) for b in batches)
-
-    if json_mode:
-        _json_out({"total_nodes": total_nodes, "batches": batches})
-    else:
-        console.print(f"[green]{total_nodes} nodes[/] in {len(batches)} batches")
-        for b in batches:
-            console.print(
-                f"  Batch {b['batch_id']}: {len(b['nodes'])} nodes "
-                f"({b['directory']}, {len(b['existing_edges'])} existing edges)"
-            )
+    _json_out({"total_nodes": total_nodes, "batches": batches})
 
 
 def _auto_rebuild_command() -> str:
@@ -1042,13 +790,13 @@ def claude_install(scope: str | None):
 
     # --- Prompt for scope if not provided ---
     if scope is None:
-        console.print("[bold]Select installation scope:[/]")
-        console.print(
-            "  [cyan]1)[/] user    — Global (~/.claude/skills/)."
+        click.echo("Select installation scope:")
+        click.echo(
+            "  1) user    — Global (~/.claude/skills/)."
             " Available in ALL projects."
         )
-        console.print(
-            "  [cyan]2)[/] project — Local (.claude/skills/)."
+        click.echo(
+            "  2) project — Local (.claude/skills/)."
             " Available only in THIS project."
         )
         choice = click.prompt(
@@ -1075,12 +823,9 @@ def claude_install(scope: str | None):
             if scope == "user"
             else ".claude/skills/hedwig-cg/"
         )
-        console.print(
-            f"[green]✓ Skill installed[/] → "
-            f"{scope_label}SKILL.md ({scope} scope)"
-        )
+        click.echo(f"Skill installed -> {scope_label}SKILL.md ({scope} scope)")
     else:
-        console.print("[yellow]⚠ Skill source not found, skipping skill registration.[/]")
+        click.echo("Skill source not found, skipping skill registration.")
 
     # --- Priority 2: CLAUDE.md + hooks ---
     # 1. Write section to project CLAUDE.md
@@ -1106,13 +851,13 @@ def claude_install(scope: str | None):
     if claude_md.exists():
         content = claude_md.read_text()
         if marker in content:
-            console.print("[dim]CLAUDE.md already has hedwig-cg section.[/]")
+            click.echo("CLAUDE.md already has hedwig-cg section.")
         else:
             claude_md.write_text(content + section)
-            console.print("[green]Added hedwig-cg section to CLAUDE.md[/]")
+            click.echo("Added hedwig-cg section to CLAUDE.md")
     else:
         claude_md.write_text(section.lstrip("\n"))
-        console.print("[green]Created CLAUDE.md with hedwig-cg section[/]")
+        click.echo("Created CLAUDE.md with hedwig-cg section")
 
     # 2. Write PreToolUse hook to .claude/settings.json
     settings_dir = project_root / ".claude"
@@ -1149,10 +894,10 @@ def claude_install(scope: str | None):
         for h in pre_hooks
     )
     if already:
-        console.print("[dim].claude/settings.json already has hedwig-cg PreToolUse hook.[/]")
+        click.echo(".claude/settings.json already has hedwig-cg PreToolUse hook.")
     else:
         pre_hooks.append(hook_entry)
-        console.print("[green]Added PreToolUse hook to .claude/settings.json[/]")
+        click.echo("Added PreToolUse hook to .claude/settings.json")
 
     # 3. Write Stop hook for auto-rebuild
     stop_hook_entry = {
@@ -1167,18 +912,17 @@ def claude_install(scope: str | None):
     stop_already = any("hedwig-cg" in json.dumps(h) or "auto_rebuild" in json.dumps(h)
                        for h in stop_hooks)
     if stop_already:
-        console.print("[dim].claude/settings.json already has hedwig-cg Stop hook.[/]")
+        click.echo(".claude/settings.json already has hedwig-cg Stop hook.")
     else:
         stop_hooks.append(stop_hook_entry)
-        console.print("[green]Added Stop hook for auto-rebuild to .claude/settings.json[/]")
+        click.echo("Added Stop hook for auto-rebuild to .claude/settings.json")
 
     settings_file.write_text(json.dumps(settings, indent=2) + "\n")
 
-    console.print()
-    console.print("[bold]Done![/] Claude Code will now use the code graph "
-                  "when searching this project.")
-    console.print("[dim]Graph auto-rebuilds when your session ends.[/]")
-    console.print("[dim]Run 'hedwig-cg claude uninstall' to remove.[/]")
+    click.echo("")
+    click.echo("Done! Claude Code will now use the code graph when searching this project.")
+    click.echo("Graph auto-rebuilds when your session ends.")
+    click.echo("Run 'hedwig-cg claude uninstall' to remove.")
 
 
 @claude_group.command(name="uninstall")
@@ -1201,16 +945,16 @@ def claude_uninstall(scope: str):
         user_skill = Path.home() / ".claude" / "skills" / "hedwig-cg"
         if user_skill.exists():
             shutil.rmtree(user_skill)
-            console.print("[green]Removed user-scope skill (~/.claude/skills/hedwig-cg/)[/]")
+            click.echo("Removed user-scope skill (~/.claude/skills/hedwig-cg/)")
             removed_skill = True
     if scope in ("project", "all"):
         proj_skill = project_root / ".claude" / "skills" / "hedwig-cg"
         if proj_skill.exists():
             shutil.rmtree(proj_skill)
-            console.print("[green]Removed project-scope skill (.claude/skills/hedwig-cg/)[/]")
+            click.echo("Removed project-scope skill (.claude/skills/hedwig-cg/)")
             removed_skill = True
     if not removed_skill:
-        console.print("[dim]No skill found to remove.[/]")
+        click.echo("No skill found to remove.")
 
     # 1. Remove section from CLAUDE.md
     claude_md = project_root / "CLAUDE.md"
@@ -1229,7 +973,7 @@ def claude_uninstall(scope: str):
             filtered.append(line)
         new_content = "".join(filtered).rstrip("\n") + "\n"
         claude_md.write_text(new_content)
-        console.print("[green]Removed hedwig-cg section from CLAUDE.md[/]")
+        click.echo("Removed hedwig-cg section from CLAUDE.md")
 
     # 2. Remove hooks from .claude/settings.json
     settings_file = project_root / ".claude" / "settings.json"
@@ -1248,9 +992,9 @@ def claude_uninstall(scope: str):
         if not hooks:
             settings.pop("hooks", None)
         settings_file.write_text(json.dumps(settings, indent=2) + "\n")
-        console.print("[green]Removed hedwig-cg hooks from .claude/settings.json[/]")
+        click.echo("Removed hedwig-cg hooks from .claude/settings.json")
 
-    console.print("[dim]hedwig-cg Claude Code integration removed.[/]")
+    click.echo("hedwig-cg Claude Code integration removed.")
 
 
 cli.add_command(claude_group)
@@ -1294,13 +1038,13 @@ def codex_install():
     if agents_md.exists():
         content = agents_md.read_text()
         if marker in content:
-            console.print("[dim]AGENTS.md already has hedwig-cg section.[/]")
+            click.echo("AGENTS.md already has hedwig-cg section.")
         else:
             agents_md.write_text(content + section)
-            console.print("[green]Added hedwig-cg section to AGENTS.md[/]")
+            click.echo("Added hedwig-cg section to AGENTS.md")
     else:
         agents_md.write_text(section.lstrip("\n"))
-        console.print("[green]Created AGENTS.md with hedwig-cg section[/]")
+        click.echo("Created AGENTS.md with hedwig-cg section")
 
     # 2. Write PreToolUse hook to .codex/hooks.json
     hooks_dir = project_root / ".codex"
@@ -1333,10 +1077,10 @@ def codex_install():
 
     already = any("hedwig-cg" in json.dumps(h) for h in pre_hooks)
     if already:
-        console.print("[dim].codex/hooks.json already has hedwig-cg PreToolUse hook.[/]")
+        click.echo(".codex/hooks.json already has hedwig-cg PreToolUse hook.")
     else:
         pre_hooks.append(hook_entry)
-        console.print("[green]Added PreToolUse hook to .codex/hooks.json[/]")
+        click.echo("Added PreToolUse hook to .codex/hooks.json")
 
     # 3. Write Stop hook for auto-rebuild
     stop_hook_entry = {
@@ -1350,18 +1094,17 @@ def codex_install():
     stop_hooks = hooks.setdefault("Stop", [])
     stop_already = any("auto_rebuild" in json.dumps(h) for h in stop_hooks)
     if stop_already:
-        console.print("[dim].codex/hooks.json already has hedwig-cg Stop hook.[/]")
+        click.echo(".codex/hooks.json already has hedwig-cg Stop hook.")
     else:
         stop_hooks.append(stop_hook_entry)
-        console.print("[green]Added Stop hook for auto-rebuild to .codex/hooks.json[/]")
+        click.echo("Added Stop hook for auto-rebuild to .codex/hooks.json")
 
     hooks_file.write_text(json.dumps(hooks_data, indent=2) + "\n")
 
-    console.print()
-    console.print("[bold]Done![/] Codex CLI will now use the code graph "
-                  "when working in this project.")
-    console.print("[dim]Graph auto-rebuilds when your session ends.[/]")
-    console.print("[dim]Run 'hedwig-cg codex uninstall' to remove.[/]")
+    click.echo("")
+    click.echo("Done! Codex CLI will now use the code graph when working in this project.")
+    click.echo("Graph auto-rebuilds when your session ends.")
+    click.echo("Run 'hedwig-cg codex uninstall' to remove.")
 
 
 @codex_group.command(name="uninstall")
@@ -1388,7 +1131,7 @@ def codex_uninstall():
             filtered.append(line)
         new_content = "".join(filtered).rstrip("\n") + "\n"
         agents_md.write_text(new_content)
-        console.print("[green]Removed hedwig-cg section from AGENTS.md[/]")
+        click.echo("Removed hedwig-cg section from AGENTS.md")
 
     # 2. Remove hooks from .codex/hooks.json
     hooks_file = project_root / ".codex" / "hooks.json"
@@ -1407,9 +1150,9 @@ def codex_uninstall():
         if not hooks:
             hooks_data.pop("hooks", None)
         hooks_file.write_text(json.dumps(hooks_data, indent=2) + "\n")
-        console.print("[green]Removed hedwig-cg hooks from .codex/hooks.json[/]")
+        click.echo("Removed hedwig-cg hooks from .codex/hooks.json")
 
-    console.print("[dim]hedwig-cg Codex CLI integration removed.[/]")
+    click.echo("hedwig-cg Codex CLI integration removed.")
 
 
 cli.add_command(codex_group)
@@ -1453,13 +1196,13 @@ def gemini_install():
     if gemini_md.exists():
         content = gemini_md.read_text()
         if marker in content:
-            console.print("[dim]GEMINI.md already has hedwig-cg section.[/]")
+            click.echo("GEMINI.md already has hedwig-cg section.")
         else:
             gemini_md.write_text(content + section)
-            console.print("[green]Added hedwig-cg section to GEMINI.md[/]")
+            click.echo("Added hedwig-cg section to GEMINI.md")
     else:
         gemini_md.write_text(section.lstrip("\n"))
-        console.print("[green]Created GEMINI.md with hedwig-cg section[/]")
+        click.echo("Created GEMINI.md with hedwig-cg section")
 
     # 2. Write BeforeTool hook to .gemini/settings.json
     settings_dir = project_root / ".gemini"
@@ -1492,10 +1235,10 @@ def gemini_install():
 
     already = any("hedwig-cg" in json.dumps(h) for h in before_hooks)
     if already:
-        console.print("[dim].gemini/settings.json already has hedwig-cg BeforeTool hook.[/]")
+        click.echo(".gemini/settings.json already has hedwig-cg BeforeTool hook.")
     else:
         before_hooks.append(hook_entry)
-        console.print("[green]Added BeforeTool hook to .gemini/settings.json[/]")
+        click.echo("Added BeforeTool hook to .gemini/settings.json")
 
     # 3. Write SessionEnd hook for auto-rebuild
     session_end_entry = {
@@ -1509,18 +1252,17 @@ def gemini_install():
     session_hooks = hooks.setdefault("SessionEnd", [])
     session_already = any("auto_rebuild" in json.dumps(h) for h in session_hooks)
     if session_already:
-        console.print("[dim].gemini/settings.json already has hedwig-cg SessionEnd hook.[/]")
+        click.echo(".gemini/settings.json already has hedwig-cg SessionEnd hook.")
     else:
         session_hooks.append(session_end_entry)
-        console.print("[green]Added SessionEnd hook for auto-rebuild to .gemini/settings.json[/]")
+        click.echo("Added SessionEnd hook for auto-rebuild to .gemini/settings.json")
 
     settings_file.write_text(json.dumps(settings, indent=2) + "\n")
 
-    console.print()
-    console.print("[bold]Done![/] Gemini CLI will now use the code graph "
-                  "when working in this project.")
-    console.print("[dim]Graph auto-rebuilds when your session ends.[/]")
-    console.print("[dim]Run 'hedwig-cg gemini uninstall' to remove.[/]")
+    click.echo("")
+    click.echo("Done! Gemini CLI will now use the code graph when working in this project.")
+    click.echo("Graph auto-rebuilds when your session ends.")
+    click.echo("Run 'hedwig-cg gemini uninstall' to remove.")
 
 
 @gemini_group.command(name="uninstall")
@@ -1547,7 +1289,7 @@ def gemini_uninstall():
             filtered.append(line)
         new_content = "".join(filtered).rstrip("\n") + "\n"
         gemini_md.write_text(new_content)
-        console.print("[green]Removed hedwig-cg section from GEMINI.md[/]")
+        click.echo("Removed hedwig-cg section from GEMINI.md")
 
     # 2. Remove hooks from .gemini/settings.json
     settings_file = project_root / ".gemini" / "settings.json"
@@ -1566,9 +1308,9 @@ def gemini_uninstall():
         if not hooks:
             settings.pop("hooks", None)
         settings_file.write_text(json.dumps(settings, indent=2) + "\n")
-        console.print("[green]Removed hedwig-cg hooks from .gemini/settings.json[/]")
+        click.echo("Removed hedwig-cg hooks from .gemini/settings.json")
 
-    console.print("[dim]hedwig-cg Gemini CLI integration removed.[/]")
+    click.echo("hedwig-cg Gemini CLI integration removed.")
 
 
 cli.add_command(gemini_group)
@@ -1616,18 +1358,17 @@ def cursor_install():
     if rules_file.exists():
         content = rules_file.read_text()
         if "hedwig-cg" in content:
-            console.print("[dim].cursor/rules/hedwig-cg.mdc already exists.[/]")
+            click.echo(".cursor/rules/hedwig-cg.mdc already exists.")
         else:
             rules_file.write_text(rule_content)
-            console.print("[green]Updated .cursor/rules/hedwig-cg.mdc[/]")
+            click.echo("Updated .cursor/rules/hedwig-cg.mdc")
     else:
         rules_file.write_text(rule_content)
-        console.print("[green]Created .cursor/rules/hedwig-cg.mdc[/]")
+        click.echo("Created .cursor/rules/hedwig-cg.mdc")
 
-    console.print()
-    console.print("[bold]Done![/] Cursor will now see hedwig-cg rules "
-                  "when working in this project.")
-    console.print("[dim]Run 'hedwig-cg cursor uninstall' to remove.[/]")
+    click.echo("")
+    click.echo("Done! Cursor will now see hedwig-cg rules when working in this project.")
+    click.echo("Run 'hedwig-cg cursor uninstall' to remove.")
 
 
 @cursor_group.command(name="uninstall")
@@ -1638,11 +1379,11 @@ def cursor_uninstall():
     rules_file = project_root / ".cursor" / "rules" / "hedwig-cg.mdc"
     if rules_file.exists():
         rules_file.unlink()
-        console.print("[green]Removed .cursor/rules/hedwig-cg.mdc[/]")
+        click.echo("Removed .cursor/rules/hedwig-cg.mdc")
     else:
-        console.print("[dim]No hedwig-cg Cursor rule file found.[/]")
+        click.echo("No hedwig-cg Cursor rule file found.")
 
-    console.print("[dim]hedwig-cg Cursor integration removed.[/]")
+    click.echo("hedwig-cg Cursor integration removed.")
 
 
 cli.add_command(cursor_group)
@@ -1685,18 +1426,17 @@ def windsurf_install():
     if rules_file.exists():
         content = rules_file.read_text()
         if "hedwig-cg" in content:
-            console.print("[dim].windsurf/rules/hedwig-cg.md already exists.[/]")
+            click.echo(".windsurf/rules/hedwig-cg.md already exists.")
         else:
             rules_file.write_text(rule_content)
-            console.print("[green]Updated .windsurf/rules/hedwig-cg.md[/]")
+            click.echo("Updated .windsurf/rules/hedwig-cg.md")
     else:
         rules_file.write_text(rule_content)
-        console.print("[green]Created .windsurf/rules/hedwig-cg.md[/]")
+        click.echo("Created .windsurf/rules/hedwig-cg.md")
 
-    console.print()
-    console.print("[bold]Done![/] Windsurf Cascade will now see hedwig-cg rules "
-                  "when working in this project.")
-    console.print("[dim]Run 'hedwig-cg windsurf uninstall' to remove.[/]")
+    click.echo("")
+    click.echo("Done! Windsurf Cascade will now see hedwig-cg rules when working in this project.")
+    click.echo("Run 'hedwig-cg windsurf uninstall' to remove.")
 
 
 @windsurf_group.command(name="uninstall")
@@ -1707,11 +1447,11 @@ def windsurf_uninstall():
     rules_file = project_root / ".windsurf" / "rules" / "hedwig-cg.md"
     if rules_file.exists():
         rules_file.unlink()
-        console.print("[green]Removed .windsurf/rules/hedwig-cg.md[/]")
+        click.echo("Removed .windsurf/rules/hedwig-cg.md")
     else:
-        console.print("[dim]No hedwig-cg Windsurf rule file found.[/]")
+        click.echo("No hedwig-cg Windsurf rule file found.")
 
-    console.print("[dim]hedwig-cg Windsurf integration removed.[/]")
+    click.echo("hedwig-cg Windsurf integration removed.")
 
 
 cli.add_command(windsurf_group)
@@ -1752,20 +1492,19 @@ def cline_install():
     if rules_file.exists():
         content = rules_file.read_text()
         if "hedwig-cg" in content:
-            console.print("[dim].clinerules already contains hedwig-cg rules.[/]")
+            click.echo(".clinerules already contains hedwig-cg rules.")
         else:
             # Append to existing rules
             with open(rules_file, "a") as f:
                 f.write("\n\n" + rule_content)
-            console.print("[green]Appended hedwig-cg rules to .clinerules[/]")
+            click.echo("Appended hedwig-cg rules to .clinerules")
     else:
         rules_file.write_text(rule_content)
-        console.print("[green]Created .clinerules[/]")
+        click.echo("Created .clinerules")
 
-    console.print()
-    console.print("[bold]Done![/] Cline will now see hedwig-cg rules "
-                  "when working in this project.")
-    console.print("[dim]Run 'hedwig-cg cline uninstall' to remove.[/]")
+    click.echo("")
+    click.echo("Done! Cline will now see hedwig-cg rules when working in this project.")
+    click.echo("Run 'hedwig-cg cline uninstall' to remove.")
 
 
 @cline_group.command(name="uninstall")
@@ -1792,16 +1531,16 @@ def cline_uninstall():
             new_content = "\n".join(filtered).strip()
             if new_content:
                 rules_file.write_text(new_content + "\n")
-                console.print("[green]Removed hedwig-cg section from .clinerules[/]")
+                click.echo("Removed hedwig-cg section from .clinerules")
             else:
                 rules_file.unlink()
-                console.print("[green]Removed .clinerules (was hedwig-cg only)[/]")
+                click.echo("Removed .clinerules (was hedwig-cg only)")
         else:
-            console.print("[dim]No hedwig-cg section found in .clinerules.[/]")
+            click.echo("No hedwig-cg section found in .clinerules.")
     else:
-        console.print("[dim]No .clinerules file found.[/]")
+        click.echo("No .clinerules file found.")
 
-    console.print("[dim]hedwig-cg Cline integration removed.[/]")
+    click.echo("hedwig-cg Cline integration removed.")
 
 
 cli.add_command(cline_group)
@@ -1845,13 +1584,13 @@ def aider_install():
     if conventions_md.exists():
         content = conventions_md.read_text()
         if marker in content:
-            console.print("[dim]CONVENTIONS.md already has hedwig-cg section.[/]")
+            click.echo("CONVENTIONS.md already has hedwig-cg section.")
         else:
             conventions_md.write_text(content + section)
-            console.print("[green]Added hedwig-cg section to CONVENTIONS.md[/]")
+            click.echo("Added hedwig-cg section to CONVENTIONS.md")
     else:
         conventions_md.write_text(section.lstrip("\n"))
-        console.print("[green]Created CONVENTIONS.md with hedwig-cg section[/]")
+        click.echo("Created CONVENTIONS.md with hedwig-cg section")
 
     # 2. Ensure .aider.conf.yml loads CONVENTIONS.md via read:
     conf_file = project_root / ".aider.conf.yml"
@@ -1867,14 +1606,13 @@ def aider_install():
         read_list.append("CONVENTIONS.md")
         conf["read"] = read_list
         conf_file.write_text(yaml.dump(conf, default_flow_style=False))
-        console.print("[green]Added CONVENTIONS.md to .aider.conf.yml read list[/]")
+        click.echo("Added CONVENTIONS.md to .aider.conf.yml read list")
     else:
-        console.print("[dim].aider.conf.yml already reads CONVENTIONS.md[/]")
+        click.echo(".aider.conf.yml already reads CONVENTIONS.md")
 
-    console.print()
-    console.print("[bold]Done![/] Aider will now load hedwig-cg conventions "
-                  "when working in this project.")
-    console.print("[dim]Run 'hedwig-cg aider uninstall' to remove.[/]")
+    click.echo("")
+    click.echo("Done! Aider will now load hedwig-cg conventions when working in this project.")
+    click.echo("Run 'hedwig-cg aider uninstall' to remove.")
 
 
 @aider_group.command(name="uninstall")
@@ -1901,7 +1639,7 @@ def aider_uninstall():
             filtered.append(line)
         new_content = "".join(filtered).rstrip("\n") + "\n"
         conventions_md.write_text(new_content)
-        console.print("[green]Removed hedwig-cg section from CONVENTIONS.md[/]")
+        click.echo("Removed hedwig-cg section from CONVENTIONS.md")
 
     # 2. Remove CONVENTIONS.md from .aider.conf.yml read list
     conf_file = project_root / ".aider.conf.yml"
@@ -1920,9 +1658,9 @@ def aider_uninstall():
                 conf_file.write_text(yaml.dump(conf, default_flow_style=False))
             else:
                 conf_file.unlink()
-            console.print("[green]Removed CONVENTIONS.md from .aider.conf.yml[/]")
+            click.echo("Removed CONVENTIONS.md from .aider.conf.yml")
 
-    console.print("[dim]hedwig-cg Aider integration removed.[/]")
+    click.echo("hedwig-cg Aider integration removed.")
 
 
 cli.add_command(aider_group)
@@ -1939,40 +1677,25 @@ def doctor():
     import sqlite3
     import sys
 
-    from rich.panel import Panel
+    checks = []
 
-    checks_passed = 0
-    checks_failed = 0
-    checks_warned = 0
+    def ok(section: str, msg: str):
+        checks.append({"section": section, "status": "ok", "msg": msg})
 
-    def ok(msg: str):
-        nonlocal checks_passed
-        checks_passed += 1
-        console.print(f"  [green]✓[/] {msg}")
+    def fail(section: str, msg: str):
+        checks.append({"section": section, "status": "fail", "msg": msg})
 
-    def fail(msg: str):
-        nonlocal checks_failed
-        checks_failed += 1
-        console.print(f"  [red]✗[/] {msg}")
-
-    def warn(msg: str):
-        nonlocal checks_warned
-        checks_warned += 1
-        console.print(f"  [yellow]![/] {msg}")
-
-    console.print(Panel("[bold]hedwig-cg doctor[/]", subtitle="Installation Health Check"))
-    console.print()
+    def warn(section: str, msg: str):
+        checks.append({"section": section, "status": "warn", "msg": msg})
 
     # 1. Python version
-    console.print("[bold]Python Environment[/]")
     v = sys.version_info
     if v >= (3, 10):
-        ok(f"Python {v.major}.{v.minor}.{v.micro}")
+        ok("python", f"Python {v.major}.{v.minor}.{v.micro}")
     else:
-        fail(f"Python {v.major}.{v.minor}.{v.micro} (requires >= 3.10)")
+        fail("python", f"Python {v.major}.{v.minor}.{v.micro} (requires >= 3.10)")
 
     # 2. Core dependencies
-    console.print("\n[bold]Core Dependencies[/]")
     deps = [
         ("networkx", "networkx"),
         ("sentence_transformers", "sentence-transformers"),
@@ -1986,12 +1709,11 @@ def doctor():
         try:
             mod = importlib.import_module(mod_name)
             ver = getattr(mod, "__version__", "installed")
-            ok(f"{pip_name} ({ver})")
+            ok("deps", f"{pip_name} ({ver})")
         except ImportError:
-            fail(f"{pip_name} — not installed (pip install {pip_name})")
+            fail("deps", f"{pip_name} — not installed (pip install {pip_name})")
 
     # 3. Tree-sitter parsers
-    console.print("\n[bold]Tree-sitter Parsers[/]")
     ts_langs = [
         ("tree_sitter", "tree-sitter"),
         ("tree_sitter_python", "tree-sitter-python"),
@@ -2000,106 +1722,96 @@ def doctor():
     for mod_name, pip_name in ts_langs:
         try:
             importlib.import_module(mod_name)
-            ok(pip_name)
+            ok("tree_sitter", pip_name)
         except ImportError:
-            warn(f"{pip_name} — not installed (optional, enables AST extraction)")
+            warn("tree_sitter", f"{pip_name} — not installed (optional, enables AST extraction)")
 
     # 4. MCP server dependency
-    console.print("\n[bold]MCP Server[/]")
     try:
         importlib.import_module("mcp")
-        ok("mcp (Model Context Protocol server available)")
+        ok("mcp", "mcp (Model Context Protocol server available)")
     except ImportError:
-        warn("mcp — not installed (optional, install with: pip install mcp)")
+        warn("mcp", "mcp — not installed (optional, install with: pip install mcp)")
 
     # 5. Embedding models
-    console.print("\n[bold]Embedding Models[/]")
     model_cache = Path.home() / ".hedwig-cg" / "models"
     if model_cache.exists():
         cached_models = [d.name for d in model_cache.iterdir() if d.is_dir()]
         if cached_models:
             for m in cached_models:
-                ok(f"Cached: {m}")
+                ok("models", f"Cached: {m}")
         else:
-            warn("Model cache exists but empty — models will download on first build")
+            warn("models", "Model cache exists but empty — models will download on first build")
     else:
-        warn("No model cache at ~/.hedwig-cg/models/ — models will download on first build")
+        warn("models",
+             "No model cache at ~/.hedwig-cg/models/ — models will download on first build")
 
     # 6. code graph database
-    console.print("\n[bold]Code Graph Database[/]")
     cwd = Path.cwd()
     db_path = cwd / ".hedwig-cg" / "knowledge.db"
     if db_path.exists():
-        ok(f"Database found: {db_path}")
-        # Check integrity
+        ok("database", f"Database found: {db_path}")
         try:
             conn = sqlite3.connect(str(db_path))
             conn.row_factory = sqlite3.Row
             integrity = conn.execute("PRAGMA integrity_check").fetchone()[0]
             if integrity == "ok":
-                ok("Database integrity: OK")
+                ok("database", "Database integrity: OK")
             else:
-                fail(f"Database integrity: {integrity}")
+                fail("database", f"Database integrity: {integrity}")
 
-            # Node count
             try:
                 n_nodes = conn.execute("SELECT COUNT(*) FROM nodes").fetchone()[0]
                 n_edges = conn.execute("SELECT COUNT(*) FROM edges").fetchone()[0]
-                ok(f"Nodes: {n_nodes}, Edges: {n_edges}")
+                ok("database", f"Nodes: {n_nodes}, Edges: {n_edges}")
                 if n_nodes == 0:
-                    warn("Graph is empty — run 'hedwig-cg build .' to populate")
+                    warn("database", "Graph is empty — run 'hedwig-cg build .' to populate")
             except sqlite3.OperationalError:
-                fail("Missing nodes/edges tables — database may be corrupted")
+                fail("database", "Missing nodes/edges tables — database may be corrupted")
 
-            # FTS5 index
             try:
                 conn.execute("SELECT COUNT(*) FROM nodes_fts").fetchone()
-                ok("FTS5 full-text search index: present")
+                ok("database", "FTS5 full-text search index: present")
             except sqlite3.OperationalError:
-                warn("FTS5 index missing — keyword search may not work")
+                warn("database", "FTS5 index missing — keyword search may not work")
 
-            # Communities
             try:
                 n_comm = conn.execute("SELECT COUNT(*) FROM communities").fetchone()[0]
-                ok(f"Communities: {n_comm}")
+                ok("database", f"Communities: {n_comm}")
             except sqlite3.OperationalError:
-                warn("Communities table missing — run build to generate")
+                warn("database", "Communities table missing — run build to generate")
 
-            # FAISS index
             faiss_path = cwd / ".hedwig-cg" / "faiss_code.index"
             faiss_text_path = cwd / ".hedwig-cg" / "faiss_text.index"
             if faiss_path.exists() and faiss_text_path.exists():
                 code_size = faiss_path.stat().st_size / 1024
                 text_size = faiss_text_path.stat().st_size / 1024
-                ok(f"FAISS code index: {code_size:.1f} KB")
-                ok(f"FAISS text index: {text_size:.1f} KB")
+                ok("database", f"FAISS code index: {code_size:.1f} KB")
+                ok("database", f"FAISS text index: {text_size:.1f} KB")
             elif faiss_path.exists() or faiss_text_path.exists():
-                warn("Only one FAISS index found — dual-model search may be degraded")
+                warn("database", "Only one FAISS index found — dual-model search may be degraded")
             else:
-                warn("No FAISS indexes — run 'hedwig-cg build .' (without --no-embed)")
+                warn("database", "No FAISS indexes — run 'hedwig-cg build .' (without --no-embed)")
 
             conn.close()
         except sqlite3.DatabaseError as e:
-            fail(f"Cannot open database: {e}")
+            fail("database", f"Cannot open database: {e}")
     else:
-        warn(f"No database at {db_path} — run 'hedwig-cg build .' to create")
+        warn("database", f"No database at {db_path} — run 'hedwig-cg build .' to create")
 
-    # Summary
-    console.print()
-    total = checks_passed + checks_failed + checks_warned
-    if checks_failed == 0:
-        emoji = "✅" if checks_warned == 0 else "⚠️"
-        console.print(Panel(
-            f"{emoji} {checks_passed}/{total} checks passed"
-            + (f", {checks_warned} warnings" if checks_warned else ""),
-            title="[bold green]Health Check Complete[/]",
-        ))
-    else:
-        console.print(Panel(
-            f"❌ {checks_failed} failed, {checks_warned} warnings, "
-            f"{checks_passed} passed out of {total}",
-            title="[bold red]Issues Found[/]",
-        ))
+    checks_passed = sum(1 for c in checks if c["status"] == "ok")
+    checks_failed = sum(1 for c in checks if c["status"] == "fail")
+    checks_warned = sum(1 for c in checks if c["status"] == "warn")
+
+    _json_out({
+        "checks": checks,
+        "summary": {
+            "passed": checks_passed,
+            "failed": checks_failed,
+            "warned": checks_warned,
+            "total": len(checks),
+        },
+    })
 
 
 @cli.command()
@@ -2117,8 +1829,6 @@ def mcp():
 
         { "mcpServers": { "hedwig-cg": { "command": "hedwig-cg", "args": ["mcp"] } } }
     """
-    console.print("[bold green]Starting hedwig-cg MCP server...[/]")
-    console.print("[dim]Transport: stdio | Tools: search, node, stats, communities, build[/]")
     from hedwig_cg.mcp_server import main as mcp_main
     mcp_main()
 

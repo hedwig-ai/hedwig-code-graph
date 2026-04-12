@@ -7,15 +7,15 @@ description: Code graph builder with LLM semantic enrichment and 5-signal hybrid
 
 Builds code graphs from source code and documents with LLM semantic enrichment. Searches with 5-signal hybrid search (code vector + text vector + graph traversal + FTS5 keyword + community → RRF fusion). AST extraction for 17 languages plus LLM-powered INFERRED edges for design patterns, behavioral dependencies, and cross-module relationships.
 
-**IMPORTANT: Always use `--json` flag.**
+**All commands output JSON by default.**
 
 ## Search (PRIMARY — use this first)
 
 ```bash
-hedwig-cg --json search "database connection pool"       # default: 80 results
-hedwig-cg --json search "auth" --fast                    # text model only, faster
-hedwig-cg --json search "payment billing" --expand       # two-stage query expansion
-hedwig-cg --json search "error handling" --top-k 30      # custom count
+hedwig-cgsearch "database connection pool"       # default: 80 results
+hedwig-cgsearch "auth" --fast                    # text model only, faster
+hedwig-cgsearch "payment billing" --expand       # two-stage query expansion
+hedwig-cgsearch "error handling" --top-k 30      # custom count
 ```
 
 Response (~140 bytes/result, compact JSON):
@@ -35,25 +35,25 @@ Response (~140 bytes/result, compact JSON):
 
 **Round 1** — Start broad with natural language:
 ```bash
-hedwig-cg --json search "payment processing"
+hedwig-cgsearch "payment processing"
 ```
 → Results mention `StripeClient`, `checkout_handler`, `PaymentProvider`
 
 **Round 2** — Drill into discovered terms:
 ```bash
-hedwig-cg --json search "StripeClient"
+hedwig-cgsearch "StripeClient"
 ```
 → Results reveal `create_charge`, `refund_payment`, `validate_card`, `WebhookHandler`
 
 **Round 3** — Follow interesting connections:
 ```bash
-hedwig-cg --json search "webhook payment callback"
+hedwig-cgsearch "webhook payment callback"
 ```
 → Found `StripeWebhookHandler`, `handle_charge_succeeded`, `update_order_status`
 
 **Round 4** — Explore the related service:
 ```bash
-hedwig-cg --json search "order status update"
+hedwig-cgsearch "order status update"
 ```
 → Found `OrderService.complete_order`, `NotificationService.send_receipt`
 
@@ -61,13 +61,13 @@ Now you have the full picture: Stripe → Webhook → Order → Notification.
 
 ### Example: "인증 로직 이해하고 싶어"
 
-**Round 1**: `hedwig-cg --json search "authentication login"`
+**Round 1**: `hedwig-cgsearch "authentication login"`
 → Found `AuthMiddleware`, `JWTTokenManager`, `SessionStore`
 
-**Round 2**: `hedwig-cg --json search "JWTTokenManager"`
+**Round 2**: `hedwig-cgsearch "JWTTokenManager"`
 → Found `generate_token`, `verify_token`, `refresh_token`, `token_blacklist`
 
-**Round 3**: `hedwig-cg --json search "token blacklist refresh"`
+**Round 3**: `hedwig-cgsearch "token blacklist refresh"`
 → Found `RedisTokenStore`, `cleanup_expired_tokens`, `rotate_refresh_token`
 
 ### The pattern:
@@ -89,12 +89,12 @@ When building a code graph, **always run the full pipeline** — AST structural 
 **Step 1 — AST structural extraction**
 
 ```bash
-hedwig-cg --json build .
+hedwig-cgbuild .
 ```
 
 For incremental rebuilds (only changed files):
 ```bash
-hedwig-cg --json build . --incremental
+hedwig-cgbuild . --incremental
 ```
 
 This produces the base graph with EXTRACTED edges from AST analysis + embeddings + community detection.
@@ -102,7 +102,7 @@ This produces the base graph with EXTRACTED edges from AST analysis + embeddings
 **Step 2 — Read graph stats to prepare semantic enrichment**
 
 ```bash
-hedwig-cg --json stats
+hedwig-cgstats
 ```
 
 Note the node count. If < 5 nodes, skip semantic enrichment.
@@ -112,7 +112,7 @@ Note the node count. If < 5 nodes, skip semantic enrichment.
 Export all nodes grouped into batches for semantic analysis:
 
 ```bash
-hedwig-cg --json nodes
+hedwig-cgnodes
 ```
 
 This returns all nodes grouped by directory into batches of ~20, plus existing edges within each batch and a cross-directory batch of top PageRank nodes. For each batch, dispatch an Agent tool with `subagent_type="general-purpose"`.
@@ -231,7 +231,7 @@ print('Search cache cleared')
 **Step 5 — Verify**
 
 ```bash
-hedwig-cg --json stats
+hedwig-cgstats
 ```
 
 Compare edge count before and after. The new INFERRED edges strengthen graph N-hop traversal and community detection signals in search.
@@ -248,14 +248,14 @@ LLM semantic enrichment finds these. Combined with 5-signal HybridRAG search, th
 ## Inspect
 
 ```bash
-hedwig-cg --json stats                  # Graph overview
-hedwig-cg --json node "AuthHandler"     # Node details (partial match)
+hedwig-cgstats                  # Graph overview
+hedwig-cgnode "AuthHandler"     # Node details (partial match)
 ```
 
 ## Rules
 
-- **Always search before grepping.** `hedwig-cg --json search` covers vector, graph, keyword, and community in one call.
+- **Always search before grepping.** `hedwig-cgsearch` covers vector, graph, keyword, and community in one call.
 - **Don't stop at first results.** Drill into discovered terms for deeper understanding.
 - Use `file` and `lines` from results to read code — don't rely on search output alone.
-- Run `hedwig-cg --json build . --incremental` after code changes.
+- Run `hedwig-cgbuild . --incremental` after code changes.
 - Errors return `{"error": "message"}`.

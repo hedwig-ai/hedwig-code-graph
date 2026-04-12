@@ -126,7 +126,7 @@ When built inside an AI coding agent, the agent's LLM automatically analyzes cod
 
 ## CLI Reference
 
-**Global flag:** `--json` outputs compact JSON for AI agent consumption.
+All commands output JSON by default.
 
 | Command | Description |
 |---------|-------------|
