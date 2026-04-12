@@ -6,7 +6,15 @@ from pathlib import Path
 
 import click
 
-from ._helpers import auto_rebuild_command, human_ok, human_skip, human_warn
+from ._helpers import (
+    auto_rebuild_command,
+    human_choose,
+    human_done,
+    human_header,
+    human_ok,
+    human_skip,
+    human_warn,
+)
 
 # ─── Claude Code ─────────────────────────────────────────────────────────────
 
@@ -36,11 +44,13 @@ def claude_install(scope: str | None):
 
     # --- Prompt for scope if not specified ---
     if scope is None:
-        scope = click.prompt(
-            "Install scope",
-            type=click.Choice(["user", "project"], case_sensitive=False),
-            default="user",
+        scope = human_choose(
+            "Where should hedwig-cg be installed?",
+            ["user", "project"],
+            default=1,
         )
+
+    human_header(f"Installing hedwig-cg for Claude Code (scope: {scope})")
 
     # --- Priority 1: Install Skill ---
     skill_source = Path(__file__).parent.parent / "skill.md"
@@ -51,8 +61,6 @@ def claude_install(scope: str | None):
 
     skill_dir.mkdir(parents=True, exist_ok=True)
     skill_dest = skill_dir / "SKILL.md"
-
-    click.echo(f"Installing hedwig-cg for Claude Code (scope: {scope})...\n")
 
     if skill_source.exists():
         shutil.copy2(skill_source, skill_dest)
@@ -151,7 +159,7 @@ def claude_install(scope: str | None):
 
     settings_file.write_text(json.dumps(settings, indent=2) + "\n")
 
-    click.echo("\nDone! Run 'hedwig-cg build .' to create your first code graph.")
+    human_done("Done! Run 'hedwig-cg build .' to create your first code graph.")
 
 
 @claude_group.command(name="uninstall")
@@ -166,7 +174,7 @@ def claude_uninstall(scope: str):
     import json
     import shutil
 
-    click.echo("Removing hedwig-cg from Claude Code...\n")
+    human_header("Removing hedwig-cg from Claude Code")
     project_root = Path.cwd()
 
     # 0. Remove skill
@@ -219,7 +227,7 @@ def claude_uninstall(scope: str):
         settings_file.write_text(json.dumps(settings, indent=2) + "\n")
         human_ok("Hooks removed from .claude/settings.json")
 
-    click.echo("\nDone! hedwig-cg integration removed.")
+    human_done("hedwig-cg integration removed.")
 
 
 # ─── Codex CLI ───────────────────────────────────────────────────────────────
@@ -235,7 +243,7 @@ def codex_install():
     """Install per-project Codex CLI integration (AGENTS.md + hooks.json)."""
     import json
 
-    click.echo("Installing hedwig-cg for Codex CLI...\n")
+    human_header("Installing hedwig-cg for Codex CLI...")
     project_root = Path.cwd()
 
     # 1. Write section to project AGENTS.md
@@ -324,7 +332,7 @@ def codex_install():
 
     hooks_file.write_text(json.dumps(hooks_data, indent=2) + "\n")
 
-    click.echo("\nDone!")
+    human_done()
 
 
 @codex_group.command(name="uninstall")
@@ -332,7 +340,7 @@ def codex_uninstall():
     """Remove per-project Codex CLI integration."""
     import json
 
-    click.echo("Removing hedwig-cg from Codex CLI...\n")
+    human_header("Removing hedwig-cg from Codex CLI")
     project_root = Path.cwd()
 
     # 1. Remove section from AGENTS.md
@@ -373,7 +381,7 @@ def codex_uninstall():
         hooks_file.write_text(json.dumps(hooks_data, indent=2) + "\n")
         human_ok("Hooks removed from .codex/hooks.json")
 
-    click.echo("\nDone! hedwig-cg integration removed.")
+    human_done("hedwig-cg integration removed.")
 
 
 # ─── Gemini CLI ──────────────────────────────────────────────────────────────
@@ -389,7 +397,7 @@ def gemini_install():
     """Install per-project Gemini CLI integration (GEMINI.md + BeforeTool hook)."""
     import json
 
-    click.echo("Installing hedwig-cg for Gemini CLI...\n")
+    human_header("Installing hedwig-cg for Gemini CLI...")
     project_root = Path.cwd()
 
     # 1. Write section to project GEMINI.md
@@ -478,7 +486,7 @@ def gemini_install():
 
     settings_file.write_text(json.dumps(settings, indent=2) + "\n")
 
-    click.echo("\nDone!")
+    human_done()
 
 
 @gemini_group.command(name="uninstall")
@@ -486,7 +494,7 @@ def gemini_uninstall():
     """Remove per-project Gemini CLI integration."""
     import json
 
-    click.echo("Removing hedwig-cg from Gemini CLI...\n")
+    human_header("Removing hedwig-cg from Gemini CLI")
     project_root = Path.cwd()
 
     # 1. Remove section from GEMINI.md
@@ -527,7 +535,7 @@ def gemini_uninstall():
         settings_file.write_text(json.dumps(settings, indent=2) + "\n")
         human_ok("Hooks removed from .gemini/settings.json")
 
-    click.echo("\nDone! hedwig-cg integration removed.")
+    human_done("hedwig-cg integration removed.")
 
 
 # ─── Cursor IDE ──────────────────────────────────────────────────────────────
@@ -541,7 +549,7 @@ def cursor_group():
 @cursor_group.command(name="install")
 def cursor_install():
     """Install per-project Cursor integration (.cursor/rules/hedwig-cg.mdc)."""
-    click.echo("Installing hedwig-cg for Cursor IDE...\n")
+    human_header("Installing hedwig-cg for Cursor IDE...")
     project_root = Path.cwd()
 
     rules_dir = project_root / ".cursor" / "rules"
@@ -581,13 +589,13 @@ def cursor_install():
         rules_file.write_text(rule_content)
         human_ok(".cursor/rules/hedwig-cg.mdc created")
 
-    click.echo("\nDone!")
+    human_done()
 
 
 @cursor_group.command(name="uninstall")
 def cursor_uninstall():
     """Remove per-project Cursor integration."""
-    click.echo("Removing hedwig-cg from Cursor IDE...\n")
+    human_header("Removing hedwig-cg from Cursor IDE")
     project_root = Path.cwd()
 
     rules_file = project_root / ".cursor" / "rules" / "hedwig-cg.mdc"
@@ -597,7 +605,7 @@ def cursor_uninstall():
     else:
         human_skip(".cursor/rules/hedwig-cg.mdc not found")
 
-    click.echo("\nDone! hedwig-cg integration removed.")
+    human_done("hedwig-cg integration removed.")
 
 
 # ─── Windsurf IDE ────────────────────────────────────────────────────────────
@@ -611,7 +619,7 @@ def windsurf_group():
 @windsurf_group.command(name="install")
 def windsurf_install():
     """Install per-project Windsurf integration (.windsurf/rules/hedwig-cg.md)."""
-    click.echo("Installing hedwig-cg for Windsurf IDE...\n")
+    human_header("Installing hedwig-cg for Windsurf IDE...")
     project_root = Path.cwd()
 
     rules_dir = project_root / ".windsurf" / "rules"
@@ -646,13 +654,13 @@ def windsurf_install():
         rules_file.write_text(rule_content)
         human_ok(".windsurf/rules/hedwig-cg.md created")
 
-    click.echo("\nDone!")
+    human_done()
 
 
 @windsurf_group.command(name="uninstall")
 def windsurf_uninstall():
     """Remove per-project Windsurf integration."""
-    click.echo("Removing hedwig-cg from Windsurf IDE...\n")
+    human_header("Removing hedwig-cg from Windsurf IDE")
     project_root = Path.cwd()
 
     rules_file = project_root / ".windsurf" / "rules" / "hedwig-cg.md"
@@ -662,7 +670,7 @@ def windsurf_uninstall():
     else:
         human_skip(".windsurf/rules/hedwig-cg.md not found")
 
-    click.echo("\nDone! hedwig-cg integration removed.")
+    human_done("hedwig-cg integration removed.")
 
 
 # ─── Cline ───────────────────────────────────────────────────────────────────
@@ -676,7 +684,7 @@ def cline_group():
 @cline_group.command(name="install")
 def cline_install():
     """Install per-project Cline integration (.clinerules)."""
-    click.echo("Installing hedwig-cg for Cline...\n")
+    human_header("Installing hedwig-cg for Cline...")
     project_root = Path.cwd()
 
     rules_file = project_root / ".clinerules"
@@ -711,13 +719,13 @@ def cline_install():
         rules_file.write_text(rule_content)
         human_ok(".clinerules created")
 
-    click.echo("\nDone!")
+    human_done()
 
 
 @cline_group.command(name="uninstall")
 def cline_uninstall():
     """Remove per-project Cline integration."""
-    click.echo("Removing hedwig-cg from Cline...\n")
+    human_header("Removing hedwig-cg from Cline")
     project_root = Path.cwd()
 
     rules_file = project_root / ".clinerules"
@@ -748,7 +756,7 @@ def cline_uninstall():
     else:
         human_skip(".clinerules not found")
 
-    click.echo("\nDone! hedwig-cg integration removed.")
+    human_done("hedwig-cg integration removed.")
 
 
 # ─── Aider CLI ───────────────────────────────────────────────────────────────
@@ -764,7 +772,7 @@ def aider_install():
     """Install per-project Aider integration (CONVENTIONS.md + .aider.conf.yml)."""
     import yaml
 
-    click.echo("Installing hedwig-cg for Aider CLI...\n")
+    human_header("Installing hedwig-cg for Aider CLI...")
     project_root = Path.cwd()
 
     # 1. Write CONVENTIONS.md with hedwig-cg rules
@@ -816,7 +824,7 @@ def aider_install():
     else:
         human_skip("CONVENTIONS.md already in .aider.conf.yml read list")
 
-    click.echo("\nDone!")
+    human_done()
 
 
 @aider_group.command(name="uninstall")
@@ -824,7 +832,7 @@ def aider_uninstall():
     """Remove per-project Aider integration."""
     import yaml
 
-    click.echo("Removing hedwig-cg from Aider CLI...\n")
+    human_header("Removing hedwig-cg from Aider CLI")
     project_root = Path.cwd()
 
     # 1. Remove section from CONVENTIONS.md
@@ -865,7 +873,7 @@ def aider_uninstall():
                 conf_file.unlink()
             human_ok("CONVENTIONS.md removed from .aider.conf.yml read list")
 
-    click.echo("\nDone! hedwig-cg integration removed.")
+    human_done("hedwig-cg integration removed.")
 
 
 # ─── Register all groups ─────────────────────────────────────────────────────
