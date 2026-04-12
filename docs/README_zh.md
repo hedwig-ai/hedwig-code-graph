@@ -3,7 +3,7 @@
   <p align="center">
     "海德薇一定会带着消息回来的"
     <br />
-    <a href="#快速开始">快速开始</a> · <a href="#支持的语言">语言</a> · <a href="#ai代理集成">集成</a> · <a href="#架构">架构</a> · <a href="../README.md">English</a> · <a href="README_ko.md">한국어</a> · <a href="README_ja.md">日本語</a> · <a href="README_de.md">Deutsch</a>
+    <a href="#快速开始">快速开始</a> · <a href="#支持的语言">语言</a> · <a href="#ai代理集成">集成</a> · <a href="#功能">功能</a> · <a href="../README.md">English</a> · <a href="README_ko.md">한국어</a> · <a href="README_ja.md">日本語</a> · <a href="README_de.md">Deutsch</a>
   </p>
 </p>
 
@@ -18,7 +18,7 @@
 
 ## 为什么选择 hedwig-cg？
 
-hedwig-cg从代码、文档和依赖关系构建统一的知识图谱——让编程代理真正理解你的整个项目，而不仅仅是搜索关键词。安装后，Claude Code就能看到全貌——无需额外的token，无需额外的命令，一切100%本地运行。
+hedwig-cg从代码、文档和依赖关系构建统一的代码图——让编程代理真正理解你的整个项目，而不仅仅是搜索关键词。通过AST结构提取和LLM语义增强，自动发现显式关系和隐藏的跨模块连接。
 
 <img width="1919" height="991" alt="Code Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 
@@ -29,13 +29,17 @@ pip install hedwig-cg
 hedwig-cg claude install
 ```
 
-然后告诉Claude Code：
+然后在Claude Code中：
 
-> "为这个项目构建知识图谱"
+```
+/hedwig-cg build .
+```
 
-就这样。Claude Code会构建图谱，之后每次搜索都会自动参考。代码变更后：
+AST提取 + LLM语义增强自动运行——一次性发现结构关系（import、调用、继承）和隐藏的语义连接（设计模式、行为依赖、跨模块关系）。代码变更后：
 
-> "重新构建知识图谱"
+```
+/hedwig-cg build . --incremental
+```
 
 ## 支持的语言
 
@@ -100,35 +104,23 @@ hedwig-cg通过一个命令与主要AI编程代理集成：
 
 4GB内存预算和分阶段释放。管道在每个阶段执行生成→存储→释放：提取结果在图构建后释放，嵌入以批次流式传输并在DB写入后释放，完整图在持久化后释放。GC在75%阈值时主动触发。
 
-### 100%本地
-
-无云服务、无API密钥、无遥测。SQLite + FAISS存储，sentence-transformers嵌入。所有数据保留在本地。
-
----
-
-## 架构
-
-```
-源代码/文档
-       |
-       v
-   检测 ──> 提取 ──> 构建 ──> 嵌入 ──> 聚类 ──> 分析 ──> 存储
-           tags.scm  NetworkX  双模型    Leiden    PageRank  SQLite
-           (17种)    DiGraph   FAISS    层次结构   核心节点  FTS5+FAISS
-```
-
 ### 5信号混合搜索
 
-每个搜索查询经过5个独立的检索信号，然后融合为单一排名结果：
+每个搜索查询经过5个独立的检索信号，然后通过加权RRF融合为单一排名结果：
 
 | 信号 | 引擎 | 搜索内容 |
 |------|------|----------|
 | **代码向量** | FAISS + `bge-small-en-v1.5` | 语义相似的代码（函数、类、方法） |
 | **文本向量** | FAISS + `multilingual-e5-small` | 文档、注释、Markdown（100+语言） |
-| **图扩展** | NetworkX加权BFS | 结构连接的节点（调用者、被调用者、导入） |
+| **图扩展** | NetworkX加权BFS | 结构连接的节点 + INFERRED边 |
 | **全文搜索** | SQLite FTS5 + BM25 | 源代码全文精确关键词匹配 |
-| **社区上下文** | Leiden聚类 | 同一功能集群的相关节点 |
-| **RRF融合** | 加权逆排名融合 | 组合所有信号——被多个信号发现的节点排名更高 |
+| **社区上下文** | Leiden层次聚类 | 同一功能集群的相关节点 |
+
+LLM语义增强强化了图扩展和社区信号——INFERRED边创建了AST单独无法连接的节点之间的路径。
+
+### LLM语义增强
+
+在AI编程代理内构建时，代理的LLM自动并行分析代码节点批次并注入INFERRED边——发现设计模式、行为依赖、跨模块连接等静态分析无法检测的关系。无需单独的API密钥。
 
 ## 性能
 

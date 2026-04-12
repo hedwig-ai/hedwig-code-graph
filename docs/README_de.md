@@ -3,7 +3,7 @@
   <p align="center">
     "Hedwig wird mit der Nachricht zurueckkommen"
     <br />
-    <a href="#schnellstart">Schnellstart</a> · <a href="#unterstuetzte-sprachen">Sprachen</a> · <a href="#ai-agent-integrationen">Integrationen</a> · <a href="#architektur">Architektur</a> · <a href="../README.md">English</a> · <a href="README_ko.md">한국어</a> · <a href="README_ja.md">日本語</a> · <a href="README_zh.md">中文</a>
+    <a href="#schnellstart">Schnellstart</a> · <a href="#unterstuetzte-sprachen">Sprachen</a> · <a href="#ai-agent-integrationen">Integrationen</a> · <a href="#funktionen">Funktionen</a> · <a href="../README.md">English</a> · <a href="README_ko.md">한국어</a> · <a href="README_ja.md">日本語</a> · <a href="README_zh.md">中文</a>
   </p>
 </p>
 
@@ -18,7 +18,7 @@
 
 ## Warum hedwig-cg?
 
-hedwig-cg erstellt einen einheitlichen Code Graph aus Code, Dokumentation und Abhaengigkeiten — damit Coding-Agents Ihr gesamtes Projekt wirklich verstehen, statt nur Schluesselwoerter zu suchen. Installieren Sie es, und Claude Code sieht das Gesamtbild — keine zusaetzlichen Tokens, keine zusaetzlichen Befehle, alles laeuft 100% lokal.
+hedwig-cg erstellt einen einheitlichen Code Graph aus Code, Dokumentation und Abhaengigkeiten — damit Coding-Agents Ihr gesamtes Projekt wirklich verstehen, statt nur Schluesselwoerter zu suchen. AST-Strukturextraktion plus LLM-semantische Anreicherung entdeckt sowohl explizite als auch versteckte moduluebergreifende Beziehungen automatisch.
 
 <img width="1919" height="991" alt="Code Graph" src="https://github.com/user-attachments/assets/a169c526-bb7c-4900-91dd-4db637793e32" />
 
@@ -29,13 +29,17 @@ pip install hedwig-cg
 hedwig-cg claude install
 ```
 
-Sagen Sie Claude Code:
+In Claude Code:
 
-> "Baue einen Code Graph fuer dieses Projekt"
+```
+/hedwig-cg build .
+```
 
-Das war's. Claude Code baut den Graph und konsultiert ihn ab sofort bei jeder Suche. Bei Code-Aenderungen:
+AST-Extraktion + LLM-semantische Anreicherung laufen automatisch — strukturelle Beziehungen (Imports, Aufrufe, Vererbung) und versteckte semantische Verbindungen (Design Patterns, Verhaltensabhaengigkeiten, moduluebergreifende Beziehungen) werden in einem Durchgang entdeckt. Bei Code-Aenderungen:
 
-> "Code Graph neu bauen"
+```
+/hedwig-cg build . --incremental
+```
 
 ## Unterstuetzte Sprachen
 
@@ -100,35 +104,23 @@ SHA-256-Content-Hashing pro Datei. Nur geaenderte Dateien werden neu extrahiert 
 
 4GB Speicherbudget mit stufenweiser Freigabe. Die Pipeline erzeugt → speichert → gibt frei in jeder Phase: Extraktionsergebnisse werden nach dem Graph-Aufbau freigegeben, Embeddings werden batchweise gestreamt und nach DB-Schreiben freigegeben, der gesamte Graph wird nach der Persistierung freigegeben. GC wird bei 75% Schwellenwert praeventiv ausgeloest.
 
-### 100% Lokal
-
-Keine Cloud-Dienste, keine API-Schluessel, keine Telemetrie. SQLite + FAISS fuer Speicherung, sentence-transformers fuer Embeddings. Alle Daten bleiben auf Ihrem Rechner.
-
----
-
-## Architektur
-
-```
-Quellcode/Dokumente
-       |
-       v
-   Erkennen ──> Extrahieren ──> Bauen ──> Einbetten ──> Clustern ──> Analysieren ──> Speichern
-                tags.scm       NetworkX   Dual-        Leiden       PageRank       SQLite
-                (17 Sprachen)  DiGraph    FAISS        Hierarchie   God-Nodes      FTS5+FAISS
-```
-
 ### 5-Signal-Hybridsuche
 
-Jede Suchanfrage durchlaeuft fuenf unabhaengige Abrufsignale und wird dann zu einem einzigen Ranking-Ergebnis fusioniert:
+Jede Suchanfrage durchlaeuft fuenf unabhaengige Abrufsignale und wird dann per gewichteter RRF zu einem einzigen Ranking-Ergebnis fusioniert:
 
 | Signal | Engine | Findet |
 |--------|--------|--------|
 | **Code-Vektor** | FAISS + `bge-small-en-v1.5` | Semantisch aehnlichen Code (Funktionen, Klassen, Methoden) |
 | **Text-Vektor** | FAISS + `multilingual-e5-small` | Dokumentation, Kommentare, Markdown (100+ Sprachen) |
-| **Graph-Expansion** | NetworkX gewichtete BFS | Strukturell verbundene Knoten (Aufrufer, Aufgerufene, Imports) |
+| **Graph-Expansion** | NetworkX gewichtete BFS | Strukturell verbundene Knoten + INFERRED-Kanten |
 | **Volltextsuche** | SQLite FTS5 + BM25 | Exakte Keyword-Treffer im gesamten Quellcode |
-| **Community-Kontext** | Leiden-Clustering | Verwandte Knoten aus demselben funktionalen Cluster |
-| **RRF-Fusion** | Gewichtete reziproke Rang-Fusion | Kombiniert alle Signale — Knoten aus mehreren Signalen ranken hoeher |
+| **Community-Kontext** | Leiden hierarchisches Clustering | Verwandte Knoten aus demselben funktionalen Cluster |
+
+LLM-semantische Anreicherung verstaerkt die Graph-Expansion und Community-Signale — INFERRED-Kanten schaffen Pfade zwischen Knoten, die AST allein nicht verbinden kann.
+
+### LLM-Semantische Anreicherung
+
+Beim Build innerhalb eines AI-Coding-Agenten analysiert das LLM des Agenten Code-Node-Batches parallel und injiziert INFERRED-Kanten — Design Patterns, Verhaltensabhaengigkeiten und moduluebergreifende Verbindungen, die keine statische Analyse erkennen kann. Kein separater API-Schluessel erforderlich.
 
 ## Leistung
 
