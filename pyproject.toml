@@ -42,6 +42,7 @@ dependencies = [
     "leidenalg>=0.10",
     "igraph>=0.11",
     "numpy>=1.26",
+    "pathspec>=0.12",
 ]
 
 [project.urls]

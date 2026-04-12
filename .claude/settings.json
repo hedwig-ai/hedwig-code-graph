@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh /Users/labyu/.pyenv/versions/3.11.12/lib/python3.11/site-packages/hedwig_cg/scripts/auto_rebuild.sh",
+            "command": "sh \"$(python -c 'import hedwig_cg; import pathlib; print(pathlib.Path(hedwig_cg.__file__).parent / \"scripts\" / \"auto_rebuild.sh\")')\" 2>/dev/null || true",
             "timeout": 10
           }
         ]

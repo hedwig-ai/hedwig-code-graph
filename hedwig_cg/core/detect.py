@@ -1,6 +1,7 @@
 """File detection and classification module.
 
 Scans directories, classifies files by type, and respects ignore patterns.
+Supports .gitignore and .hedwig-cg-ignore with full gitignore spec via pathspec.
 """
 
 from __future__ import annotations
@@ -8,6 +9,8 @@ from __future__ import annotations
 import fnmatch
 from dataclasses import dataclass, field
 from pathlib import Path
+
+import pathspec
 
 # Supported languages mapped to file extensions
 LANGUAGE_MAP: dict[str, list[str]] = {
@@ -70,9 +73,34 @@ class DetectResult:
     root: Path = field(default_factory=lambda: Path("."))
 
 
-def _is_ignored(path: Path, ignore_patterns: set[str]) -> bool:
+def _load_gitignore_spec(root: Path) -> pathspec.PathSpec | None:
+    """Load .gitignore from root directory as a PathSpec matcher."""
+    gitignore = root / ".gitignore"
+    if not gitignore.exists():
+        return None
+    try:
+        lines = gitignore.read_text(encoding="utf-8", errors="replace").splitlines()
+        return pathspec.PathSpec.from_lines("gitwildmatch", lines)
+    except Exception:
+        return None
+
+
+def _load_hedwig_ignore_spec(root: Path) -> pathspec.PathSpec | None:
+    """Load .hedwig-cg-ignore from root directory as a PathSpec matcher."""
+    ignore_file = root / ".hedwig-cg-ignore"
+    if not ignore_file.exists():
+        return None
+    try:
+        lines = ignore_file.read_text(encoding="utf-8", errors="replace").splitlines()
+        return pathspec.PathSpec.from_lines("gitwildmatch", lines)
+    except Exception:
+        return None
+
+
+def _is_default_ignored(path: Path, patterns: set[str]) -> bool:
+    """Check against DEFAULT_IGNORE patterns (simple fnmatch)."""
     name = path.name
-    for pattern in ignore_patterns:
+    for pattern in patterns:
         if fnmatch.fnmatch(name, pattern):
             return True
     return False
@@ -106,6 +134,11 @@ def detect(
 ) -> DetectResult:
     """Scan directory tree and classify files.
 
+    Respects ignore patterns from three sources (all use gitignore spec):
+    1. DEFAULT_IGNORE — built-in patterns for common non-source dirs
+    2. .gitignore — standard git ignore file (full gitignore spec via pathspec)
+    3. .hedwig-cg-ignore — project-specific overrides (full gitignore spec)
+
     Args:
         root: Root directory to scan.
         ignore_patterns: Additional glob patterns to ignore.
@@ -115,24 +148,34 @@ def detect(
         DetectResult with classified files and skip reasons.
     """
     root = Path(root).resolve()
-    patterns = DEFAULT_IGNORE | (ignore_patterns or set())
+    default_patterns = DEFAULT_IGNORE | (ignore_patterns or set())
     result = DetectResult(root=root)
 
-    # Load ignore file if present
-    ignore_file = root / ".hedwig-cg-ignore"
-    if ignore_file.exists():
-        for line in ignore_file.read_text().splitlines():
-            line = line.strip()
-            if line and not line.startswith("#"):
-                patterns.add(line)
+    # Load gitignore-spec matchers
+    gitignore_spec = _load_gitignore_spec(root)
+    hedwig_spec = _load_hedwig_ignore_spec(root)
 
     for path in sorted(root.rglob("*")):
         if not path.is_file():
             continue
 
-        # Check ignore patterns against all parent dirs
-        if any(_is_ignored(p, patterns) for p in [path] + list(path.relative_to(root).parents)):
+        # 1. Check DEFAULT_IGNORE against filename and parent dirs
+        if any(
+            _is_default_ignored(p, default_patterns)
+            for p in [path] + list(path.relative_to(root).parents)
+        ):
             result.skipped.append(f"ignored: {path}")
+            continue
+
+        # 2. Check .gitignore patterns (full gitignore spec with negation support)
+        rel_path = str(path.relative_to(root))
+        if gitignore_spec and gitignore_spec.match_file(rel_path):
+            result.skipped.append(f"gitignored: {path}")
+            continue
+
+        # 3. Check .hedwig-cg-ignore patterns (full gitignore spec)
+        if hedwig_spec and hedwig_spec.match_file(rel_path):
+            result.skipped.append(f"hedwig-ignored: {path}")
             continue
 
         if _is_sensitive(path):
