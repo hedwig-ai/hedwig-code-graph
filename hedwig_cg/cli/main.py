@@ -163,6 +163,197 @@ def search(ctx, query: str, db: str | None, top_k: int, source_dir: str, fast: b
     store.close()
 
 
+# --- Per-signal search commands ---
+
+def _signal_options(fn):
+    """Common options for per-signal search commands."""
+    fn = click.argument("query")(fn)
+    fn = click.option("--db", type=click.Path(), default=None)(fn)
+    fn = click.option("--top-k", default=30, type=int, help="Number of results")(fn)
+    fn = click.option("--source-dir", type=click.Path(), default=".")(fn)
+    return fn
+
+
+def _node_dict(G, node_id: str, source_dir_str: str) -> dict | None:
+    """Build a compact dict for a node ID."""
+    data = G.nodes.get(node_id)
+    if not data:
+        return None
+    rel_path = data.get("file_path", "")
+    if source_dir_str and rel_path.startswith(source_dir_str):
+        rel_path = rel_path[len(source_dir_str):]
+    d = {
+        "label": data.get("label", node_id),
+        "kind": data.get("kind", ""),
+        "file": rel_path,
+        "lines": [data.get("start_line", 0), data.get("end_line", 0)],
+    }
+    sig = data.get("signature", "")
+    if sig:
+        d["sig"] = sig
+    return d
+
+
+@cli.command(name="search-vector")
+@_signal_options
+def search_vector(query: str, db: str | None, top_k: int, source_dir: str):
+    """Search using code + text vector similarity only (FAISS cosine)."""
+    from hedwig_cg.query.embeddings import embed_query_dual
+    from hedwig_cg.storage.store import KnowledgeStore
+
+    db_path = resolve_db(db, source_dir)
+    if not db_path:
+        json_error("No knowledge base found.")
+    store = KnowledgeStore(db_path)
+    G = store.load_graph()
+    try:
+        store.build_vector_index()
+    except Exception:
+        pass
+
+    text_model = store.get_meta("text_model", None)
+    code_vec, text_vec = embed_query_dual(query, text_model=text_model)
+    source_dir_str = str(Path(source_dir).resolve()) + "/"
+
+    results = []
+    for model_type, vec in [("code", code_vec), ("text", text_vec)]:
+        if vec is not None:
+            hits = store.vector_search(vec, top_k=top_k, model_type=model_type)
+            for nid, score in hits:
+                d = _node_dict(G, nid, source_dir_str)
+                if d:
+                    d["score"] = round(float(score), 3)
+                    d["model"] = model_type
+                    results.append(d)
+
+    # Deduplicate, keep highest score
+    seen = {}
+    for r in results:
+        key = r["label"]
+        if key not in seen or r["score"] > seen[key]["score"]:
+            seen[key] = r
+    json_out(sorted(seen.values(), key=lambda x: x["score"], reverse=True)[:top_k])
+    store.close()
+
+
+@cli.command(name="search-keyword")
+@_signal_options
+def search_keyword(query: str, db: str | None, top_k: int, source_dir: str):
+    """Search using FTS5 keyword matching only (BM25 ranking)."""
+    from hedwig_cg.query.hybrid import extract_search_terms
+    from hedwig_cg.storage.store import KnowledgeStore
+
+    db_path = resolve_db(db, source_dir)
+    if not db_path:
+        json_error("No knowledge base found.")
+    store = KnowledgeStore(db_path)
+    source_dir_str = str(Path(source_dir).resolve()) + "/"
+
+    terms = extract_search_terms(query)
+    if not terms:
+        json_out([])
+        store.close()
+        return
+
+    hits = store.keyword_search(terms, top_k=top_k)
+    results = []
+    for h in hits:
+        rel_path = h.get("file_path", "")
+        if source_dir_str and rel_path.startswith(source_dir_str):
+            rel_path = rel_path[len(source_dir_str):]
+        results.append({
+            "label": h.get("label", h.get("node_id", "")),
+            "kind": h.get("kind", ""),
+            "file": rel_path,
+            "score": round(h.get("bm25_score", 0), 3),
+        })
+    json_out(results)
+    store.close()
+
+
+@cli.command(name="search-graph")
+@_signal_options
+def search_graph(query: str, db: str | None, top_k: int, source_dir: str):
+    """Search using graph expansion only (BFS from vector seeds)."""
+    from hedwig_cg.query.embeddings import embed_query_dual
+    from hedwig_cg.query.hybrid import _weighted_expand
+    from hedwig_cg.storage.store import KnowledgeStore
+
+    db_path = resolve_db(db, source_dir)
+    if not db_path:
+        json_error("No knowledge base found.")
+    store = KnowledgeStore(db_path)
+    G = store.load_graph()
+    try:
+        store.build_vector_index()
+    except Exception:
+        pass
+
+    text_model = store.get_meta("text_model", None)
+    code_vec, text_vec = embed_query_dual(query, text_model=text_model)
+    source_dir_str = str(Path(source_dir).resolve()) + "/"
+
+    # Get vector seeds first
+    seeds = []
+    for model_type, vec in [("code", code_vec), ("text", text_vec)]:
+        if vec is not None:
+            hits = store.vector_search(vec, top_k=5, model_type=model_type)
+            seeds.extend(hits)
+
+    # BFS expand from seeds
+    seen: set[str] = set()
+    expanded: list[tuple[str, float]] = []
+    for nid, score in seeds:
+        _weighted_expand(G, nid, score, max_hops=2, seen=seen, out=expanded)
+
+    expanded.sort(key=lambda x: x[1], reverse=True)
+    results = []
+    for nid, score in expanded[:top_k]:
+        d = _node_dict(G, nid, source_dir_str)
+        if d:
+            d["score"] = round(score, 3)
+            results.append(d)
+    json_out(results)
+    store.close()
+
+
+@cli.command(name="search-community")
+@_signal_options
+def search_community(query: str, db: str | None, top_k: int, source_dir: str):
+    """Search using community cluster matching only."""
+    from hedwig_cg.query.hybrid import extract_search_terms
+    from hedwig_cg.storage.store import KnowledgeStore
+
+    db_path = resolve_db(db, source_dir)
+    if not db_path:
+        json_error("No knowledge base found.")
+    store = KnowledgeStore(db_path)
+    G = store.load_graph()
+    source_dir_str = str(Path(source_dir).resolve()) + "/"
+
+    terms = extract_search_terms(query)
+    if not terms:
+        json_out([])
+        store.close()
+        return
+
+    comm_results = store.community_search(terms, top_k=10)
+    results = []
+    seen = set()
+    for comm in comm_results:
+        for nid in comm.get("node_ids", []):
+            if nid in seen:
+                continue
+            seen.add(nid)
+            d = _node_dict(G, nid, source_dir_str)
+            if d:
+                d["community"] = comm.get("community_id", "")
+                d["community_summary"] = comm.get("summary", "")[:100]
+                results.append(d)
+    json_out(results[:top_k])
+    store.close()
+
+
 @cli.command()
 @click.option("--db", type=click.Path(), default=None)
 @click.option("--source-dir", type=click.Path(), default=".", help="Source dir")
