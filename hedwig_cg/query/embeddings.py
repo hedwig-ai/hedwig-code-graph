@@ -111,23 +111,48 @@ def _get_process_rss() -> int:
 
 # --- Cross-Encoder Reranker ---
 
-RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+RERANKER_MODEL = "jinaai/jina-reranker-v2-base-multilingual"
 _reranker = None
+
+
+def _patch_xlm_roberta():
+    """Patch missing function in latest transformers for Jina reranker compat."""
+    import transformers.models.xlm_roberta.modeling_xlm_roberta as mod
+
+    if hasattr(mod, "create_position_ids_from_input_ids"):
+        return
+    import torch
+
+    def create_position_ids_from_input_ids(
+        input_ids, padding_idx, past_key_values_length=0,
+    ):
+        mask = input_ids.ne(padding_idx).int()
+        incremental = (
+            torch.cumsum(mask, dim=1).type_as(mask) + past_key_values_length
+        ) * mask
+        return incremental.long() + padding_idx
+
+    mod.create_position_ids_from_input_ids = create_position_ids_from_input_ids
 
 
 def _get_reranker():
     """Lazy-load Cross-Encoder reranker model."""
     global _reranker  # noqa: PLW0603
     if _reranker is None:
+        _patch_xlm_roberta()
         from sentence_transformers import CrossEncoder
 
         safe_name = RERANKER_MODEL.replace("/", "--")
         local_path = _MODEL_CACHE_DIR / safe_name
         if local_path.exists() and any(local_path.iterdir()):
-            _reranker = CrossEncoder(str(local_path))
+            _reranker = CrossEncoder(
+                str(local_path), trust_remote_code=True,
+            )
         else:
             _MODEL_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-            _reranker = CrossEncoder(RERANKER_MODEL)
+            _reranker = CrossEncoder(
+                RERANKER_MODEL, trust_remote_code=True,
+            )
             _reranker.save(str(local_path))
     return _reranker
 
