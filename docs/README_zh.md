@@ -27,6 +27,8 @@ hedwig-cg使用轻量级本地LLM模型，从10,000+文件的代码库和知识�
 
 ```bash
 pip install hedwig-cg
+
+cd your-project/
 hedwig-cg claude install
 ```
 

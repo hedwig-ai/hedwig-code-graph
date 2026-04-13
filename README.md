@@ -27,6 +27,8 @@ hedwig-cg builds a queryable code graph and knowledge base from codebases with 1
 
 ```bash
 pip install hedwig-cg
+
+cd your-project/
 hedwig-cg claude install
 ```
 

@@ -27,6 +27,8 @@ hedwig-cg erstellt mit leichtgewichtigen lokalen LLM-Modellen einen abfragbaren 
 
 ```bash
 pip install hedwig-cg
+
+cd your-project/
 hedwig-cg claude install
 ```
 
