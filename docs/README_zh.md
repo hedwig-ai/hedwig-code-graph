@@ -103,9 +103,11 @@ hedwig-cg使用[tree-sitter tags.scm](https://tree-sitter.github.io/tree-sitter/
 
 ---
 
-## 5信号混合搜索
+## 两阶段混合搜索
 
-所有查询经过5个信号，通过逆排名融合（RRF）统合：
+所有查询经过两阶段管线：
+
+**阶段1 — 5信号检索**（RRF融合）
 
 | 信号 | 搜索内容 |
 |------|----------|
@@ -114,6 +116,10 @@ hedwig-cg使用[tree-sitter tags.scm](https://tree-sitter.github.io/tree-sitter/
 | **图扩展** | 结构连接的节点（调用者、导入） |
 | **全文搜索** | 精确关键词匹配（BM25） |
 | **社区上下文** | 同一集群的相关节点 |
+
+**阶段2 — Cross-Encoder重排序**
+
+Cross-Encoder模型对候选结果重新评分，将实现代码排在测试和文档节点之上。结果包含节点间的关系边。
 
 ## CLI参考
 

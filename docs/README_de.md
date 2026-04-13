@@ -103,9 +103,11 @@ Keine Cloud-Dienste, keine API-Schluessel, keine Telemetrie. SQLite + FAISS fuer
 
 ---
 
-## 5-Signal-Hybridsuche
+## Zweistufige Hybridsuche
 
-Alle Abfragen durchlaufen fünf Signale, fusioniert durch Reciprocal Rank Fusion (RRF):
+Alle Abfragen durchlaufen eine zweistufige Pipeline:
+
+**Stufe 1 — 5-Signal-Retrieval** (RRF-Fusion)
 
 | Signal | Findet |
 |--------|--------|
@@ -114,6 +116,10 @@ Alle Abfragen durchlaufen fünf Signale, fusioniert durch Reciprocal Rank Fusion
 | **Graph-Expansion** | Strukturell verbundene Knoten (Aufrufer, Imports) |
 | **Volltextsuche** | Exakte Keyword-Treffer (BM25) |
 | **Community-Kontext** | Verwandte Knoten aus demselben Cluster |
+
+**Stufe 2 — Cross-Encoder-Reranking**
+
+Ein Cross-Encoder-Modell bewertet die Kandidaten neu und rankt Implementierungscode über Test- und Dokumentationsknoten. Ergebnisse enthalten Beziehungskanten zwischen Knoten.
 
 ## CLI-Referenz
 

@@ -103,9 +103,11 @@ No cloud services, no API keys, no telemetry. SQLite + FAISS for storage, senten
 
 ---
 
-## 5-Signal Hybrid Search
+## Two-Stage Hybrid Search
 
-Every query runs through five signals fused via Reciprocal Rank Fusion (RRF):
+Every query runs through a two-stage pipeline:
+
+**Stage 1 — 5-Signal Retrieval** (RRF fusion)
 
 | Signal | What it finds |
 |--------|---------------|
@@ -114,6 +116,10 @@ Every query runs through five signals fused via Reciprocal Rank Fusion (RRF):
 | **Graph Expansion** | Structurally connected nodes (callers, imports) |
 | **Full-Text Search** | Exact keyword matches (BM25) |
 | **Community Context** | Related nodes from the same cluster |
+
+**Stage 2 — Cross-Encoder Reranking**
+
+A cross-encoder model rescores the candidates, pushing implementation code above test and documentation nodes. Results include relationship edges between nodes.
 
 ## CLI Reference
 
