@@ -7,10 +7,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import networkx as nx
-import pytest
 
 from hedwig_cg.core.git_cochange import (
-    CoChangeEdge,
     CommitInfo,
     _build_file_to_node_index,
     _file_to_module_id,
@@ -20,7 +18,6 @@ from hedwig_cg.core.git_cochange import (
     enrich_graph_with_cochange,
     parse_git_log,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

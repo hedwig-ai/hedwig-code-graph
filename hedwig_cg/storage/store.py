@@ -168,7 +168,8 @@ class KnowledgeStore:
             extra = {k: v for k, v in data.items()
                      if k not in ("relation", "confidence", "weight")}
             c.execute(
-                """INSERT OR REPLACE INTO edges (source, target, relation, confidence, weight, metadata)
+                """INSERT OR REPLACE INTO edges
+                   (source, target, relation, confidence, weight, metadata)
                    VALUES (?, ?, ?, ?, ?, ?)""",
                 (u, v, data.get("relation", ""), data.get("confidence", "EXTRACTED"),
                  data.get("weight", 1.0), json.dumps(extra)),

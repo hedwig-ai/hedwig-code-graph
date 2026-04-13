@@ -217,7 +217,10 @@ def run_pipeline(
         if cochange_count > 0:
             _progress("git_cochange", f"Added {cochange_count} co-change edges")
         else:
-            _progress("git_cochange", "No co-change edges found (not a git repo or insufficient history)")
+            _progress(
+                "git_cochange",
+                "No co-change edges (not a git repo or insufficient history)",
+            )
     except Exception as e:
         _progress("git_cochange", f"Skipped: {e}")
         logger.debug("Git co-change extraction failed", exc_info=True)
