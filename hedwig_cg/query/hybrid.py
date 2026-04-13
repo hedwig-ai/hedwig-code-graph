@@ -368,15 +368,36 @@ def hybrid_search(
             continue
         candidates.append((node_id, rrf_score, data))
 
-    # Stage 7: Cross-Encoder reranking (Stage 2)
+    # Stage 7: Cross-Encoder reranking with RRF score blending
+    # Blend preserves graph-discovered structure while letting reranker
+    # promote implementation code. α=0.3 means 30% RRF + 70% reranker.
+    rerank_alpha = 0.3
     try:
         from hedwig_cg.query.embeddings import _node_text, rerank
 
         rerank_input = [(nid, _node_text(data)) for nid, _, data in candidates]
-        reranked = rerank(query, rerank_input, top_k=top_k)
-        # Rebuild candidates in reranked order
-        reranked_candidates = [(candidates[idx][0], float(score), candidates[idx][2])
-                               for idx, score in reranked]
+        reranked = rerank(query, rerank_input, top_k=candidate_limit)
+
+        # Normalize reranker scores to [0, 1] for blending
+        re_scores = [s for _, s in reranked]
+        re_min = min(re_scores) if re_scores else 0
+        re_max = max(re_scores) if re_scores else 1
+        re_range = re_max - re_min if re_max != re_min else 1.0
+
+        # Normalize RRF scores to [0, 1]
+        rrf_scores = [rrf for _, rrf, _ in candidates]
+        rrf_max = max(rrf_scores) if rrf_scores else 1
+
+        blended = []
+        for idx, re_score in reranked:
+            nid, rrf_score, data = candidates[idx]
+            norm_re = (re_score - re_min) / re_range
+            norm_rrf = rrf_score / rrf_max if rrf_max else 0
+            final = rerank_alpha * norm_rrf + (1 - rerank_alpha) * norm_re
+            blended.append((nid, final, data))
+
+        blended.sort(key=lambda x: x[1], reverse=True)
+        reranked_candidates = blended[:top_k]
     except Exception:
         logger.debug("Reranker unavailable, using RRF order", exc_info=True)
         reranked_candidates = candidates[:top_k]
