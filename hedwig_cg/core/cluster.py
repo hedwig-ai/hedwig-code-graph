@@ -33,6 +33,41 @@ class ClusterResult:
     hierarchy_levels: int = 0
 
 
+def _detect_hub_nodes(
+    G: nx.DiGraph,
+    percentile: float = 97,
+    min_threshold: int = 10,
+) -> set[str]:
+    """Detect hub nodes with abnormally high in-degree.
+
+    Hub nodes (builtins like len/max, minified JS vars, common utilities)
+    act as false bridges in community detection, merging unrelated clusters.
+
+    Uses adaptive thresholding: P97 of in-degree distribution with a
+    minimum floor of 10 to avoid over-filtering in small graphs.
+
+    Args:
+        G: The code graph.
+        percentile: Percentile for outlier detection (default 97).
+        min_threshold: Minimum in-degree to consider as hub.
+
+    Returns:
+        Set of node IDs to exclude from clustering.
+    """
+    import numpy as np
+
+    if len(G) == 0:
+        return set()
+
+    in_degrees = [G.in_degree(n) for n in G.nodes()]
+    threshold = max(np.percentile(in_degrees, percentile), min_threshold)
+
+    return {
+        n for n in G.nodes()
+        if G.in_degree(n) > threshold
+    }
+
+
 def hierarchical_cluster(
     G: nx.DiGraph,
     resolutions: list[float] | None = None,
@@ -57,8 +92,20 @@ def hierarchical_cluster(
     result = ClusterResult(hierarchy_levels=len(resolutions))
     community_counter = 0
 
+    # Filter hub nodes before clustering — nodes with abnormally high
+    # in-degree (builtins like len/max, minified JS vars) act as false
+    # bridges that merge unrelated communities into giant superclusters.
+    hub_nodes = _detect_hub_nodes(G)
+    if hub_nodes:
+        logger.info(
+            "Excluding %d hub nodes from clustering (in-degree outliers)",
+            len(hub_nodes),
+        )
+    G_filtered = G.copy()
+    G_filtered.remove_nodes_from(hub_nodes)
+
     # Convert to undirected for community detection
-    G_undirected = G.to_undirected()
+    G_undirected = G_filtered.to_undirected()
 
     try:
         import igraph as ig

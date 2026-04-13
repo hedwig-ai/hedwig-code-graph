@@ -73,7 +73,11 @@ def build_graph(extractions: list[ExtractionResult]) -> nx.DiGraph:
         if len(candidates) == 1:
             confidence = "EXTRACTED"
         elif len(candidates) > 1:
-            confidence = "AMBIGUOUS"
+            # Multiple candidates: ambiguous reference — skip entirely.
+            # AMBIGUOUS edges connect unrelated nodes sharing a common name
+            # (e.g. "logger", "Config"), creating false bridges that inflate
+            # community sizes and degrade search quality.
+            continue
         else:
             # Create a placeholder external node
             ext_id = f"external::{target_name}"
