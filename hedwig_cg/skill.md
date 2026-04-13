@@ -5,7 +5,31 @@ description: Local-first code graph builder with 5-signal hybrid search. Use whe
 
 # hedwig-cg
 
-Builds code graphs from source code and documents. Searches with 5-signal hybrid search (code vector + text vector + graph traversal + FTS5 keyword + community → RRF fusion). Supports 17 languages with deep AST extraction. 100% local.
+hedwig-cg is NOT a search engine that finds answers. It is a **map builder** — it tells you **what the codebase looks like** and **what to read next**. Use it as the starting point of every investigation, then drill deeper with Read and Grep.
+
+Builds code graphs from source code and documents. Two-Stage 5-signal hybrid search (code vector + text vector + graph traversal + FTS5 keyword + community → RRF fusion → Cross-Encoder reranking). Supports 17 languages with deep AST extraction. 100% local.
+
+## When to Use What
+
+| Task | hedwig-cg | Grep | Read |
+|------|-----------|------|------|
+| "Where is it?" (file discovery) | **best** | weak | no |
+| "What's the structure?" (architecture) | good | weak | **best** |
+| "What exactly exists?" (symbols, types) | weak | **best** | good |
+| "How does it connect?" (dependencies) | fair | good | **best** |
+
+**hedwig-cg excels at**: Cross-service file discovery, document structure, ranking what to read first.
+**hedwig-cg is weak at**: Specific type/const/function definitions, cross-service call graphs, non-English queries.
+
+## Recommended Workflow
+
+```
+Step 1: hedwig-cg search → identify relevant files and services
+Step 2: Read → deeply understand architecture and data flow
+Step 3: Grep → find specific symbols, types, constants
+```
+
+Always start with hedwig-cg to get the big picture, then use Read/Grep for details.
 
 ## Search (PRIMARY — use this first)
 
@@ -31,12 +55,24 @@ Response (compact JSON with relationship edges):
 
 - `results[].file` + `lines`: Use to read the code directly
 - `results[].sig` / `doc`: Omitted when empty
-- `results[].score`: Higher = more relevant
+- `results[].score`: Higher = more relevant — prioritize reading higher-scored files first
 - `edges`: Relationships between result nodes (calls, imports, inherits, etc.) — use to understand how results connect
+
+## Important: Query in English
+
+**Always query in English for best results.** Non-English queries (Japanese, Korean, Chinese, etc.) return significantly lower precision. If the user's request is in another language, translate the key concepts to English before searching.
+
+```bash
+# Good — English query
+hedwig-cg search "subscription promotion"     # score: 0.047, precise results
+
+# Bad — Korean query
+hedwig-cg search "프로모션 구독 할인"           # score: 0.028, irrelevant results
+```
 
 ## Search Strategy — Drill Down, Don't Stop at First Results
 
-**Don't search once and stop.** Use results to discover domain-specific terms, then search deeper.
+**Don't search once and stop.** Use results to discover domain-specific terms, then search deeper. The goal is to build a mental map, not to find a single answer.
 
 ### Example: "결제 관련 코드 찾아봐"
 
@@ -65,27 +101,16 @@ hedwig-cg search "order status update"
 → Found `OrderService.complete_order`, `NotificationService.send_receipt`
 
 Now you have the full picture: Stripe → Webhook → Order → Notification.
-
-### Example: "인증 로직 이해하고 싶어"
-
-**Round 1**: `hedwig-cg search "authentication login"`
-→ Found `AuthMiddleware`, `JWTTokenManager`, `SessionStore`
-
-**Round 2**: `hedwig-cg search "JWTTokenManager"`
-→ Found `generate_token`, `verify_token`, `refresh_token`, `token_blacklist`
-
-**Round 3**: `hedwig-cg search "token blacklist refresh"`
-→ Found `RedisTokenStore`, `cleanup_expired_tokens`, `rotate_refresh_token`
+**Then use Read to understand each file, and Grep to find specific type definitions.**
 
 ### The pattern:
 
-1. **Start broad** — natural language describing intent
+1. **Start broad** — natural language describing intent (in English)
 2. **Read results** — look for class names, function names, domain terms you didn't know
 3. **Search specific** — use those discovered terms as next query
 4. **Follow edges** — when results mention related services/modules, search those too
-5. **Stop** when you have enough context to act
-
-The code graph connects code by calls, imports, and inheritance — so each search surfaces related code you wouldn't find by grepping.
+5. **Switch to Read/Grep** when you need specific details (types, constants, function bodies)
+6. **Stop** when you have enough context to act
 
 ## Build
 
@@ -105,6 +130,8 @@ hedwig-cg node "AuthHandler"     # Node details (partial match)
 
 - **Always search before grepping.** `hedwig-cg search` covers vector, graph, keyword, and community in one call.
 - **Don't stop at first results.** Drill into discovered terms for deeper understanding.
+- **Query in English.** Non-English queries have significantly lower precision.
+- **hedwig-cg finds what to read; Read/Grep finds the details.** Don't expect hedwig-cg to surface specific type definitions or function signatures.
 - Use `file` and `lines` from results to read code — don't rely on search output alone.
 - Run `hedwig-cg build . --incremental` after code changes.
 - Errors return `{"error": "message"}`.
