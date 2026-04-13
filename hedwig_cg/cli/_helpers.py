@@ -11,10 +11,23 @@ import click
 
 
 def suppress_library_logs():
-    """Suppress noisy library logs."""
+    """Suppress noisy library logs and warnings.
+
+    Handles three categories:
+    1. Python warnings (torch_dtype deprecation, einops import, etc.)
+    2. Logger-based messages from sentence-transformers / HF / torch
+    3. HF Hub unauthenticated-request notice (env var)
+    """
     warnings.filterwarnings("ignore")
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
     os.environ["TQDM_DISABLE"] = "1"
+    # Suppress HF Hub "unauthenticated requests" warning
+    os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
+    os.environ["HF_HUB_DISABLE_IMPLICIT_TOKEN"] = "1"
+    os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+    # Suppress transformers logging (includes torch_dtype deprecation)
+    os.environ["TRANSFORMERS_VERBOSITY"] = "error"
+    os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
     for name in [
         "sentence_transformers", "transformers", "torch", "huggingface_hub",
         "filelock", "urllib3", "tqdm", "fsspec",
