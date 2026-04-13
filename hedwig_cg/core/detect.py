@@ -32,6 +32,8 @@ LANGUAGE_MAP: dict[str, list[str]] = {
     "shell": [".sh", ".bash", ".zsh"],
     "lua": [".lua"],
     "r": [".r", ".R"],
+    "terraform": [".tf"],
+    "hcl": [".hcl"],
     "markdown": [".md", ".mdx"],
     "yaml": [".yml", ".yaml"],
     "json": [".json"],

@@ -427,6 +427,269 @@ def _extract_csv(file_path: str, content: str) -> ExtractionResult:
     return result
 
 
+def _extract_terraform(file_path: str, content: str) -> ExtractionResult:
+    """Extract structural elements from Terraform/HCL files using python-hcl2."""
+    result = ExtractionResult()
+    module_id = _make_node_id(file_path, Path(file_path).stem, "module")
+    result.nodes.append(ExtractedNode(
+        id=module_id,
+        name=Path(file_path).stem,
+        kind="module",
+        file_path=file_path,
+        language="terraform",
+    ))
+
+    try:
+        import io
+
+        import hcl2
+    except ImportError:
+        result.nodes[0].source_snippet = content
+        return result
+
+    try:
+        parsed = hcl2.load(io.StringIO(content))
+    except Exception:
+        result.nodes[0].source_snippet = content
+        return result
+
+    # HCL block types that produce nodes
+    _BLOCK_KINDS = {
+        "resource": "resource",
+        "data": "data_source",
+        "variable": "variable",
+        "output": "variable",
+        "module": "module",
+        "provider": "provider",
+        "locals": "variable",
+    }
+
+    for block_type, node_kind in _BLOCK_KINDS.items():
+        blocks = parsed.get(block_type, [])
+        for block in blocks:
+            if not isinstance(block, dict):
+                continue
+            for name, body in block.items():
+                if block_type in ("resource", "data"):
+                    # resource/data blocks: {"aws_instance": {"my_name": {...}}}
+                    if isinstance(body, dict):
+                        for inner_name, inner_body in body.items():
+                            full_name = f"{block_type}.{name}.{inner_name}"
+                            node_id = _make_node_id(file_path, full_name, node_kind)
+                            snippet = f"{block_type} \"{name}\" \"{inner_name}\""
+                            if isinstance(inner_body, dict):
+                                snippet += " {\n"
+                                for k, v in list(inner_body.items())[:10]:
+                                    snippet += f"  {k} = {v!r}\n"
+                                snippet += "}"
+                            result.nodes.append(ExtractedNode(
+                                id=node_id, name=full_name, kind=node_kind,
+                                file_path=file_path, language="terraform",
+                                source_snippet=snippet,
+                            ))
+                            result.edges.append(ExtractedEdge(module_id, node_id, "defines"))
+                    elif isinstance(body, list):
+                        for i, inner_block in enumerate(body):
+                            if isinstance(inner_block, dict):
+                                for inner_name, inner_body in inner_block.items():
+                                    full_name = f"{block_type}.{name}.{inner_name}"
+                                    node_id = _make_node_id(file_path, full_name, node_kind)
+                                    result.nodes.append(ExtractedNode(
+                                        id=node_id, name=full_name, kind=node_kind,
+                                        file_path=file_path, language="terraform",
+                                        source_snippet=f"{block_type} \"{name}\" \"{inner_name}\"",
+                                    ))
+                                    result.edges.append(
+                                        ExtractedEdge(module_id, node_id, "defines")
+                                    )
+                else:
+                    # variable, output, module, provider, locals
+                    full_name = f"{block_type}.{name}"
+                    node_id = _make_node_id(file_path, full_name, node_kind)
+                    snippet = f"{block_type} \"{name}\""
+                    if isinstance(body, dict):
+                        snippet += " {\n"
+                        for k, v in list(body.items())[:10]:
+                            snippet += f"  {k} = {v!r}\n"
+                        snippet += "}"
+                    result.nodes.append(ExtractedNode(
+                        id=node_id, name=full_name, kind=node_kind,
+                        file_path=file_path, language="terraform",
+                        source_snippet=snippet,
+                    ))
+                    result.edges.append(ExtractedEdge(module_id, node_id, "defines"))
+
+    # Extract references between terraform nodes (var.xxx, module.xxx, data.xxx)
+    _TF_REF = re.compile(r'\b(var|module|data|local)\.([\w.]+)')
+    for m in _TF_REF.finditer(content):
+        ref_type = m.group(1)
+        ref_name = m.group(2).split(".")[0]
+        ref_map = {"var": "variable", "module": "module", "data": "data", "local": "locals"}
+        target_full = f"{ref_map.get(ref_type, ref_type)}.{ref_name}"
+        target_id = f"*::{target_full}"
+        result.edges.append(ExtractedEdge(
+            module_id, target_id, "references", confidence="INFERRED",
+        ))
+
+    return result
+
+
+def _extract_yaml(file_path: str, content: str) -> ExtractionResult:
+    """Extract structural elements from YAML files."""
+    result = ExtractionResult()
+    doc_id = _make_node_id(file_path, Path(file_path).stem, "document")
+    result.nodes.append(ExtractedNode(
+        id=doc_id,
+        name=Path(file_path).stem,
+        kind="document",
+        file_path=file_path,
+        language="yaml",
+        source_snippet=content[:500],
+    ))
+
+    try:
+        import yaml
+    except ImportError:
+        return result
+
+    try:
+        data = yaml.safe_load(content)
+    except Exception:
+        return result
+
+    if not isinstance(data, dict):
+        return result
+
+    def _walk(obj: Any, prefix: str, parent_id: str, depth: int = 0) -> None:
+        if depth > 3 or not isinstance(obj, dict):
+            return
+        for key, value in obj.items():
+            key_str = str(key)
+            full_path = f"{prefix}.{key_str}" if prefix else key_str
+            node_id = _make_node_id(file_path, full_path, "section")
+            snippet = f"{key_str}:"
+            if isinstance(value, dict):
+                snippet += f" ({len(value)} keys)"
+            elif isinstance(value, list):
+                snippet += f" [{len(value)} items]"
+            else:
+                snippet += f" {value!r}"
+            result.nodes.append(ExtractedNode(
+                id=node_id, name=full_path, kind="section",
+                file_path=file_path, language="yaml",
+                source_snippet=snippet[:300],
+            ))
+            result.edges.append(ExtractedEdge(parent_id, node_id, "defines"))
+            if isinstance(value, dict):
+                _walk(value, full_path, node_id, depth + 1)
+
+    _walk(data, "", doc_id)
+    return result
+
+
+def _extract_json(file_path: str, content: str) -> ExtractionResult:
+    """Extract structural elements from JSON files."""
+    import json as json_mod
+
+    result = ExtractionResult()
+    doc_id = _make_node_id(file_path, Path(file_path).stem, "document")
+    result.nodes.append(ExtractedNode(
+        id=doc_id,
+        name=Path(file_path).stem,
+        kind="document",
+        file_path=file_path,
+        language="json",
+        source_snippet=content[:500],
+    ))
+
+    try:
+        data = json_mod.loads(content)
+    except Exception:
+        return result
+
+    if not isinstance(data, dict):
+        return result
+
+    def _walk(obj: Any, prefix: str, parent_id: str, depth: int = 0) -> None:
+        if depth > 3 or not isinstance(obj, dict):
+            return
+        for key, value in obj.items():
+            key_str = str(key)
+            full_path = f"{prefix}.{key_str}" if prefix else key_str
+            node_id = _make_node_id(file_path, full_path, "section")
+            snippet = f"{key_str}:"
+            if isinstance(value, dict):
+                snippet += f" ({len(value)} keys)"
+            elif isinstance(value, list):
+                snippet += f" [{len(value)} items]"
+            else:
+                snippet += f" {value!r}"
+            result.nodes.append(ExtractedNode(
+                id=node_id, name=full_path, kind="section",
+                file_path=file_path, language="json",
+                source_snippet=snippet[:300],
+            ))
+            result.edges.append(ExtractedEdge(parent_id, node_id, "defines"))
+            if isinstance(value, dict):
+                _walk(value, full_path, node_id, depth + 1)
+
+    _walk(data, "", doc_id)
+    return result
+
+
+def _extract_toml(file_path: str, content: str) -> ExtractionResult:
+    """Extract structural elements from TOML files."""
+    result = ExtractionResult()
+    doc_id = _make_node_id(file_path, Path(file_path).stem, "document")
+    result.nodes.append(ExtractedNode(
+        id=doc_id,
+        name=Path(file_path).stem,
+        kind="document",
+        file_path=file_path,
+        language="toml",
+        source_snippet=content[:500],
+    ))
+
+    try:
+        import tomllib
+    except ModuleNotFoundError:
+        try:
+            import tomli as tomllib  # type: ignore[no-redef]
+        except ImportError:
+            return result
+
+    try:
+        data = tomllib.loads(content)
+    except Exception:
+        return result
+
+    def _walk(obj: Any, prefix: str, parent_id: str, depth: int = 0) -> None:
+        if depth > 3 or not isinstance(obj, dict):
+            return
+        for key, value in obj.items():
+            key_str = str(key)
+            full_path = f"{prefix}.{key_str}" if prefix else key_str
+            node_id = _make_node_id(file_path, full_path, "section")
+            snippet = f"{key_str}:"
+            if isinstance(value, dict):
+                snippet += f" ({len(value)} keys)"
+            elif isinstance(value, list):
+                snippet += f" [{len(value)} items]"
+            else:
+                snippet += f" {value!r}"
+            result.nodes.append(ExtractedNode(
+                id=node_id, name=full_path, kind="section",
+                file_path=file_path, language="toml",
+                source_snippet=snippet[:300],
+            ))
+            result.edges.append(ExtractedEdge(parent_id, node_id, "defines"))
+            if isinstance(value, dict):
+                _walk(value, full_path, node_id, depth + 1)
+
+    _walk(data, "", doc_id)
+    return result
+
+
 _EXTRACTORS: dict[str, Any] = {
     "python": _extract_python,
     "javascript": _extract_javascript,
@@ -435,6 +698,11 @@ _EXTRACTORS: dict[str, Any] = {
     "pdf": _extract_pdf,
     "html": _extract_html,
     "csv": _extract_csv,
+    "terraform": _extract_terraform,
+    "hcl": _extract_terraform,
+    "yaml": _extract_yaml,
+    "json": _extract_json,
+    "toml": _extract_toml,
 }
 
 
