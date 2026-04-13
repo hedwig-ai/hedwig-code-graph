@@ -212,11 +212,11 @@ def search_vector(query: str, db: str | None, top_k: int, source_dir: str):
         pass
 
     text_model = store.get_meta("text_model", None)
-    code_vec, text_vec = embed_query_dual(query, text_model=text_model)
+    vecs = embed_query_dual(query, text_model=text_model)
     source_dir_str = str(Path(source_dir).resolve()) + "/"
 
     results = []
-    for model_type, vec in [("code", code_vec), ("text", text_vec)]:
+    for model_type, vec in [("code", vecs["code"]), ("text", vecs["text"])]:
         if vec is not None:
             hits = store.vector_search(vec, top_k=top_k, model_type=model_type)
             for nid, score in hits:
@@ -265,7 +265,7 @@ def search_keyword(query: str, db: str | None, top_k: int, source_dir: str):
             "label": h.get("label", h.get("node_id", "")),
             "kind": h.get("kind", ""),
             "file": rel_path,
-            "score": round(h.get("bm25_score", 0), 3),
+            "score": round(h.get("score", 0), 3),
         })
     json_out(results)
     store.close()
@@ -290,12 +290,12 @@ def search_graph(query: str, db: str | None, top_k: int, source_dir: str):
         pass
 
     text_model = store.get_meta("text_model", None)
-    code_vec, text_vec = embed_query_dual(query, text_model=text_model)
+    vecs = embed_query_dual(query, text_model=text_model)
     source_dir_str = str(Path(source_dir).resolve()) + "/"
 
     # Get vector seeds first
     seeds = []
-    for model_type, vec in [("code", code_vec), ("text", text_vec)]:
+    for model_type, vec in [("code", vecs["code"]), ("text", vecs["text"])]:
         if vec is not None:
             hits = store.vector_search(vec, top_k=5, model_type=model_type)
             seeds.extend(hits)
