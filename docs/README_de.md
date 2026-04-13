@@ -19,7 +19,9 @@
 
 ## Warum hedwig-cg?
 
-hedwig-cg erstellt einen einheitlichen Code Graph aus Code, Dokumentation und Abhaengigkeiten — konzipiert fuer Enterprise-Codebasen mit 10.000+ Dateien. 5-Signal-Hybridsuche (Vektor + Graph + Keyword + Community → RRF-Fusion) ermoeglicht Coding-Agents, Ihr gesamtes Projekt wirklich zu verstehen. Installieren Sie es, und Claude Code sieht das Gesamtbild — keine zusaetzlichen Tokens, keine zusaetzlichen Befehle, alles laeuft 100% lokal.
+> raw data from a given number of sources is collected, then compiled by an LLM into a .md wiki, then operated on by various CLIs by the LLM to do Q&A and to incrementally enhance the wiki - Andrej Karpathy
+
+hedwig-cg erstellt mit leichtgewichtigen lokalen LLM-Modellen einen abfragbaren Code Graph und eine Wissensdatenbank aus Codebasen mit 10.000+ Dateien und Wissensdokumenten. 5-Signal-Hybridsuche (Vektor + Graph + Keyword + Community → RRF-Fusion) ermoeglicht Coding-Agents, Ihr gesamtes Projekt wirklich zu verstehen. Installieren Sie es, und Claude Code sieht das Gesamtbild — keine zusaetzlichen Tokens, keine zusaetzlichen Befehle, alles laeuft 100% lokal.
 
 ## Schnellstart
 

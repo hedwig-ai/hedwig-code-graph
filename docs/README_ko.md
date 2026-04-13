@@ -19,7 +19,9 @@
 
 ## 왜 hedwig-cg인가?
 
-hedwig-cg는 코드, 문서, 의존성으로부터 하나의 통합된 코드 그래프를 구축합니다 — 10,000개 이상의 파일을 가진 엔터프라이즈 코드베이스에서도 동작하도록 설계되었습니다. 5-신호 하이브리드 검색(벡터 + 그래프 + 키워드 + 커뮤니티 → RRF 퓨전)으로 코딩 에이전트가 프로젝트 전체를 진정으로 이해할 수 있게 됩니다. 설치하면 Claude Code가 전체 그림을 볼 수 있습니다 — 추가적인 토큰도, 추가적인 명령도 필요 없으며, 모든 것이 100% 로컬에서 실행됩니다.
+> raw data from a given number of sources is collected, then compiled by an LLM into a .md wiki, then operated on by various CLIs by the LLM to do Q&A and to incrementally enhance the wiki - Andrej Karpathy
+
+hedwig-cg는 10,000개 이상의 파일을 가진 코드베이스와 지식 문서들로부터, 경량 로컬 LLM 모델을 사용하여 질의 가능한 코드 그래프와 지식 베이스를 구축합니다. 5-신호 하이브리드 검색(벡터 + 그래프 + 키워드 + 커뮤니티 → RRF 퓨전)으로 코딩 에이전트가 프로젝트 전체를 진정으로 이해할 수 있게 됩니다. 설치하면 Claude Code가 전체 그림을 볼 수 있습니다 — 추가적인 토큰도, 추가적인 명령도 필요 없으며, 모든 것이 100% 로컬에서 실행됩니다.
 
 ## 빠른 시작
 
