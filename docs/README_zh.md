@@ -57,9 +57,9 @@ hedwig-cg通过一个命令与主要AI编程代理集成：
 
 ## 支持的语言
 
-### 深度AST提取（17种语言）
+### 结构提取（20+种语言）
 
-hedwig-cg使用[tree-sitter tags.scm](https://tree-sitter.github.io/tree-sitter/4-code-navigation.html)进行通用结构提取——函数、类、方法、调用、import、继承——无需针对每种语言编写自定义代码。
+hedwig-cg使用tree-sitter和原生解析器提取函数、类、方法、调用、import、继承。
 
 | | | | |
 |:---:|:---:|:---:|:---:|
@@ -67,9 +67,9 @@ hedwig-cg使用[tree-sitter tags.scm](https://tree-sitter.github.io/tree-sitter/
 | Rust | Java | C | C++ |
 | C# | Ruby | Swift | Scala |
 | Lua | PHP | Elixir | Kotlin |
-| Objective-C | | | |
+| Objective-C | Terraform/HCL | | |
 
-还可检测和索引：Markdown、PDF、HTML、CSV、YAML、JSON、TOML、Shell、R等。
+配置和文档格式也支持结构提取：YAML、JSON、TOML、Markdown、PDF、HTML、CSV、Shell、R等。
 
 ### 多语言自然语言支持
 

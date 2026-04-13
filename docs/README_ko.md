@@ -57,9 +57,9 @@ hedwig-cg는 주요 AI 코딩 에이전트와 한 명령어로 통합됩니다:
 
 ## 지원 언어
 
-### 심층 AST 추출 (17개 언어)
+### 구조 추출 (20개 이상 언어)
 
-hedwig-cg는 [tree-sitter tags.scm](https://tree-sitter.github.io/tree-sitter/4-code-navigation.html)을 사용하여 범용 구조 추출을 수행합니다 — 함수, 클래스, 메서드, 호출, import, 상속 — 언어별 커스텀 코드 없이.
+hedwig-cg는 tree-sitter와 네이티브 파서를 사용하여 함수, 클래스, 메서드, 호출, import, 상속을 추출합니다.
 
 | | | | |
 |:---:|:---:|:---:|:---:|
@@ -67,9 +67,9 @@ hedwig-cg는 [tree-sitter tags.scm](https://tree-sitter.github.io/tree-sitter/4-
 | Rust | Java | C | C++ |
 | C# | Ruby | Swift | Scala |
 | Lua | PHP | Elixir | Kotlin |
-| Objective-C | | | |
+| Objective-C | Terraform/HCL | | |
 
-추가로 탐지 및 인덱싱: Markdown, PDF, HTML, CSV, YAML, JSON, TOML, Shell, R 등.
+설정 및 문서 포맷도 구조 추출 지원: YAML, JSON, TOML, Markdown, PDF, HTML, CSV, Shell, R 등.
 
 ### 다국어 자연어 지원
 

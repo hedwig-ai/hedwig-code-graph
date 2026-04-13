@@ -57,9 +57,9 @@ Jeder `install`-Befehl schreibt eine Kontextdatei und registriert (bei unterstue
 
 ## Unterstuetzte Sprachen
 
-### Tiefe AST-Extraktion (17 Sprachen)
+### Strukturextraktion (20+ Sprachen)
 
-hedwig-cg verwendet [tree-sitter tags.scm](https://tree-sitter.github.io/tree-sitter/4-code-navigation.html) fuer universelle Strukturextraktion — Funktionen, Klassen, Methoden, Aufrufe, Imports, Vererbung — ohne sprachspezifischen Code.
+hedwig-cg verwendet tree-sitter und native Parser zur Extraktion von Funktionen, Klassen, Methoden, Aufrufen, Imports und Vererbung.
 
 | | | | |
 |:---:|:---:|:---:|:---:|
@@ -67,9 +67,9 @@ hedwig-cg verwendet [tree-sitter tags.scm](https://tree-sitter.github.io/tree-si
 | Rust | Java | C | C++ |
 | C# | Ruby | Swift | Scala |
 | Lua | PHP | Elixir | Kotlin |
-| Objective-C | | | |
+| Objective-C | Terraform/HCL | | |
 
-Zusaetzlich erkannt und indiziert: Markdown, PDF, HTML, CSV, YAML, JSON, TOML, Shell, R und mehr.
+Konfigurations- und Dokumentformate werden ebenfalls strukturell extrahiert: YAML, JSON, TOML, Markdown, PDF, HTML, CSV, Shell, R und mehr.
 
 ### Mehrsprachige natuerliche Sprache
 
