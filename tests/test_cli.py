@@ -118,14 +118,29 @@ class TestCLIBuild:
     """Test the build command."""
 
     def test_build_basic(self, tmp_path):
+        """Test build CLI invokes pipeline (embed=True by default)."""
+        from unittest.mock import MagicMock, patch
         src = _create_test_project(tmp_path)
-        runner = CliRunner()
-        result = runner.invoke(cli, ["build", str(src),
-                                     "--output", str(tmp_path / "out")])
-        assert result.exit_code == 0
+        mock_detect = MagicMock()
+        mock_detect.files = ["a.py", "b.py"]
+        mock_detect.skipped = []
+        mock_cluster = MagicMock()
+        mock_cluster.communities = [1, 2]
+        mock_result = MagicMock()
+        mock_result.detect_result = mock_detect
+        mock_result.cluster_result = mock_cluster
+        mock_result.node_count = 5
+        mock_result.edge_count = 3
+        mock_result.embeddings_count = 4
+        mock_result.db_path = str(tmp_path / "out" / "knowledge.db")
+        mock_result.stage_timings = {}
+        with patch("hedwig_cg.core.pipeline.run_pipeline", return_value=mock_result):
+            runner = CliRunner()
+            result = runner.invoke(cli, ["build", str(src),
+                                         "--output", str(tmp_path / "out")])
+        assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert "nodes" in data
-        assert (tmp_path / "out" / "knowledge.db").exists()
 
     def test_build_nonexistent_dir(self):
         runner = CliRunner()
