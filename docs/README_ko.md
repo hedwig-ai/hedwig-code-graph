@@ -129,7 +129,7 @@ Cross-Encoder 모델이 후보를 재평가하여 구현 코드를 테스트/문
 
 | 명령 | 설명 |
 |------|------|
-| `build <dir>` | 코드 그래프 빌드 (`--incremental`, `--no-embed`, `--lang auto\|en\|multilingual`) |
+| `build <dir>` | 코드 그래프 빌드 (`--incremental`, `--no-embed`) |
 | `search <query>` | Two-Stage 5-신호 하이브리드 검색 (`--top-k`, `--fast`, `--expand`) |
 | `search-vector <query>` | 벡터 유사도 전용 검색 (코드 + 텍스트 듀얼 모델) |
 | `search-graph <query>` | 그래프 확장 전용 검색 (벡터 시드에서 BFS) |
