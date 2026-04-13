@@ -23,6 +23,10 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
+from hedwig_cg.cli._helpers import suppress_library_logs
+
+suppress_library_logs()
+
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP(
