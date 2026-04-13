@@ -64,6 +64,7 @@ class KnowledgeStore:
                 relation TEXT NOT NULL,
                 confidence TEXT DEFAULT 'EXTRACTED',
                 weight REAL DEFAULT 1.0,
+                metadata TEXT DEFAULT '{}',
                 PRIMARY KEY (source, target, relation)
             );
 
@@ -103,6 +104,12 @@ class KnowledgeStore:
             CREATE INDEX IF NOT EXISTS idx_cm_node ON community_members(node_id);
             CREATE INDEX IF NOT EXISTS idx_cm_community ON community_members(community_id);
         """)
+
+        # Migrate: add metadata column to edges if missing (pre-v0.12 DBs)
+        try:
+            self.conn.execute("ALTER TABLE edges ADD COLUMN metadata TEXT DEFAULT '{}'")
+        except Exception:
+            pass  # column already exists
 
         # FTS5 virtual table for full-text search (separate statement)
         try:
@@ -157,11 +164,14 @@ class KnowledgeStore:
             )
 
         for u, v, data in G.edges(data=True):
+            # Store extra edge attributes (co_change_count, sample_messages, etc.) as JSON
+            extra = {k: v for k, v in data.items()
+                     if k not in ("relation", "confidence", "weight")}
             c.execute(
-                """INSERT OR REPLACE INTO edges (source, target, relation, confidence, weight)
-                   VALUES (?, ?, ?, ?, ?)""",
+                """INSERT OR REPLACE INTO edges (source, target, relation, confidence, weight, metadata)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
                 (u, v, data.get("relation", ""), data.get("confidence", "EXTRACTED"),
-                 data.get("weight", 1.0)),
+                 data.get("weight", 1.0), json.dumps(extra)),
             )
 
         # Populate community_members mapping table
@@ -197,12 +207,18 @@ class KnowledgeStore:
                 community_ids=json.loads(row["community_ids"]),
             )
         for row in self.conn.execute("SELECT * FROM edges"):
-            G.add_edge(
-                row["source"], row["target"],
-                relation=row["relation"],
-                confidence=row["confidence"],
-                weight=row["weight"],
-            )
+            edge_attrs = {
+                "relation": row["relation"],
+                "confidence": row["confidence"],
+                "weight": row["weight"],
+            }
+            # Restore extra attributes from metadata JSON
+            try:
+                meta = json.loads(row["metadata"]) if row["metadata"] else {}
+                edge_attrs.update(meta)
+            except (json.JSONDecodeError, KeyError):
+                pass
+            G.add_edge(row["source"], row["target"], **edge_attrs)
         return G
 
     # --- Embedding / Vector persistence ---

@@ -133,6 +133,7 @@ RELATION_WEIGHTS: dict[str, float] = {
     "calls": 1.0,
     "inherits": 1.0,
     "extends": 1.0,
+    "co_change": 0.8,
     "imports": 0.7,
     "references": 0.6,
     "defines": 0.5,

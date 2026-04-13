@@ -180,16 +180,22 @@ def rerank(
     return indexed[:top_k]
 
 
-def _node_text(data: dict) -> str:
+def _node_text(data: dict, commit_context: str = "") -> str:
     """Build embedding text from node attributes.
 
     Only semantic information is included — label, signature, docstring,
-    and source snippet. Structural information (kind, file path, decorators,
-    class membership) is intentionally excluded because the graph signal
-    already covers structural relationships via edges and community detection.
-    Keeping embeddings purely semantic improves vector discrimination:
-    without shared structural tokens (e.g. "function" on every function node),
-    cosine similarity better reflects actual meaning differences.
+    source snippet, and git commit context. Structural information (kind,
+    file path, decorators, class membership) is intentionally excluded
+    because the graph signal already covers structural relationships via
+    edges and community detection. Keeping embeddings purely semantic
+    improves vector discrimination: without shared structural tokens
+    (e.g. "function" on every function node), cosine similarity better
+    reflects actual meaning differences.
+
+    The optional commit_context enriches module nodes with git commit
+    messages that describe *why* the code changed, enabling semantic
+    search on intent (e.g. "fix auth token") even when the source code
+    doesn't contain those terms.
     """
     parts = []
     label = data.get("label", "")
@@ -201,7 +207,43 @@ def _node_text(data: dict) -> str:
         parts.append(data["docstring"])
     if data.get("source_snippet"):
         parts.append(data["source_snippet"])
+    if commit_context:
+        parts.append(commit_context)
     return " ".join(parts)
+
+
+def _collect_commit_context(
+    G: "nx.DiGraph", node_id: str, max_messages: int = 10,
+) -> str:
+    """Collect unique commit messages from co_change edges for a node.
+
+    Returns a compact string of deduplicated commit titles, suitable for
+    appending to the embedding text of module nodes.
+    """
+    messages: list[str] = []
+    seen: set[str] = set()
+    for _, _, edata in G.edges(node_id, data=True):
+        if edata.get("relation") != "co_change":
+            continue
+        for msg in edata.get("sample_messages", []):
+            if msg and msg not in seen:
+                seen.add(msg)
+                messages.append(msg)
+                if len(messages) >= max_messages:
+                    return "commits: " + "; ".join(messages)
+    # Also check incoming edges (co_change is bidirectional)
+    for _, _, edata in G.in_edges(node_id, data=True):
+        if edata.get("relation") != "co_change":
+            continue
+        for msg in edata.get("sample_messages", []):
+            if msg and msg not in seen:
+                seen.add(msg)
+                messages.append(msg)
+                if len(messages) >= max_messages:
+                    return "commits: " + "; ".join(messages)
+    if messages:
+        return "commits: " + "; ".join(messages)
+    return ""
 
 
 def is_code_node(kind: str) -> bool:
@@ -272,7 +314,11 @@ def embed_nodes_streaming(
         if skip_ids and node_id in skip_ids:
             skipped_incremental += 1
             continue
-        text = _node_text(data)
+        # Enrich module nodes with git commit context for better semantic search
+        commit_ctx = ""
+        if kind == "module":
+            commit_ctx = _collect_commit_context(G, node_id)
+        text = _node_text(data, commit_context=commit_ctx)
         if not text.strip():
             continue
         if is_code_node(kind):
@@ -323,7 +369,10 @@ def embed_nodes(
         result = {}
         node_ids, texts = [], []
         for node_id, data in G.nodes(data=True):
-            text = _node_text(data)
+            commit_ctx = ""
+            if data.get("kind") == "module":
+                commit_ctx = _collect_commit_context(G, node_id)
+            text = _node_text(data, commit_context=commit_ctx)
             if text.strip():
                 node_ids.append(node_id)
                 texts.append(text)

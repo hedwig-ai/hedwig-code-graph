@@ -42,10 +42,12 @@ def cli(ctx):
               help="Override embedding model (default: dual-model, code=bge-small + text=MiniLM)")
 @click.option("--max-file-size", default=1_000_000, type=int, help="Max file size in bytes")
 @click.option("--incremental", is_flag=True, help="Skip unchanged files (faster rebuilds)")
+@click.option("--lang", default="auto", type=click.Choice(["auto", "en", "multilingual"]),
+              help="Language mode for text embeddings")
 @click.pass_context
 def build(
     ctx, source_dir: str, output: str | None,
-    model: str, max_file_size: int, incremental: bool,
+    model: str, max_file_size: int, incremental: bool, lang: str,
 ):
     """Build code graph from a source directory."""
     from hedwig_cg.core.pipeline import run_pipeline
@@ -58,7 +60,7 @@ def build(
         max_file_size=max_file_size,
         on_progress=None,
         incremental=incremental,
-        lang="auto",
+        lang=lang,
     )
 
     # Capture summary values before releasing memory

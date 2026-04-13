@@ -203,10 +203,29 @@ def run_pipeline(
         result.graph = new_graph
     del new_graph
 
+    # Stage 3.5: Git co-change enrichment
+    _start_stage("git_cochange")
+    _progress("git_cochange", "Extracting co-change relationships from git history")
+    try:
+        from hedwig_cg.core.git_cochange import enrich_graph_with_cochange
+
+        cochange_count = enrich_graph_with_cochange(
+            result.graph,
+            source_dir,
+            on_progress=on_progress,
+        )
+        if cochange_count > 0:
+            _progress("git_cochange", f"Added {cochange_count} co-change edges")
+        else:
+            _progress("git_cochange", "No co-change edges found (not a git repo or insufficient history)")
+    except Exception as e:
+        _progress("git_cochange", f"Skipped: {e}")
+        logger.debug("Git co-change extraction failed", exc_info=True)
+    _end_stage("git_cochange")
+
     n, e = result.graph.number_of_nodes(), result.graph.number_of_edges()
     result.node_count = n
     result.edge_count = e
-    _end_stage("build")
     _progress("build", f"Graph: {n} nodes, {e} edges")
 
     # Stage 4: PageRank
