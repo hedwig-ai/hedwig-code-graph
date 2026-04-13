@@ -72,7 +72,10 @@ def _cache_key(query: str, top_k: int, graph_hops: int) -> str:
 
 def clear_search_cache() -> None:
     """Clear the search result cache (call after graph rebuild)."""
+    global _expansion_hubs, _expansion_hubs_graph_id  # noqa: PLW0603
     _search_cache.clear()
+    _expansion_hubs = None
+    _expansion_hubs_graph_id = None
 
 
 SIGNAL_NAMES = ["code_vector", "text_vector", "graph", "keyword", "community"]
@@ -142,6 +145,39 @@ RELATION_WEIGHTS: dict[str, float] = {
 _DEFAULT_RELATION_WEIGHT = 0.5
 
 
+def _detect_expansion_hubs(
+    G: nx.DiGraph, percentile: float = 97, min_threshold: int = 10,
+) -> frozenset[str]:
+    """Detect hub nodes to skip during graph expansion.
+
+    Reuses the same adaptive P97 logic as clustering hub detection.
+    Result is cached per search session (frozenset for hashability).
+    """
+    import numpy as np
+
+    if len(G) == 0:
+        return frozenset()
+    in_degrees = [G.in_degree(n) for n in G.nodes()]
+    threshold = max(np.percentile(in_degrees, percentile), min_threshold)
+    return frozenset(n for n in G.nodes() if G.in_degree(n) > threshold)
+
+
+# Module-level cache for hub detection (cleared on graph rebuild)
+_expansion_hubs: frozenset[str] | None = None
+_expansion_hubs_graph_id: int | None = None
+
+
+def _get_expansion_hubs(G: nx.DiGraph) -> frozenset[str]:
+    """Get or compute hub nodes for graph expansion (cached)."""
+    global _expansion_hubs, _expansion_hubs_graph_id  # noqa: PLW0603
+    graph_id = id(G)
+    if _expansion_hubs is not None and _expansion_hubs_graph_id == graph_id:
+        return _expansion_hubs
+    _expansion_hubs = _detect_expansion_hubs(G)
+    _expansion_hubs_graph_id = graph_id
+    return _expansion_hubs
+
+
 def _weighted_expand(
     G: nx.DiGraph,
     seed: str,
@@ -156,7 +192,12 @@ def _weighted_expand(
     score by ``edge_weight * relation_weight`` so that high-confidence,
     semantically similar, structurally important edges propagate more score
     to their neighbors.
+
+    Hub nodes (builtins, minified JS vars) are skipped to prevent
+    expansion through false bridges that connect unrelated code.
     """
+    hub_nodes = _get_expansion_hubs(G)
+
     # BFS frontier: list of (node_id, accumulated_score, hops_remaining)
     frontier: list[tuple[str, float, int]] = [(seed, seed_score, max_hops)]
 
@@ -178,7 +219,7 @@ def _weighted_expand(
             neighbors.append((nbr, data))
 
         for nbr, edata in neighbors:
-            if nbr in seen:
+            if nbr in seen or nbr in hub_nodes:
                 continue
             # Edge weight from compute_edge_weights (semantic+confidence+proximity)
             edge_w = edata.get("weight", 0.5)
