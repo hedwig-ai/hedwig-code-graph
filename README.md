@@ -21,7 +21,7 @@
 
 > raw data from a given number of sources is collected, then compiled by an LLM into a .md wiki, then operated on by various CLIs by the LLM to do Q&A and to incrementally enhance the wiki - Andrej Karpathy
 
-hedwig-cg builds a queryable code graph and knowledge base from codebases with 10,000+ files and knowledge documents, powered by lightweight local LLM models. 5-signal hybrid search (vector + graph + keyword + community → RRF fusion) lets coding agents truly understand your entire project, not just search keywords. Install it, and Claude Code sees the full picture — no extra tokens, no extra commands, everything runs 100% locally.
+hedwig-cg builds a queryable code graph and knowledge base from codebases with 10,000+ files and knowledge documents, powered by lightweight local LLM models. Two-Stage 5-signal hybrid search (vector + graph + keyword + community → RRF fusion → Cross-Encoder reranking) lets coding agents truly understand your entire project, not just search keywords. Install it, and Claude Code sees the full picture — no extra tokens, no extra commands, everything runs 100% locally.
 
 ## Quick Start
 

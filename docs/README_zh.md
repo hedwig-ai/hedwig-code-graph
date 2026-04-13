@@ -21,7 +21,7 @@
 
 > raw data from a given number of sources is collected, then compiled by an LLM into a .md wiki, then operated on by various CLIs by the LLM to do Q&A and to incrementally enhance the wiki - Andrej Karpathy
 
-hedwig-cg使用轻量级本地LLM模型，从10,000+文件的代码库和知识文档构建可查询的代码图和知识库。5信号混合搜索（向量+图+关键词+社区→RRF融合）让编程代理真正理解你的整个项目，而不仅仅是搜索关键词。安装后Claude Code即可看到全貌——无需额外的token，无需额外的命令，一切100%本地运行。
+hedwig-cg使用轻量级本地LLM模型，从10,000+文件的代码库和知识文档构建可查询的代码图和知识库。Two-Stage 5信号混合搜索（向量+图+关键词+社区→RRF融合→Cross-Encoder重排序）让编程代理真正理解你的整个项目，而不仅仅是搜索关键词。安装后Claude Code即可看到全貌——无需额外的token，无需额外的命令，一切100%本地运行。
 
 ## 快速开始
 
