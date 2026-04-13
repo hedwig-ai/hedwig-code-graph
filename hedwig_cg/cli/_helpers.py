@@ -119,7 +119,7 @@ def human_choose(
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
         try:
-            tty.setraw(fd)
+            tty.setcbreak(fd)
             while True:
                 ch = sys.stdin.read(1)
                 if ch == "\r" or ch == "\n":
