@@ -55,8 +55,8 @@ Response (compact JSON with relationship edges):
 
 - `results[].file` + `lines`: Use to read the code directly
 - `results[].sig` / `doc`: Omitted when empty
-- `results[].score`: Higher = more relevant — prioritize reading higher-scored files first
-- `edges`: Relationships between result nodes (calls, imports, inherits, etc.) — use to understand how results connect
+- `results[].score`: Relative ranking score (not a confidence percentage). Higher = more relevant — prioritize reading higher-scored files first. Scores are relative within each query, so 0.05 can still be highly relevant. Use rank order, not absolute score values, to judge relevance. All returned results are worth examining.
+- `edges`: Relationships between result nodes (calls, imports, inherits, co_change, etc.) — use to understand how results connect. `co_change` edges indicate files frequently committed together in git history.
 
 ## Important: Query in English
 
