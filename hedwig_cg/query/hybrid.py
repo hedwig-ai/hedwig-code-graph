@@ -354,23 +354,36 @@ def hybrid_search(
         weights=signal_weights,
     )
 
-    # Build final results (skip external/directory nodes without source context)
-    results = []
-    seen = 0
+    # Stage 6: Build candidate pool (3x top_k for reranking headroom)
+    candidates = []
+    candidate_limit = top_k * 3
     for node_id, rrf_score in fused:
-        if seen >= top_k:
+        if len(candidates) >= candidate_limit:
             break
         data = G.nodes.get(node_id, {})
         if not data:
             continue
-        # External nodes (stdlib/library refs) lack file paths and source —
-        # they add noise to results. Skip them in the final ranking.
         kind = data.get("kind", "")
         if kind in ("external", "directory"):
             continue
-        seen += 1
+        candidates.append((node_id, rrf_score, data))
 
-        # Get immediate neighbors for context
+    # Stage 7: Cross-Encoder reranking (Stage 2)
+    try:
+        from hedwig_cg.query.embeddings import _node_text, rerank
+
+        rerank_input = [(nid, _node_text(data)) for nid, _, data in candidates]
+        reranked = rerank(query, rerank_input, top_k=top_k)
+        # Rebuild candidates in reranked order
+        reranked_candidates = [(candidates[idx][0], float(score), candidates[idx][2])
+                               for idx, score in reranked]
+    except Exception:
+        logger.debug("Reranker unavailable, using RRF order", exc_info=True)
+        reranked_candidates = candidates[:top_k]
+
+    # Build final results
+    results = []
+    for node_id, score, data in reranked_candidates:
         neighbors = []
         if G.has_node(node_id):
             for n in list(G.successors(node_id))[:3] + list(G.predecessors(node_id))[:3]:
@@ -381,8 +394,8 @@ def hybrid_search(
             label=data.get("label", node_id),
             kind=data.get("kind", ""),
             file_path=data.get("file_path", ""),
-            score=rrf_score,
-            source="fused",
+            score=round(score, 4),
+            source="reranked",
             start_line=data.get("start_line", 0),
             end_line=data.get("end_line", 0),
             signature=data.get("signature", ""),

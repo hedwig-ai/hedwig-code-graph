@@ -109,6 +109,52 @@ def _get_process_rss() -> int:
         return 0
 
 
+# --- Cross-Encoder Reranker ---
+
+RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+_reranker = None
+
+
+def _get_reranker():
+    """Lazy-load Cross-Encoder reranker model."""
+    global _reranker  # noqa: PLW0603
+    if _reranker is None:
+        from sentence_transformers import CrossEncoder
+
+        safe_name = RERANKER_MODEL.replace("/", "--")
+        local_path = _MODEL_CACHE_DIR / safe_name
+        if local_path.exists() and any(local_path.iterdir()):
+            _reranker = CrossEncoder(str(local_path))
+        else:
+            _MODEL_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            _reranker = CrossEncoder(RERANKER_MODEL)
+            _reranker.save(str(local_path))
+    return _reranker
+
+
+def rerank(
+    query: str, candidates: list[tuple[str, str]], top_k: int = 10,
+) -> list[tuple[int, float]]:
+    """Rerank (query, passage) pairs using a Cross-Encoder.
+
+    Args:
+        query: The search query.
+        candidates: List of (node_id, passage_text) tuples.
+        top_k: Number of results to return.
+
+    Returns:
+        List of (original_index, reranker_score) sorted by score descending.
+    """
+    if not candidates:
+        return []
+    model = _get_reranker()
+    pairs = [[query, text] for _, text in candidates]
+    scores = model.predict(pairs)
+    indexed = list(enumerate(scores))
+    indexed.sort(key=lambda x: x[1], reverse=True)
+    return indexed[:top_k]
+
+
 def _node_text(data: dict) -> str:
     """Build embedding text from node attributes.
 
