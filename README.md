@@ -129,7 +129,7 @@ All commands output compact JSON by default (designed for AI agent consumption).
 
 | Command | Description |
 |---------|-------------|
-| `build <dir>` | Build code graph (`--incremental`, `--no-embed`) |
+| `build <dir>` | Build code graph (`--incremental`) |
 | `search <query>` | Two-Stage 5-signal hybrid search (`--top-k`, `--fast`, `--expand`) |
 | `search-vector <query>` | Vector similarity only (code + text dual model) |
 | `search-graph <query>` | Graph expansion only (BFS from vector seeds) |

@@ -117,10 +117,10 @@ class TestCLIHelp:
 class TestCLIBuild:
     """Test the build command."""
 
-    def test_build_no_embed(self, tmp_path):
+    def test_build_basic(self, tmp_path):
         src = _create_test_project(tmp_path)
         runner = CliRunner()
-        result = runner.invoke(cli, ["build", str(src), "--no-embed",
+        result = runner.invoke(cli, ["build", str(src),
                                      "--output", str(tmp_path / "out")])
         assert result.exit_code == 0
         data = json.loads(result.output)

@@ -1,7 +1,7 @@
 """CLI interface for hedwig-cg.
 
 Usage:
-    hedwig-cg build <source_dir> [--output <dir>] [--no-embed] [--model <name>]
+    hedwig-cg build <source_dir> [--output <dir>] [--model <name>]
     hedwig-cg search <query> [--db <path>] [--top-k <n>]
     hedwig-cg stats [--db <path>]
     hedwig-cg export [--db <path>] [--format json|graphml]
@@ -38,20 +38,14 @@ def cli(ctx):
 @click.argument("source_dir", type=click.Path(exists=True))
 @click.option("--output", "-o", type=click.Path(), default=None,
               help="Output directory for the database")
-@click.option("--no-embed", is_flag=True, help="Skip embedding generation")
 @click.option("--model", default=None,
               help="Override embedding model (default: dual-model, code=bge-small + text=MiniLM)")
 @click.option("--max-file-size", default=1_000_000, type=int, help="Max file size in bytes")
 @click.option("--incremental", is_flag=True, help="Skip unchanged files (faster rebuilds)")
-@click.option(
-    "--lang", default="auto",
-    type=click.Choice(["auto", "en", "multilingual"], case_sensitive=False),
-    help="Language mode: auto (detect), en (English models), multilingual (100+ languages)",
-)
 @click.pass_context
 def build(
-    ctx, source_dir: str, output: str | None, no_embed: bool,
-    model: str, max_file_size: int, incremental: bool, lang: str,
+    ctx, source_dir: str, output: str | None,
+    model: str, max_file_size: int, incremental: bool,
 ):
     """Build code graph from a source directory."""
     from hedwig_cg.core.pipeline import run_pipeline
@@ -59,12 +53,12 @@ def build(
     result = run_pipeline(
         source_dir=source_dir,
         output_dir=output,
-        embed=not no_embed,
+        embed=True,
         model_name=model,
         max_file_size=max_file_size,
         on_progress=None,
         incremental=incremental,
-        lang=lang,
+        lang="auto",
     )
 
     # Capture summary values before releasing memory
@@ -951,7 +945,7 @@ def doctor():
             elif faiss_path.exists() or faiss_text_path.exists():
                 warn("database", "Only one FAISS index found — dual-model search may be degraded")
             else:
-                warn("database", "No FAISS indexes — run 'hedwig-cg build .' (without --no-embed)")
+                warn("database", "No FAISS indexes — run 'hedwig-cg build .' to generate embeddings")
 
             conn.close()
         except sqlite3.DatabaseError as e:

@@ -9,5 +9,5 @@
 CHANGED=$(git diff --name-only HEAD 2>/dev/null | grep -E '\.(py|js|jsx|ts|tsx|java|go|rs|c|h|cpp|hpp|rb|md|html|csv|pdf)$' | head -1)
 
 if [ -n "$CHANGED" ]; then
-    hedwig-cg build . --incremental --no-embed >/dev/null 2>&1 &
+    hedwig-cg build . --incremental >/dev/null 2>&1 &
 fi

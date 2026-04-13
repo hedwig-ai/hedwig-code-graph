@@ -1,7 +1,6 @@
 """End-to-end integration tests for the full pipeline.
 
 Tests the complete flow: build → store → search → stats → export → clean.
-Uses --no-embed to avoid downloading sentence-transformers model in CI.
 """
 
 from __future__ import annotations

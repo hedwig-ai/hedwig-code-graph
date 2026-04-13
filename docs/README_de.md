@@ -129,7 +129,7 @@ Alle Befehle geben standardmaessig kompaktes JSON aus (fuer AI-Agent-Nutzung kon
 
 | Befehl | Beschreibung |
 |--------|-------------|
-| `build <dir>` | Code-Graph erstellen (`--incremental`, `--no-embed`) |
+| `build <dir>` | Code-Graph erstellen (`--incremental`) |
 | `search <query>` | Two-Stage 5-Signal-Hybridsuche (`--top-k`, `--fast`, `--expand`) |
 | `search-vector <query>` | Nur Vektor-Aehnlichkeit (Code + Text Dual-Modell) |
 | `search-graph <query>` | Nur Graph-Expansion (BFS von Vektor-Seeds) |

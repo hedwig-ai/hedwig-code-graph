@@ -54,8 +54,8 @@ detect → extract → build → embed → cluster → summarize → analyze →
 ## CLI Commands
 | Command | Description |
 |---------|-------------|
-| `hedwig-cg build <dir>` | Build code graph (`--incremental`, `--no-embed`, `--lang auto\|en\|multilingual`) |
-| `hedwig-cg search <query>` | 5-signal HybridRAG (code vector + text vector + graph + keyword + community) (`--fast` for text-only) |
+| `hedwig-cg build <dir>` | Build code graph (`--incremental`) |
+| `hedwig-cg search <query>` | Two-Stage 5-signal HybridRAG (code vector + text vector + graph + keyword + community → RRF → reranking) (`--fast` for text-only) |
 | `hedwig-cg communities` | List/search communities (`--search`, `--level`) |
 | `hedwig-cg stats` | Show graph statistics |
 | `hedwig-cg node <id>` | Show node details and connections |
