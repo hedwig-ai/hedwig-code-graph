@@ -54,7 +54,10 @@ class TestExtractJavaScript:
 
 class TestExtractHTML:
     def test_extracts_headings(self):
-        html = "<html><body><h1>Title</h1><h2>Section A</h2><p>text</p><h2>Section B</h2></body></html>"
+        html = (
+            "<html><body><h1>Title</h1><h2>Section A</h2>"
+            "<p>text</p><h2>Section B</h2></body></html>"
+        )
         result = extract_file("page.html", "html", html)
         names = {n.name for n in result.nodes}
         assert "Title" in names

@@ -945,7 +945,10 @@ def doctor():
             elif faiss_path.exists() or faiss_text_path.exists():
                 warn("database", "Only one FAISS index found — dual-model search may be degraded")
             else:
-                warn("database", "No FAISS indexes — run 'hedwig-cg build .' to generate embeddings")
+                warn(
+                    "database",
+                    "No FAISS indexes — run 'hedwig-cg build .' to generate embeddings",
+                )
 
             conn.close()
         except sqlite3.DatabaseError as e:
