@@ -129,8 +129,12 @@ Cross-Encoder 모델이 후보를 재평가하여 구현 코드를 테스트/문
 
 | 명령 | 설명 |
 |------|------|
-| `build <dir>` | 코드 그래프 빌드 (`--incremental`, `--no-embed`) |
-| `search <query>` | 5-신호 하이브리드 검색 (`--top-k`, `--fast`, `--expand`) |
+| `build <dir>` | 코드 그래프 빌드 (`--incremental`, `--no-embed`, `--lang auto\|en\|multilingual`) |
+| `search <query>` | Two-Stage 5-신호 하이브리드 검색 (`--top-k`, `--fast`, `--expand`) |
+| `search-vector <query>` | 벡터 유사도 전용 검색 (코드 + 텍스트 듀얼 모델) |
+| `search-graph <query>` | 그래프 확장 전용 검색 (벡터 시드에서 BFS) |
+| `search-keyword <query>` | FTS5 키워드 매칭 전용 검색 (BM25 랭킹) |
+| `search-community <query>` | 커뮤니티 클러스터 매칭 전용 검색 |
 | `query` | 대화형 검색 REPL |
 | `communities` | 커뮤니티 목록 및 검색 (`--search`, `--level`) |
 | `stats` | 그래프 통계 |
@@ -140,6 +144,13 @@ Cross-Encoder 모델이 후보를 재평가하여 구현 코드를 테스트/문
 | `clean` | .hedwig-cg/ 데이터베이스 삭제 |
 | `doctor` | 설치 상태 점검 |
 | `mcp` | MCP 서버 시작 (stdio) |
+| `claude install\|uninstall` | Claude Code 통합 관리 |
+| `codex install\|uninstall` | Codex CLI 통합 관리 |
+| `gemini install\|uninstall` | Gemini CLI 통합 관리 |
+| `cursor install\|uninstall` | Cursor IDE 통합 관리 |
+| `windsurf install\|uninstall` | Windsurf IDE 통합 관리 |
+| `cline install\|uninstall` | Cline 통합 관리 |
+| `aider install\|uninstall` | Aider CLI 통합 관리 |
 
 ## 성능
 

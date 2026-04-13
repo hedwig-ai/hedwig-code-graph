@@ -129,8 +129,12 @@ Alle Befehle geben standardmaessig kompaktes JSON aus (fuer AI-Agent-Nutzung kon
 
 | Befehl | Beschreibung |
 |--------|-------------|
-| `build <dir>` | Code-Graph erstellen (`--incremental`, `--no-embed`) |
-| `search <query>` | 5-Signal-Hybridsuche (`--top-k`, `--fast`, `--expand`) |
+| `build <dir>` | Code-Graph erstellen (`--incremental`, `--no-embed`, `--lang auto\|en\|multilingual`) |
+| `search <query>` | Two-Stage 5-Signal-Hybridsuche (`--top-k`, `--fast`, `--expand`) |
+| `search-vector <query>` | Nur Vektor-Aehnlichkeit (Code + Text Dual-Modell) |
+| `search-graph <query>` | Nur Graph-Expansion (BFS von Vektor-Seeds) |
+| `search-keyword <query>` | Nur FTS5-Keyword-Matching (BM25-Ranking) |
+| `search-community <query>` | Nur Community-Cluster-Matching |
 | `query` | Interaktive Such-REPL |
 | `communities` | Communities auflisten und durchsuchen (`--search`, `--level`) |
 | `stats` | Graph-Statistiken |
@@ -140,6 +144,13 @@ Alle Befehle geben standardmaessig kompaktes JSON aus (fuer AI-Agent-Nutzung kon
 | `clean` | .hedwig-cg/-Datenbank entfernen |
 | `doctor` | Installationsstatus pruefen |
 | `mcp` | MCP-Server starten (stdio) |
+| `claude install\|uninstall` | Claude Code Integration verwalten |
+| `codex install\|uninstall` | Codex CLI Integration verwalten |
+| `gemini install\|uninstall` | Gemini CLI Integration verwalten |
+| `cursor install\|uninstall` | Cursor IDE Integration verwalten |
+| `windsurf install\|uninstall` | Windsurf IDE Integration verwalten |
+| `cline install\|uninstall` | Cline Integration verwalten |
+| `aider install\|uninstall` | Aider CLI Integration verwalten |
 
 ## Leistung
 

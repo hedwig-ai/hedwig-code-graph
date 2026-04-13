@@ -129,8 +129,12 @@ All commands output compact JSON by default (designed for AI agent consumption).
 
 | Command | Description |
 |---------|-------------|
-| `build <dir>` | Build code graph (`--incremental`, `--no-embed`) |
-| `search <query>` | 5-signal hybrid search (`--top-k`, `--fast`, `--expand`) |
+| `build <dir>` | Build code graph (`--incremental`, `--no-embed`, `--lang auto\|en\|multilingual`) |
+| `search <query>` | Two-Stage 5-signal hybrid search (`--top-k`, `--fast`, `--expand`) |
+| `search-vector <query>` | Vector similarity only (code + text dual model) |
+| `search-graph <query>` | Graph expansion only (BFS from vector seeds) |
+| `search-keyword <query>` | FTS5 keyword matching only (BM25 ranking) |
+| `search-community <query>` | Community cluster matching only |
 | `query` | Interactive search REPL |
 | `communities` | List and search communities (`--search`, `--level`) |
 | `stats` | Graph statistics |
@@ -140,6 +144,13 @@ All commands output compact JSON by default (designed for AI agent consumption).
 | `clean` | Remove .hedwig-cg/ database |
 | `doctor` | Check installation health |
 | `mcp` | Start MCP server (stdio) |
+| `claude install\|uninstall` | Manage Claude Code integration |
+| `codex install\|uninstall` | Manage Codex CLI integration |
+| `gemini install\|uninstall` | Manage Gemini CLI integration |
+| `cursor install\|uninstall` | Manage Cursor IDE integration |
+| `windsurf install\|uninstall` | Manage Windsurf IDE integration |
+| `cline install\|uninstall` | Manage Cline integration |
+| `aider install\|uninstall` | Manage Aider CLI integration |
 
 ## Performance
 
