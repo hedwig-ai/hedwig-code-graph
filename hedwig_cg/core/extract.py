@@ -92,7 +92,7 @@ def _extract_python(file_path: str, content: str) -> ExtractionResult:
             id=node_id, name=name, kind="class",
             file_path=file_path, language="python",
             start_line=line,
-            source_snippet=_extract_snippet(content, line, line + 30),
+            source_snippet=_extract_snippet(content, line, line + 80),
         ))
         result.edges.append(ExtractedEdge(module_id, node_id, "defines"))
         for base in (b.strip() for b in bases.split(",") if b.strip()):
@@ -109,7 +109,7 @@ def _extract_python(file_path: str, content: str) -> ExtractionResult:
             id=node_id, name=name, kind="function",
             file_path=file_path, language="python",
             start_line=line, signature=f"({sig})",
-            source_snippet=_extract_snippet(content, line, line + 15),
+            source_snippet=_extract_snippet(content, line, line + 50),
         ))
         result.edges.append(ExtractedEdge(module_id, node_id, "defines"))
 
@@ -146,7 +146,7 @@ def _extract_javascript(file_path: str, content: str) -> ExtractionResult:
             id=node_id, name=name, kind="class",
             file_path=file_path, language="javascript",
             start_line=line,
-            source_snippet=_extract_snippet(content, line, line + 30),
+            source_snippet=_extract_snippet(content, line, line + 80),
         ))
         result.edges.append(ExtractedEdge(module_id, node_id, "defines"))
         if extends:
@@ -164,7 +164,7 @@ def _extract_javascript(file_path: str, content: str) -> ExtractionResult:
             id=node_id, name=name, kind="function",
             file_path=file_path, language="javascript",
             start_line=line,
-            source_snippet=_extract_snippet(content, line, line + 15),
+            source_snippet=_extract_snippet(content, line, line + 50),
         ))
         result.edges.append(ExtractedEdge(module_id, node_id, "defines"))
 
