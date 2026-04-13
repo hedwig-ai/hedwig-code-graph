@@ -10,20 +10,29 @@ Builds code graphs from source code and documents. Searches with 5-signal hybrid
 ## Search (PRIMARY — use this first)
 
 ```bash
-hedwig-cg search "database connection pool"       # default: 80 results
+hedwig-cg search "database connection pool"       # default: 30 results
 hedwig-cg search "auth" --fast                    # text model only, faster
 hedwig-cg search "payment billing" --expand       # two-stage query expansion
-hedwig-cg search "error handling" --top-k 30      # custom count
+hedwig-cg search "error handling" --top-k 10      # custom count
 ```
 
-Response (~140 bytes/result, compact JSON):
+Response (compact JSON with relationship edges):
 ```json
-[{"label":"build_graph","kind":"function","file":"hedwig_cg/core/build.py","lines":[15,95],"score":0.073,"sig":"(extractions: list) -> nx.DiGraph","doc":"Build graph from extractions."}]
+{
+  "results": [
+    {"label":"build_graph","kind":"function","file":"core/build.py","lines":[15,95],"score":0.073,"sig":"(extractions) -> DiGraph","doc":"Build graph."},
+    {"label":"KnowledgeStore","kind":"class","file":"storage/store.py","lines":[20,300],"score":0.065}
+  ],
+  "edges": [
+    {"from":"build_graph","to":"KnowledgeStore","rel":"calls"}
+  ]
+}
 ```
 
-- `file` + `lines`: Use to read the code directly
-- `sig` / `doc`: Omitted when empty
-- `score`: Higher = more relevant
+- `results[].file` + `lines`: Use to read the code directly
+- `results[].sig` / `doc`: Omitted when empty
+- `results[].score`: Higher = more relevant
+- `edges`: Relationships between result nodes (calls, imports, inherits, etc.) — use to understand how results connect
 
 ## Search Strategy — Drill Down, Don't Stop at First Results
 

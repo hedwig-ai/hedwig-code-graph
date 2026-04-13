@@ -401,6 +401,37 @@ def hybrid_search(
     return results
 
 
+def extract_result_edges(
+    G: nx.DiGraph,
+    results: list[SearchResult],
+) -> list[dict]:
+    """Extract edges between result nodes for subgraph context.
+
+    Returns only edges where both source and target are in the result set,
+    giving agents a relationship map without token explosion.
+    """
+    result_ids = {getattr(r, "node_id", None) for r in results} - {None}
+    if not result_ids:
+        return []
+    edges = []
+    seen = set()
+    for r in results:
+        nid = getattr(r, "node_id", None)
+        if not nid or not G.has_node(nid):
+            continue
+        for _, target, edata in G.out_edges(nid, data=True):
+            if target in result_ids:
+                key = (nid, target)
+                if key not in seen:
+                    seen.add(key)
+                    edges.append({
+                        "from": G.nodes[nid].get("label", nid),
+                        "to": G.nodes[target].get("label", target),
+                        "rel": edata.get("relation", ""),
+                    })
+    return edges
+
+
 def expanded_search(
     query: str,
     store: "KnowledgeStore",

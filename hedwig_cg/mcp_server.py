@@ -115,7 +115,7 @@ def search(query: str, top_k: int = 10, fast: bool = False) -> str:
         fast: Use text model only for faster response (default False)
     """
     store, G = _load()
-    from hedwig_cg.query.hybrid import hybrid_search
+    from hedwig_cg.query.hybrid import extract_result_edges, hybrid_search
 
     results = hybrid_search(query, store, G, top_k=top_k, fast=fast)
     if not results:
@@ -144,6 +144,15 @@ def search(query: str, top_k: int = 10, fast: bool = False) -> str:
         if getattr(r, "docstring", ""):
             lines.append(f"- **Docstring**: {r.docstring}")
         lines.append("")
+
+    # Add relationship edges between result nodes
+    edges = extract_result_edges(G, results)
+    if edges:
+        lines.append("## Relationships\n")
+        for e in edges:
+            lines.append(f"- {e['from']} --{e['rel']}--> {e['to']}")
+        lines.append("")
+
     return "\n".join(lines)
 
 

@@ -105,7 +105,7 @@ def build(
 @click.pass_context
 def search(ctx, query: str, db: str | None, top_k: int, source_dir: str, fast: bool, expand: bool):
     """Search the code graph with hybrid vector + graph + keyword search."""
-    from hedwig_cg.query.hybrid import expanded_search, hybrid_search
+    from hedwig_cg.query.hybrid import expanded_search, extract_result_edges, hybrid_search
     from hedwig_cg.storage.store import KnowledgeStore
 
     db_path = resolve_db(db, source_dir)
@@ -155,7 +155,11 @@ def search(ctx, query: str, db: str | None, top_k: int, source_dir: str, fast: b
             d["doc"] = doc
         return d
 
-    json_out([_compact_result(r) for r in results])
+    edges = extract_result_edges(G, results)
+    json_out({
+        "results": [_compact_result(r) for r in results],
+        "edges": edges,
+    })
     store.close()
 
 
