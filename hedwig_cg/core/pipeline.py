@@ -16,7 +16,12 @@ from pathlib import Path
 import networkx as nx
 
 from hedwig_cg.core.analyze import AnalysisResult, analyze
-from hedwig_cg.core.build import build_graph, compute_edge_weights, compute_pagerank
+from hedwig_cg.core.build import (
+    build_graph,
+    compute_edge_weights,
+    compute_pagerank,
+    merge_tier3_nodes,
+)
 from hedwig_cg.core.cluster import ClusterResult, hierarchical_cluster
 from hedwig_cg.core.detect import DetectResult, detect
 from hedwig_cg.core.extract import ExtractionResult
@@ -181,6 +186,7 @@ def run_pipeline(
                 re_extracted_files.add(node.file_path)
 
     new_graph = build_graph(result.extractions)
+    new_graph = merge_tier3_nodes(new_graph)
 
     # For incremental builds, merge new extractions into existing graph
     if incremental and skipped_count > 0:

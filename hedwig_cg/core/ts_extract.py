@@ -138,7 +138,8 @@ def _extract_python_ts(file_path: str, content: str) -> ExtractionResult:
             return
         name = _get_node_text(name_node, source_bytes)
         full_name = f"{prefix}{name}" if prefix else name
-        node_id = _make_node_id(file_path, full_name, "class")
+        node_id = _make_node_id(file_path, full_name, "class",
+                                start_line=node.start_point[0] + 1)
 
         # Decorators live on the parent decorated_definition, not on class_definition
         decorators = []
@@ -204,10 +205,16 @@ def _extract_python_ts(file_path: str, content: str) -> ExtractionResult:
         name = _get_node_text(name_node, source_bytes)
         full_name = f"{prefix}{name}" if prefix else name
 
-        # Determine kind
-        kind = "method" if parent_id and "::class::" in parent_id else "function"
+        # 親がクラスかどうかでkindを判定（parent_idはfile:line形式）
+        parent_data = None
+        for n in result.nodes:
+            if n.id == parent_id:
+                parent_data = n
+                break
+        kind = "method" if parent_data and parent_data.kind == "class" else "function"
 
-        node_id = _make_node_id(file_path, full_name, kind)
+        node_id = _make_node_id(file_path, full_name, kind,
+                                start_line=node.start_point[0] + 1)
 
         # Decorators (collected from the parent decorated_definition node)
         decorators = []
@@ -316,7 +323,8 @@ def _extract_python_ts(file_path: str, content: str) -> ExtractionResult:
                     if left and left.type == "identifier":
                         var_name = _get_node_text(left, source_bytes)
                         if var_name.isupper() or var_name.startswith("_"):
-                            var_id = _make_node_id(file_path, var_name, "variable")
+                            var_id = _make_node_id(file_path, var_name, "variable",
+                                                   start_line=sub.start_point[0] + 1)
                             result.nodes.append(ExtractedNode(
                                 id=var_id,
                                 name=var_name,
@@ -385,7 +393,8 @@ def _extract_js_ts(file_path: str, content: str, language: str) -> ExtractionRes
             if name_node:
                 name = _get_node_text(name_node, source_bytes)
                 full_name = f"{prefix}{name}" if prefix else name
-                node_id = _make_node_id(file_path, full_name, "class")
+                node_id = _make_node_id(file_path, full_name, "class",
+                                        start_line=node.start_point[0] + 1)
                 result.nodes.append(ExtractedNode(
                     id=node_id, name=full_name, kind="class",
                     file_path=file_path, language=language,
@@ -426,8 +435,15 @@ def _extract_js_ts(file_path: str, content: str, language: str) -> ExtractionRes
 
             if name:
                 full_name = f"{prefix}{name}" if prefix else name
-                kind = "method" if "::class::" in parent_id else "function"
-                node_id = _make_node_id(file_path, full_name, kind)
+                # 親がクラスかどうかでkindを判定（parent_idはfile:line形式）
+                _pd = None
+                for _n in result.nodes:
+                    if _n.id == parent_id:
+                        _pd = _n
+                        break
+                kind = "method" if _pd and _pd.kind == "class" else "function"
+                node_id = _make_node_id(file_path, full_name, kind,
+                                        start_line=node.start_point[0] + 1)
 
                 params_node = node.child_by_field_name("parameters")
                 sig = _get_node_text(params_node, source_bytes) if params_node else "()"
@@ -466,7 +482,8 @@ def _extract_js_ts(file_path: str, content: str, language: str) -> ExtractionRes
                             _process_node(value_node, parent_id, prefix)
                         elif name.upper() == name and len(name) > 1:
                             # Constants
-                            var_id = _make_node_id(file_path, name, "variable")
+                            var_id = _make_node_id(file_path, name, "variable",
+                                                   start_line=node.start_point[0] + 1)
                             result.nodes.append(ExtractedNode(
                                 id=var_id, name=name, kind="variable",
                                 file_path=file_path, language=language,
@@ -482,7 +499,8 @@ def _extract_js_ts(file_path: str, content: str, language: str) -> ExtractionRes
             if name_node:
                 name = _get_node_text(name_node, source_bytes)
                 full_name = f"{prefix}{name}" if prefix else name
-                node_id = _make_node_id(file_path, full_name, "interface")
+                node_id = _make_node_id(file_path, full_name, "interface",
+                                        start_line=node.start_point[0] + 1)
                 result.nodes.append(ExtractedNode(
                     id=node_id, name=full_name, kind="interface",
                     file_path=file_path, language=language,
@@ -519,7 +537,8 @@ def _extract_js_ts(file_path: str, content: str, language: str) -> ExtractionRes
                                          == "method_signature"
                                          else "property")
                                 sid = _make_node_id(
-                                    file_path, sfull, skind)
+                                    file_path, sfull, skind,
+                                    start_line=child.start_point[0] + 1)
                                 result.nodes.append(ExtractedNode(
                                     id=sid, name=sfull, kind=skind,
                                     file_path=file_path, language=language,
@@ -533,7 +552,8 @@ def _extract_js_ts(file_path: str, content: str, language: str) -> ExtractionRes
             if name_node:
                 name = _get_node_text(name_node, source_bytes)
                 full_name = f"{prefix}{name}" if prefix else name
-                node_id = _make_node_id(file_path, full_name, "type_alias")
+                node_id = _make_node_id(file_path, full_name, "type_alias",
+                                        start_line=node.start_point[0] + 1)
                 result.nodes.append(ExtractedNode(
                     id=node_id, name=full_name, kind="type_alias",
                     file_path=file_path, language=language,
@@ -549,7 +569,8 @@ def _extract_js_ts(file_path: str, content: str, language: str) -> ExtractionRes
             if name_node:
                 name = _get_node_text(name_node, source_bytes)
                 full_name = f"{prefix}{name}" if prefix else name
-                node_id = _make_node_id(file_path, full_name, "enum")
+                node_id = _make_node_id(file_path, full_name, "enum",
+                                        start_line=node.start_point[0] + 1)
                 result.nodes.append(ExtractedNode(
                     id=node_id, name=full_name, kind="enum",
                     file_path=file_path, language=language,
@@ -570,7 +591,8 @@ def _extract_js_ts(file_path: str, content: str, language: str) -> ExtractionRes
                                 mname = _get_node_text(mem_name, source_bytes)
                                 mfull = f"{full_name}.{mname}"
                                 mid = _make_node_id(
-                                    file_path, mfull, "variable")
+                                    file_path, mfull, "variable",
+                                    start_line=child.start_point[0] + 1)
                                 result.nodes.append(ExtractedNode(
                                     id=mid, name=mfull, kind="variable",
                                     file_path=file_path, language=language,

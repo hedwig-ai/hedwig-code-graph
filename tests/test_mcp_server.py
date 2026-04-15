@@ -25,7 +25,7 @@ def _make_graph() -> nx.DiGraph:
     """Create a small test graph with realistic node attributes."""
     G = nx.DiGraph()
     G.add_node(
-        "auth.py::AuthHandler",
+        "auth.py:1",
         label="AuthHandler",
         kind="class",
         file_path="auth.py",
@@ -36,7 +36,7 @@ def _make_graph() -> nx.DiGraph:
         community_ids=[0],
     )
     G.add_node(
-        "auth.py::AuthHandler.login",
+        "auth.py:5",
         label="login",
         kind="method",
         file_path="auth.py",
@@ -47,7 +47,7 @@ def _make_graph() -> nx.DiGraph:
         community_ids=[0],
     )
     G.add_node(
-        "server.py::handle_request",
+        "server.py:10",
         label="handle_request",
         kind="function",
         file_path="server.py",
@@ -59,14 +59,14 @@ def _make_graph() -> nx.DiGraph:
     )
     # Edges
     G.add_edge(
-        "auth.py::AuthHandler",
-        "auth.py::AuthHandler.login",
+        "auth.py:1",
+        "auth.py:5",
         relation="has_method",
         weight=1.0,
     )
     G.add_edge(
-        "server.py::handle_request",
-        "auth.py::AuthHandler",
+        "server.py:10",
+        "auth.py:1",
         relation="calls",
         weight=0.8,
     )
@@ -83,7 +83,7 @@ def _make_store(G: nx.DiGraph) -> MagicMock:
             "community_id": 0,
             "level": 0,
             "score": 0.95,
-            "node_ids": ["auth.py::AuthHandler", "auth.py::AuthHandler.login"],
+            "node_ids": ["auth.py:1", "auth.py:5"],
             "summary": "Authentication module with login handling.",
         }
     ]
@@ -115,40 +115,42 @@ def mock_load_empty():
 class TestSearchTool:
     def test_search_returns_results(self, mock_load):
         from hedwig_cg.mcp_server import search
-
-        mock_results = [
-            SimpleNamespace(
-                label="AuthHandler",
-                kind="class",
-                file_path="auth.py",
-                start_line=1,
-                end_line=20,
-                score=0.85,
-                signal_contributions={"code_vector": 0.4, "text_vector": 0.3, "keyword": 0.15},
-                neighbors=["login", "logout"],
-                snippet="class AuthHandler: ...",
-            ),
-        ]
-        with patch("hedwig_cg.query.hybrid.hybrid_search", return_value=mock_results):
+        from hedwig_cg.query.hybrid import SearchGraph, SearchResult
+        mock_graph = SearchGraph(
+            nodes=[
+                SearchResult(
+                    node_id="auth.py:1",
+                    label="AuthHandler",
+                    kind="class",
+                    file_path="auth.py",
+                    start_line=1,
+                    end_line=20,
+                    score=0.85,
+                    source="seed",
+                    signal_contributions={"vector": 0.4, "keyword": 0.15},
+                ),
+            ],
+            edges=[],
+        )
+        with patch("hedwig_cg.query.hybrid.hybrid_search", return_value=mock_graph):
             result = search("authentication")
 
-        assert "AuthHandler" in result
-        assert "auth.py:1-20" in result
-        assert "0.8500" in result
-        assert "code_vector" in result
+        assert "auth.py:1" in result
 
     def test_search_no_results(self, mock_load):
         from hedwig_cg.mcp_server import search
-
-        with patch("hedwig_cg.query.hybrid.hybrid_search", return_value=[]):
+        from hedwig_cg.query.hybrid import SearchGraph
+        empty = SearchGraph(nodes=[], edges=[])
+        with patch("hedwig_cg.query.hybrid.hybrid_search", return_value=empty):
             result = search("nonexistent_query_xyz")
 
-        assert "No results found" in result
+        assert result.startswith("seeds:")
 
     def test_search_fast_mode(self, mock_load):
         from hedwig_cg.mcp_server import search
-
-        with patch("hedwig_cg.query.hybrid.hybrid_search", return_value=[]) as mock_hs:
+        from hedwig_cg.query.hybrid import SearchGraph
+        empty = SearchGraph(nodes=[], edges=[])
+        with patch("hedwig_cg.query.hybrid.hybrid_search", return_value=empty) as mock_hs:
             search("test query", fast=True)
             mock_hs.assert_called_once()
             _, kwargs = mock_hs.call_args
@@ -156,56 +158,58 @@ class TestSearchTool:
 
     def test_search_custom_top_k(self, mock_load):
         from hedwig_cg.mcp_server import search
-
-        with patch("hedwig_cg.query.hybrid.hybrid_search", return_value=[]) as mock_hs:
+        from hedwig_cg.query.hybrid import SearchGraph
+        empty = SearchGraph(nodes=[], edges=[])
+        with patch("hedwig_cg.query.hybrid.hybrid_search", return_value=empty) as mock_hs:
             search("test", top_k=5)
             _, kwargs = mock_hs.call_args
             assert kwargs.get("top_k") == 5
 
     def test_search_result_without_end_line(self, mock_load):
         from hedwig_cg.mcp_server import search
-
-        mock_results = [
-            SimpleNamespace(
-                label="func",
-                kind="function",
-                file_path="test.py",
-                start_line=10,
-                end_line=10,  # same as start
-                score=0.5,
-                signal_contributions={},
-                neighbors=[],
-                snippet=None,
-            ),
-        ]
-        with patch("hedwig_cg.query.hybrid.hybrid_search", return_value=mock_results):
+        from hedwig_cg.query.hybrid import SearchGraph, SearchResult
+        mock_graph = SearchGraph(
+            nodes=[
+                SearchResult(
+                    node_id="test.py:10",
+                    label="func",
+                    kind="function",
+                    file_path="test.py",
+                    start_line=10,
+                    end_line=10,
+                    score=0.5,
+                    source="seed",
+                ),
+            ],
+            edges=[],
+        )
+        with patch("hedwig_cg.query.hybrid.hybrid_search", return_value=mock_graph):
             result = search("func")
 
-        # Should show just :10 not :10-10
         assert "test.py:10" in result
-        assert "10-10" not in result
 
     def test_search_result_no_line_numbers(self, mock_load):
         from hedwig_cg.mcp_server import search
-
-        mock_results = [
-            SimpleNamespace(
-                label="readme",
-                kind="document",
-                file_path="README.md",
-                start_line=None,
-                end_line=None,
-                score=0.3,
-                signal_contributions={},
-                neighbors=[],
-                snippet=None,
-            ),
-        ]
-        with patch("hedwig_cg.query.hybrid.hybrid_search", return_value=mock_results):
+        from hedwig_cg.query.hybrid import SearchGraph, SearchResult
+        mock_graph = SearchGraph(
+            nodes=[
+                SearchResult(
+                    node_id="README.md:0",
+                    label="readme",
+                    kind="document",
+                    file_path="README.md",
+                    start_line=0,
+                    end_line=0,
+                    score=0.3,
+                    source="seed",
+                ),
+            ],
+            edges=[],
+        )
+        with patch("hedwig_cg.query.hybrid.hybrid_search", return_value=mock_graph):
             result = search("readme")
 
-        assert "README.md" in result
-        assert ":" not in result.split("README.md")[1].split("\n")[0]
+        assert "README.md:0" in result
 
 
 # ---------------------------------------------------------------------------
@@ -216,7 +220,7 @@ class TestNodeTool:
     def test_node_exact_match(self, mock_load):
         from hedwig_cg.mcp_server import node
 
-        result = node("auth.py::AuthHandler")
+        result = node("auth.py:1")
         assert "AuthHandler" in result
         assert "class" in result
         assert "auth.py" in result
@@ -238,7 +242,7 @@ class TestNodeTool:
     def test_node_shows_edges(self, mock_load):
         from hedwig_cg.mcp_server import node
 
-        result = node("auth.py::AuthHandler")
+        result = node("auth.py:1")
         assert "Outgoing edges" in result
         assert "has_method" in result
         assert "w=1.00" in result
@@ -246,7 +250,7 @@ class TestNodeTool:
     def test_node_shows_incoming_edges(self, mock_load):
         from hedwig_cg.mcp_server import node
 
-        result = node("auth.py::AuthHandler")
+        result = node("auth.py:1")
         assert "Incoming edges" in result
         assert "calls" in result
 
@@ -259,13 +263,13 @@ class TestNodeTool:
     def test_node_shows_signature(self, mock_load):
         from hedwig_cg.mcp_server import node
 
-        result = node("auth.py::AuthHandler.login")
+        result = node("auth.py:5")
         assert "def login" in result
 
     def test_node_shows_line_numbers(self, mock_load):
         from hedwig_cg.mcp_server import node
 
-        result = node("auth.py::AuthHandler.login")
+        result = node("auth.py:5")
         assert "5" in result
         assert "8" in result
 

@@ -55,14 +55,16 @@ class TestMarkdownExtraction:
         f.write_text(SAMPLE_MD)
         result = extract_file(str(f), "markdown", SAMPLE_MD)
         # "Requirements" (h3) should be defined by a parent, not directly by document
-        edges = result.edges
-        req_edges = [
-            e for e in edges
-            if e.target.endswith("::section::Requirements")
-        ]
+        # Requirements のノードIDを検索
+        req_node = [n for n in result.nodes if n.name == "Requirements"]
+        assert len(req_node) == 1
+        req_id = req_node[0].id
+        req_edges = [e for e in result.edges if e.target == req_id]
         assert len(req_edges) == 1
-        # Parent should be Installation (h2), not document
-        assert "::section::Installation" in req_edges[0].source
+        # 親はInstallation（h2）であること、documentではない
+        install_node = [n for n in result.nodes if n.name == "Installation"]
+        assert len(install_node) == 1
+        assert req_edges[0].source == install_node[0].id
 
     def test_extracts_internal_links(self, tmp_path):
         f = tmp_path / "README.md"

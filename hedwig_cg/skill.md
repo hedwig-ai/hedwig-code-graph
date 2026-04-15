@@ -1,13 +1,13 @@
 ---
 name: hedwig-cg
-description: Local-first code graph builder with 5-signal hybrid search. Use when analyzing codebases, searching for code architecture, exploring dependencies, or building code graphs from source code and documents.
+description: Local-first code graph builder with hybrid vector + keyword search and subgraph response. Use when analyzing codebases, searching for code architecture, exploring dependencies, or building code graphs from source code and documents.
 ---
 
 # hedwig-cg
 
 hedwig-cg is NOT a search engine that finds answers. It is a **map builder** — it tells you **what the codebase looks like** and **what to read next**. Use it as the starting point of every investigation, then drill deeper with Read and Grep.
 
-Builds code graphs from source code and documents. Two-Stage 5-signal hybrid search (code vector + text vector + graph traversal + FTS5 keyword + community → RRF fusion → Cross-Encoder reranking). Supports 17 languages with deep AST extraction. 100% local.
+Builds code graphs from source code and documents. Hybrid search (vector + FTS5 keyword → RRF fusion) with MST-based subgraph response showing how results connect. Supports 17 languages with deep AST extraction. 100% local.
 
 ## When to Use What
 
@@ -36,27 +36,25 @@ Always start with hedwig-cg to get the big picture, then use Read/Grep for detai
 ```bash
 hedwig-cg search "database connection pool"       # default: 30 results
 hedwig-cg search "auth" --fast                    # text model only, faster
-hedwig-cg search "payment billing" --expand       # two-stage query expansion
 hedwig-cg search "error handling" --top-k 10      # custom count
 ```
 
-Response (compact JSON with relationship edges):
-```json
-{
-  "results": [
-    {"label":"build_graph","kind":"function","file":"core/build.py","lines":[15,95],"score":0.073,"sig":"(extractions) -> DiGraph","doc":"Build graph."},
-    {"label":"KnowledgeStore","kind":"class","file":"storage/store.py","lines":[20,300],"score":0.065}
-  ],
-  "edges": [
-    {"from":"build_graph","to":"KnowledgeStore","rel":"calls"}
-  ]
-}
+Response (compact text — seeds + subgraph edges):
+```
+seeds:
+core/build.py:15
+storage/store.py:20
+
+edges:
+core/build.py:15 -calls-> storage/store.py:20
+core/build.py:0 -co_change-> storage/store.py:0
+core/build.py:0 -defines-> core/build.py:15
 ```
 
-- `results[].file` + `lines`: Use to read the code directly
-- `results[].sig` / `doc`: Omitted when empty
-- `results[].score`: Relative ranking score (not a confidence percentage). Higher = more relevant — prioritize reading higher-scored files first. Scores are relative within each query, so 0.05 can still be highly relevant. Use rank order, not absolute score values, to judge relevance. All returned results are worth examining.
-- `edges`: Relationships between result nodes (calls, imports, inherits, co_change, etc.) — use to understand how results connect. `co_change` edges indicate files frequently committed together in git history.
+- `seeds`: Node IDs (file:line format) found by vector + keyword search. Use to read the code directly via `Read(file, offset=line)`.
+- `edges`: Subgraph showing how seeds connect through the code graph. Intermediate nodes (e.g. `core/build.py:0` module) appear in edges but not in seeds.
+- Edge relations: `calls`, `imports`, `inherits`, `defines`, `co_change` (files frequently committed together), `contains`, `references`.
+- Node IDs use relative paths with 1-based line numbers (file:line). Use `node` tool for details.
 
 ## Important: Query in English
 
@@ -128,10 +126,10 @@ hedwig-cg node "AuthHandler"     # Node details (partial match)
 
 ## Rules
 
-- **Always search before grepping.** `hedwig-cg search` covers vector, graph, keyword, and community in one call.
+- **Always search before grepping.** `hedwig-cg search` covers vector and keyword in one call, plus shows how results connect via subgraph edges.
 - **Don't stop at first results.** Drill into discovered terms for deeper understanding.
 - **Query in English.** Non-English queries have significantly lower precision.
-- **hedwig-cg finds what to read; Read/Grep finds the details.** Don't expect hedwig-cg to surface specific type definitions or function signatures.
-- Use `file` and `lines` from results to read code — don't rely on search output alone.
+- **hedwig-cg finds what to read; Read/Grep finds the details.** Seeds give you file:line locations. Use `node` tool or Read for details.
+- **Follow the edges.** Subgraph edges reveal how code connects (calls, imports, co_change). Intermediate nodes on edges are path connectors (modules, directories).
+- Use seed node IDs (file:line) to read code directly — `Read(file, offset=line)`.
 - Run `hedwig-cg build . --incremental` after code changes.
-- Errors return `{"error": "message"}`.

@@ -47,12 +47,13 @@ def _make_graph_with_modules(*rel_paths: str, source_dir: Path = REPO_DIR) -> nx
     """Create a graph with module nodes using absolute paths (matching real extraction).
 
     The file_path attribute uses absolute paths, matching how ts_extract works.
+    node IDはfile:0形式（moduleノード）。
     """
     G = nx.DiGraph()
     for rp in rel_paths:
         abs_path = str(source_dir / rp)
         stem = Path(rp).stem
-        node_id = f"{abs_path}::module::{stem}"
+        node_id = f"{abs_path}:0"
         G.add_node(node_id, label=stem, kind="module", file_path=abs_path, language="python")
     return G
 
@@ -63,16 +64,16 @@ def _make_graph_with_modules(*rel_paths: str, source_dir: Path = REPO_DIR) -> nx
 
 class TestFileToModuleId:
     def test_simple_python_file(self):
-        assert _file_to_module_id("src/auth.py") == "src/auth.py::module::auth"
+        assert _file_to_module_id("src/auth.py") == "src/auth.py:0"
 
     def test_nested_path(self):
-        assert _file_to_module_id("a/b/c/main.py") == "a/b/c/main.py::module::main"
+        assert _file_to_module_id("a/b/c/main.py") == "a/b/c/main.py:0"
 
     def test_no_directory(self):
-        assert _file_to_module_id("app.py") == "app.py::module::app"
+        assert _file_to_module_id("app.py") == "app.py:0"
 
     def test_js_file(self):
-        assert _file_to_module_id("src/index.ts") == "src/index.ts::module::index"
+        assert _file_to_module_id("src/index.ts") == "src/index.ts:0"
 
 
 # ---------------------------------------------------------------------------
@@ -89,14 +90,14 @@ class TestBuildFileToNodeIndex:
 
     def test_indexes_document_nodes(self):
         G = nx.DiGraph()
-        G.add_node("README.md::document::README", label="README",
+        G.add_node("README.md:0", label="README",
                     kind="document", file_path="/repo/README.md")
         index = _build_file_to_node_index(G)
         assert "/repo/README.md" in index
 
     def test_skips_non_root_nodes(self):
         G = nx.DiGraph()
-        G.add_node("a.py::function::foo", label="foo",
+        G.add_node("a.py:5", label="foo",
                     kind="function", file_path="/repo/a.py")
         index = _build_file_to_node_index(G)
         assert len(index) == 0
@@ -298,8 +299,8 @@ class TestComputeCochangePairs:
         )
         edges = compute_cochange_pairs(commits, REPO_DIR, min_support=3, min_confidence=0.0)
         assert len(edges) == 1
-        assert edges[0].source == "src/auth.py::module::auth"
-        assert edges[0].target == "src/session.py::module::session"
+        assert edges[0].source == "src/auth.py:0"
+        assert edges[0].target == "src/session.py:0"
 
 
 # ---------------------------------------------------------------------------
@@ -332,8 +333,8 @@ class TestEnrichGraph:
         assert G.number_of_edges() > initial_edges
 
         # Check bidirectional — nodes use absolute paths
-        a_id = f"{REPO_DIR}/a.py::module::a"
-        b_id = f"{REPO_DIR}/b.py::module::b"
+        a_id = f"{REPO_DIR}/a.py:0"
+        b_id = f"{REPO_DIR}/b.py:0"
         assert G.has_edge(a_id, b_id)
         assert G.has_edge(b_id, a_id)
         assert G.edges[a_id, b_id]["relation"] == "co_change"
@@ -359,8 +360,8 @@ class TestEnrichGraph:
         G = _make_graph_with_modules("a.py", "b.py")
         enrich_graph_with_cochange(G, REPO_DIR, min_support=3, min_confidence=0.0)
 
-        a_id = f"{REPO_DIR}/a.py::module::a"
-        b_id = f"{REPO_DIR}/b.py::module::b"
+        a_id = f"{REPO_DIR}/a.py:0"
+        b_id = f"{REPO_DIR}/b.py:0"
         edge_data = G.edges[a_id, b_id]
         assert edge_data["relation"] == "co_change"
         assert "co_change_count" in edge_data

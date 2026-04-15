@@ -154,6 +154,94 @@ def _add_directory_nodes(G: nx.DiGraph) -> None:
                                confidence="EXTRACTED")
 
 
+# Tier 3: マージ/削除対象ノード種別
+MERGE_KINDS = frozenset({
+    "constructor", "property", "variable", "decorator", "type_alias",
+})
+
+
+def merge_tier3_nodes(G: nx.DiGraph) -> nx.DiGraph:
+    """Tier 3ノードを親ノードにマージし、エッジをリダイレクト。
+
+    - constructor → classにsig/doc統合
+    - property → classのメンバーリストに追加
+    - variable → moduleのメンバーリストに追加
+    - decorator → 親のdecoratorsリストに追加
+    - type_alias → moduleのメンバーリストに追加
+    - external → 削除（エッジも削除）
+    """
+    nodes_to_remove: list[str] = []
+
+    for node_id in list(G.nodes()):
+        data = G.nodes[node_id]
+        kind = data.get("kind", "")
+
+        if kind not in MERGE_KINDS:
+            continue
+
+        # 親ノードを探す（incoming "defines" or "contains" エッジ）
+        parent_id = None
+        for pred in G.predecessors(node_id):
+            edge_data = G.edges[pred, node_id]
+            if edge_data.get("relation") in ("defines", "contains"):
+                parent_id = pred
+                break
+
+        if parent_id is None:
+            # 親がなければノードだけ削除
+            nodes_to_remove.append(node_id)
+            continue
+
+        parent_data = G.nodes[parent_id]
+        _merge_into_parent(parent_data, data, kind)
+
+        # このノードの他のエッジを親にリダイレクト
+        for _, target, edata in list(G.out_edges(node_id, data=True)):
+            if target != parent_id and not G.has_edge(parent_id, target):
+                G.add_edge(parent_id, target, **edata)
+        for source, _, edata in list(G.in_edges(node_id, data=True)):
+            if source != parent_id and not G.has_edge(source, parent_id):
+                G.add_edge(source, parent_id, **edata)
+
+        nodes_to_remove.append(node_id)
+
+    # externalノードも削除
+    for node_id in list(G.nodes()):
+        if G.nodes[node_id].get("kind") == "external":
+            nodes_to_remove.append(node_id)
+
+    G.remove_nodes_from(nodes_to_remove)
+    return G
+
+
+def _merge_into_parent(parent: dict, child: dict, kind: str) -> None:
+    """子ノードの情報を親ノードにマージ。"""
+    if kind == "constructor":
+        # constructorのsignature/docstringをclassに統合
+        if child.get("signature") and not parent.get("signature"):
+            parent["signature"] = child["signature"]
+        if child.get("docstring"):
+            existing = parent.get("docstring", "")
+            if existing:
+                parent["docstring"] = f"{existing}\n\n{child['docstring']}"
+            else:
+                parent["docstring"] = child["docstring"]
+    elif kind in ("property", "variable", "type_alias"):
+        # メンバー名をリストとして追加
+        members = parent.get("merged_members", [])
+        label = child.get("label", "")
+        if label:
+            members.append(label)
+        parent["merged_members"] = members
+    elif kind == "decorator":
+        # デコレータを親の属性リストに追加
+        decorators = parent.get("decorators", [])
+        label = child.get("label", "")
+        if label and label not in decorators:
+            decorators.append(label)
+        parent["decorators"] = decorators
+
+
 _CONFIDENCE_SCORES: dict[str, float] = {
     "EXTRACTED": 1.0,
     "INFERRED": 0.5,

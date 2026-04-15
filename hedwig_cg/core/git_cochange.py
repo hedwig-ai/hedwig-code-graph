@@ -336,14 +336,12 @@ def compute_cochange_pairs(
 
 
 def _file_to_module_id(rel_path: str) -> str:
-    """Convert a relative file path to a module node ID.
+    """相対ファイルパスからモジュールノードIDを生成。
 
-    Used internally by compute_cochange_pairs to create identifiers.
-    These IDs use relative paths and are resolved to actual graph node IDs
-    by enrich_graph_with_cochange via _build_file_to_node_index.
+    compute_cochange_pairsの内部用。file:line形式（moduleはline=0）。
+    enrich_graph_with_cochangeで_build_file_to_node_indexを使い実際のIDに解決される。
     """
-    p = Path(rel_path)
-    return f"{rel_path}::module::{p.stem}"
+    return f"{rel_path}:0"
 
 
 def _build_file_to_node_index(G: nx.DiGraph) -> dict[str, str]:
@@ -449,9 +447,9 @@ def enrich_graph_with_cochange(
     # Step 3: Add edges to graph using the lookup
     added = 0
     for edge in cochange_pairs:
-        # Resolve relative paths from co-change pairs to actual node IDs
-        src_rel = edge.source.split("::")[0]  # extract file path from module ID
-        tgt_rel = edge.target.split("::")[0]
+        # file:0形式からファイルパスを抽出
+        src_rel = edge.source.rsplit(":", 1)[0]
+        tgt_rel = edge.target.rsplit(":", 1)[0]
 
         src_node = rel_to_node.get(src_rel)
         tgt_node = rel_to_node.get(tgt_rel)

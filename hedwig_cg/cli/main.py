@@ -96,12 +96,10 @@ def build(
               help="Source dir (to find default DB)")
 @click.option("--fast", is_flag=True, default=False,
               help="Fast mode: text model only (lower latency, slightly reduced accuracy)")
-@click.option("--expand", is_flag=True, default=False,
-              help="Two-stage query expansion: re-search with neighbor terms for broader recall")
 @click.pass_context
-def search(ctx, query: str, db: str | None, top_k: int, source_dir: str, fast: bool, expand: bool):
+def search(ctx, query: str, db: str | None, top_k: int, source_dir: str, fast: bool):
     """Search the code graph with hybrid vector + graph + keyword search."""
-    from hedwig_cg.query.hybrid import expanded_search, extract_result_edges, hybrid_search
+    from hedwig_cg.query.hybrid import hybrid_search
     from hedwig_cg.storage.store import KnowledgeStore
 
     db_path = resolve_db(db, source_dir)
@@ -124,38 +122,12 @@ def search(ctx, query: str, db: str | None, top_k: int, source_dir: str, fast: b
 
     # Read text model from DB metadata (set during build)
     text_model = store.get_meta("text_model", None)
-    search_fn = expanded_search if expand else hybrid_search
-    results = search_fn(
+    graph = hybrid_search(
         query, store, G, top_k=top_k, fast=fast, text_model=text_model,
     )
 
-    # Compact output: omit empty fields, use relative paths, round floats
-    source_dir_str = str(Path(source_dir).resolve()) + "/" if source_dir else ""
-
-    def _compact_result(r):
-        rel_path = r.file_path
-        if source_dir_str and rel_path.startswith(source_dir_str):
-            rel_path = rel_path[len(source_dir_str):]
-        d = {
-            "label": r.label,
-            "kind": r.kind,
-            "file": rel_path,
-            "lines": [r.start_line, getattr(r, "end_line", 0)],
-            "score": round(r.score, 3),
-        }
-        sig = getattr(r, "signature", "")
-        if sig:
-            d["sig"] = sig
-        doc = getattr(r, "docstring", "")
-        if doc:
-            d["doc"] = doc
-        return d
-
-    edges = extract_result_edges(G, results)
-    json_out({
-        "results": [_compact_result(r) for r in results],
-        "edges": edges,
-    })
+    source_dir_str = str(Path(source_dir).resolve()) + "/"
+    click.echo(graph.to_text(source_dir=source_dir_str))
     store.close()
 
 
@@ -694,9 +666,8 @@ def query(db: str | None, source_dir: str, top_k: int):
             json_out({"nodes": G.number_of_nodes(),
                         "edges": G.number_of_edges()})
         else:
-            results = hybrid_search(user_input, store, G, top_k=top_k)
-            json_out([{"label": r.label, "kind": r.kind, "score": round(r.score, 3)}
-                       for r in results])
+            graph = hybrid_search(user_input, store, G, top_k=top_k)
+            click.echo(graph.to_text())
 
     store.close()
     json_out({"status": "session_ended"})
@@ -705,7 +676,12 @@ def query(db: str | None, source_dir: str, top_k: int):
 def _repl_show_node(G, node_id: str) -> None:
     """Show node details in REPL mode."""
     if node_id not in G:
-        matches = [n for n in G.nodes() if node_id.lower() in n.lower()]
+        # IDとラベルの両方で部分一致検索
+        q = node_id.lower()
+        matches = [
+            n for n in G.nodes()
+            if q in n.lower() or q in G.nodes[n].get("label", "").lower()
+        ]
         if not matches:
             json_out({"error": f"Node '{node_id}' not found."})
             return

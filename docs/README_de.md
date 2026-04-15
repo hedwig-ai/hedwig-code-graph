@@ -21,7 +21,7 @@
 
 > raw data from a given number of sources is collected, then compiled by an LLM into a .md wiki, then operated on by various CLIs by the LLM to do Q&A and to incrementally enhance the wiki - Andrej Karpathy
 
-hedwig-cg erstellt mit leichtgewichtigen lokalen LLM-Modellen einen abfragbaren Code Graph und eine Wissensdatenbank aus Codebasen mit 10.000+ Dateien und Wissensdokumenten. Two-Stage 5-Signal-Hybridsuche (Vektor + Graph + Keyword + Community → RRF-Fusion → Cross-Encoder-Reranking) ermoeglicht Coding-Agents, Ihr gesamtes Projekt wirklich zu verstehen. Installieren Sie es, und Claude Code sieht das Gesamtbild — keine zusaetzlichen Tokens, keine zusaetzlichen Befehle, alles laeuft 100% lokal.
+hedwig-cg erstellt mit leichtgewichtigen lokalen LLM-Modellen einen abfragbaren Code Graph und eine Wissensdatenbank aus Codebasen mit 10.000+ Dateien und Wissensdokumenten. Hybride Vektor+Keyword-Suche mit Subgraph-Antwort (Vektor + Keyword → RRF-Fusion mit MST-Subgraph) ermoeglicht Coding-Agents, Ihr gesamtes Projekt wirklich zu verstehen. Installieren Sie es, und Claude Code sieht das Gesamtbild — keine zusaetzlichen Tokens, keine zusaetzlichen Befehle, alles laeuft 100% lokal.
 
 ## Schnellstart
 
@@ -107,36 +107,43 @@ Keine Cloud-Dienste, keine API-Schluessel, keine Telemetrie. SQLite + FAISS fuer
 
 ---
 
-## Zweistufige Hybridsuche
+## Hybridsuche mit Subgraph-Antwort
 
-Alle Abfragen durchlaufen eine zweistufige Pipeline:
+Alle Abfragen liefern Seed-Knoten und einen Subgraphen, der zeigt, wie diese verbunden sind:
 
-**Stufe 1 — 5-Signal-Retrieval** (RRF-Fusion)
+**Such-Pipeline**
 
 | Signal | Findet |
 |--------|--------|
-| **Code-Vektor** | Semantisch ähnlichen Code |
-| **Text-Vektor** | Dokumentation und Kommentare in 100+ Sprachen |
-| **Graph-Expansion** | Strukturell verbundene Knoten (Aufrufer, Imports) |
-| **Volltextsuche** | Exakte Keyword-Treffer (BM25) |
-| **Community-Kontext** | Verwandte Knoten aus demselben Cluster |
+| **Vektorsuche** | Semantisch ähnlichen Code und Dokumente (Dual-Modell: Code + Text) |
+| **Keyword-Suche** | Exakte Namenstrefffer via FTS5 (BM25) |
 
-**Stufe 2 — Cross-Encoder-Reranking**
+Ergebnisse werden per Weighted Reciprocal Rank Fusion (RRF) zusammengefuehrt und dann ueber MST-basierte kuerzeste Pfade verbunden, um die Beziehungen zwischen Seed-Knoten sichtbar zu machen.
 
-Ein Cross-Encoder-Modell bewertet die Kandidaten neu und rankt Implementierungscode über Test- und Dokumentationsknoten. Ergebnisse enthalten Beziehungskanten zwischen Knoten.
+**Antwortformat**
+```
+seeds:
+hedwig_cg/core/pipeline.py:71
+hedwig_cg/query/embeddings.py:70
+
+edges:
+hedwig_cg/core/pipeline.py:71 -calls-> hedwig_cg/core/extract.py:747
+hedwig_cg/core/pipeline.py:0 -co_change-> hedwig_cg/query/embeddings.py:0
+```
+
+- `seeds`: Knoten-IDs (Datei:Zeile), gefunden durch die Suche
+- `edges`: Subgraph, der Seed-Knoten ueber kuerzeste Pfade verbindet (Zwischenknoten erscheinen in den Kanten)
 
 ## CLI-Referenz
 
-Alle Befehle geben standardmaessig kompaktes JSON aus (fuer AI-Agent-Nutzung konzipiert).
+Alle Befehle geben standardmaessig kompakten Text aus (fuer AI-Agent-Nutzung konzipiert).
 
 | Befehl | Beschreibung |
 |--------|-------------|
 | `build <dir>` | Code-Graph erstellen (`--incremental`) |
-| `search <query>` | Two-Stage 5-Signal-Hybridsuche (`--top-k`, `--fast`, `--expand`) |
+| `search <query>` | Hybridsuche Vektor+Keyword mit Subgraph (`--top-k`, `--fast`) |
 | `search-vector <query>` | Nur Vektor-Aehnlichkeit (Code + Text Dual-Modell) |
-| `search-graph <query>` | Nur Graph-Expansion (BFS von Vektor-Seeds) |
 | `search-keyword <query>` | Nur FTS5-Keyword-Matching (BM25-Ranking) |
-| `search-community <query>` | Nur Community-Cluster-Matching |
 | `query` | Interaktive Such-REPL |
 | `communities` | Communities auflisten und durchsuchen (`--search`, `--level`) |
 | `stats` | Graph-Statistiken |
@@ -168,14 +175,14 @@ Benchmarks auf der eigenen Codebasis von hedwig-cg (~3.500 Zeilen, 90 Dateien, 1
 | Warme Suche | ~0,08s |
 | Cache-Treffer | <1ms |
 
-- **Einbettungsmodelle**: ~470MB, einmalig nach `~/.hedwig-cg/models/` heruntergeladen
+- **Einbettungsmodelle**: ~180MB, einmalig nach `~/.hedwig-cg/models/` heruntergeladen
 - **Datenbank**: ~2MB (SQLite + FTS5 + FAISS-Indizes)
 - **Inkrementelle Builds**: SHA-256-Hashing, 95%+ schneller als vollstaendiger Build
 
 ## Anforderungen
 
 - Python 3.10+
-- Einbettungsmodelle ~470MB (beim ersten Gebrauch gecacht)
+- Einbettungsmodelle ~180MB (beim ersten Gebrauch gecacht)
 
 ```bash
 # Optional: PDF-Extraktion

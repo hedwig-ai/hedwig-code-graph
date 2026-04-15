@@ -10,29 +10,29 @@ def _make_extractions():
     """Create sample extractions for testing."""
     ext1 = ExtractionResult(
         nodes=[
-            ExtractedNode(id="a.py::module::a", name="a", kind="module",
+            ExtractedNode(id="a.py:0", name="a", kind="module",
                           file_path="a.py", language="python"),
-            ExtractedNode(id="a.py::class::Foo", name="Foo", kind="class",
-                          file_path="a.py", language="python"),
-            ExtractedNode(id="a.py::function::bar", name="bar", kind="function",
-                          file_path="a.py", language="python"),
+            ExtractedNode(id="a.py:1", name="Foo", kind="class",
+                          file_path="a.py", language="python", start_line=1),
+            ExtractedNode(id="a.py:10", name="bar", kind="function",
+                          file_path="a.py", language="python", start_line=10),
         ],
         edges=[
-            ExtractedEdge("a.py::module::a", "a.py::class::Foo", "defines"),
-            ExtractedEdge("a.py::module::a", "a.py::function::bar", "defines"),
-            ExtractedEdge("a.py::function::bar", "*::class::Foo", "calls"),
+            ExtractedEdge("a.py:0", "a.py:1", "defines"),
+            ExtractedEdge("a.py:0", "a.py:10", "defines"),
+            ExtractedEdge("a.py:10", "*::class::Foo", "calls"),
         ],
     )
     ext2 = ExtractionResult(
         nodes=[
-            ExtractedNode(id="b.py::module::b", name="b", kind="module",
+            ExtractedNode(id="b.py:0", name="b", kind="module",
                           file_path="b.py", language="python"),
-            ExtractedNode(id="b.py::class::Baz", name="Baz", kind="class",
-                          file_path="b.py", language="python"),
+            ExtractedNode(id="b.py:5", name="Baz", kind="class",
+                          file_path="b.py", language="python", start_line=5),
         ],
         edges=[
-            ExtractedEdge("b.py::module::b", "b.py::class::Baz", "defines"),
-            ExtractedEdge("b.py::class::Baz", "*::class::Foo", "inherits"),
+            ExtractedEdge("b.py:0", "b.py:5", "defines"),
+            ExtractedEdge("b.py:5", "*::class::Foo", "inherits"),
         ],
     )
     return [ext1, ext2]
@@ -47,13 +47,13 @@ class TestBuildGraph:
 
     def test_wildcard_resolution(self):
         G = build_graph(_make_extractions())
-        # *::class::Foo should resolve to a.py::class::Foo
-        assert G.has_edge("a.py::function::bar", "a.py::class::Foo")
-        assert G.has_edge("b.py::class::Baz", "a.py::class::Foo")
+        # *::class::Foo should resolve to a.py:1
+        assert G.has_edge("a.py:10", "a.py:1")
+        assert G.has_edge("b.py:5", "a.py:1")
 
     def test_node_attributes(self):
         G = build_graph(_make_extractions())
-        data = G.nodes["a.py::class::Foo"]
+        data = G.nodes["a.py:1"]
         assert data["label"] == "Foo"
         assert data["kind"] == "class"
 
@@ -74,6 +74,74 @@ class TestPageRank:
     def test_empty_graph(self):
         pr = compute_pagerank(nx.DiGraph())
         assert pr == {}
+
+
+class TestMergeTier3Nodes:
+    def test_constructor_merged_into_class(self):
+        from hedwig_cg.core.build import merge_tier3_nodes
+        G = nx.DiGraph()
+        G.add_node("a.py:1", label="Foo", kind="class", file_path="a.py",
+                    language="python", start_line=1, end_line=20, docstring="", signature="",
+                    source_snippet="", decorators=[])
+        G.add_node("a.py:2", label="__init__", kind="constructor",
+                    file_path="a.py", language="python", start_line=2, end_line=5,
+                    docstring="Initialize Foo.", signature="def __init__(self, x)",
+                    source_snippet="", decorators=[])
+        G.add_edge("a.py:1", "a.py:2", relation="defines",
+                   confidence="EXTRACTED")
+        G = merge_tier3_nodes(G)
+        assert "a.py:2" not in G.nodes
+        assert G.nodes["a.py:1"]["signature"] == "def __init__(self, x)"
+        assert G.nodes["a.py:1"]["docstring"] == "Initialize Foo."
+
+    def test_variable_merged_into_module(self):
+        from hedwig_cg.core.build import merge_tier3_nodes
+        G = nx.DiGraph()
+        G.add_node("a.py:0", label="a", kind="module", file_path="a.py",
+                    language="python", start_line=0, end_line=0, docstring="", signature="",
+                    source_snippet="", decorators=[])
+        G.add_node("a.py:3", label="X", kind="variable", file_path="a.py",
+                    language="python", start_line=3, end_line=3, docstring="", signature="",
+                    source_snippet="", decorators=[])
+        G.add_edge("a.py:0", "a.py:3", relation="defines",
+                   confidence="EXTRACTED")
+        G = merge_tier3_nodes(G)
+        assert "a.py:3" not in G.nodes
+        assert "X" in G.nodes["a.py:0"].get("merged_members", [])
+
+    def test_external_nodes_removed(self):
+        from hedwig_cg.core.build import merge_tier3_nodes
+        G = nx.DiGraph()
+        G.add_node("a.py:0", label="a", kind="module", file_path="a.py",
+                    language="python", start_line=0, end_line=0, docstring="", signature="",
+                    source_snippet="", decorators=[])
+        G.add_node("external::requests", label="requests", kind="external", file_path="",
+                    language="")
+        G.add_edge("a.py:0", "external::requests", relation="imports",
+                   confidence="INFERRED")
+        G = merge_tier3_nodes(G)
+        assert "external::requests" not in G.nodes
+
+    def test_edges_redirected(self):
+        from hedwig_cg.core.build import merge_tier3_nodes
+        G = nx.DiGraph()
+        G.add_node("a.py:1", label="Foo", kind="class", file_path="a.py",
+                    language="python", start_line=1, end_line=20, docstring="", signature="",
+                    source_snippet="", decorators=[])
+        G.add_node("a.py:2", label="__init__", kind="constructor",
+                    file_path="a.py", language="python", start_line=2, end_line=5,
+                    docstring="", signature="def __init__(self)",
+                    source_snippet="", decorators=[])
+        G.add_node("b.py:1", label="bar", kind="function", file_path="b.py",
+                    language="python", start_line=1, end_line=5, docstring="", signature="",
+                    source_snippet="", decorators=[])
+        G.add_edge("a.py:1", "a.py:2", relation="defines",
+                   confidence="EXTRACTED")
+        G.add_edge("a.py:2", "b.py:1", relation="calls",
+                   confidence="EXTRACTED")
+        G = merge_tier3_nodes(G)
+        # constructorのcalls→barがclassにリダイレクトされるべき
+        assert G.has_edge("a.py:1", "b.py:1")
 
 
 class TestGraphStats:

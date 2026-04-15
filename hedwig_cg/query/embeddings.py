@@ -45,6 +45,13 @@ CODE_KINDS = frozenset({
     "constructor", "property", "decorator", "type_alias",
 })
 
+# Tier 1: エンベディング対象ノード（ベクターサーチ対象）
+EMBED_KINDS = frozenset({
+    "function", "class", "method",        # コードの主要単位
+    "section",                             # ドキュメントの意味単位
+    "interface", "enum", "struct", "trait", # 型定義
+})
+
 # Node kinds excluded from embedding (these are references to external
 # libraries/symbols that lack source code, docstrings, and file paths,
 # polluting the vector search space with low-information vectors).
@@ -109,107 +116,32 @@ def _get_process_rss() -> int:
         return 0
 
 
-# --- Cross-Encoder Reranker ---
-
-RERANKER_MODEL = "jinaai/jina-reranker-v2-base-multilingual"
-_reranker = None
+# エンベディング入力テキストの最大文字数
+_MAX_EMBED_TEXT_CHARS = 1500
 
 
-def _patch_xlm_roberta():
-    """Patch missing function in latest transformers for Jina reranker compat."""
-    import transformers.models.xlm_roberta.modeling_xlm_roberta as mod
-
-    if hasattr(mod, "create_position_ids_from_input_ids"):
-        return
-    import torch
-
-    def create_position_ids_from_input_ids(
-        input_ids, padding_idx, past_key_values_length=0,
-    ):
-        mask = input_ids.ne(padding_idx).int()
-        incremental = (
-            torch.cumsum(mask, dim=1).type_as(mask) + past_key_values_length
-        ) * mask
-        return incremental.long() + padding_idx
-
-    mod.create_position_ids_from_input_ids = create_position_ids_from_input_ids
-
-
-def _get_reranker():
-    """Lazy-load Cross-Encoder reranker model."""
-    global _reranker  # noqa: PLW0603
-    if _reranker is None:
-        _patch_xlm_roberta()
-        from sentence_transformers import CrossEncoder
-
-        safe_name = RERANKER_MODEL.replace("/", "--")
-        local_path = _MODEL_CACHE_DIR / safe_name
-        if local_path.exists() and any(local_path.iterdir()):
-            _reranker = CrossEncoder(
-                str(local_path), trust_remote_code=True,
-            )
-        else:
-            _MODEL_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-            _reranker = CrossEncoder(
-                RERANKER_MODEL, trust_remote_code=True,
-            )
-            _reranker.save(str(local_path))
-    return _reranker
-
-
-def rerank(
-    query: str, candidates: list[tuple[str, str]], top_k: int = 10,
-) -> list[tuple[int, float]]:
-    """Rerank (query, passage) pairs using a Cross-Encoder.
-
-    Args:
-        query: The search query.
-        candidates: List of (node_id, passage_text) tuples.
-        top_k: Number of results to return.
-
-    Returns:
-        List of (original_index, reranker_score) sorted by score descending.
-    """
-    if not candidates:
-        return []
-    model = _get_reranker()
-    pairs = [[query, text] for _, text in candidates]
-    scores = model.predict(pairs)
-    indexed = list(enumerate(scores))
-    indexed.sort(key=lambda x: x[1], reverse=True)
-    return indexed[:top_k]
-
-
-def _node_text(data: dict, commit_context: str = "") -> str:
+def _node_text(data: dict) -> str:
     """Build embedding text from node attributes.
 
-    Only semantic information is included — label, signature, docstring,
-    source snippet, and git commit context. Structural information (kind,
-    file path, decorators, class membership) is intentionally excluded
-    because the graph signal already covers structural relationships via
-    edges and community detection. Keeping embeddings purely semantic
-    improves vector discrimination: without shared structural tokens
-    (e.g. "function" on every function node), cosine similarity better
-    reflects actual meaning differences.
+    docstring優先戦略（リサーチに基づく）:
+    - docstringがある場合: signature + docstring（最も強力なマッチングシグナル）
+    - docstringがない場合: signature + snippet(300文字制限)をフォールバック
 
-    The optional commit_context enriches module nodes with git commit
-    messages that describe *why* the code changed, enabling semantic
-    search on intent (e.g. "fix auth token") even when the source code
-    doesn't contain those terms.
+    commit_contextは含めない（co_changeエッジでカバー、ベクター汚染防止）。
     """
     parts = []
-    label = data.get("label", "")
-    if label:
-        parts.append(label)
+    # labelはノード名（関数名、クラス名など）— 名前検索に必須
+    if data.get("label"):
+        parts.append(data["label"])
     if data.get("signature"):
         parts.append(data["signature"])
     if data.get("docstring"):
         parts.append(data["docstring"])
-    if data.get("source_snippet"):
-        parts.append(data["source_snippet"])
-    if commit_context:
-        parts.append(commit_context)
-    return " ".join(parts)
+    elif data.get("source_snippet"):
+        # docstringがない場合のみsnippetをフォールバックとして使用（300文字制限）
+        parts.append(data["source_snippet"][:300])
+    text = " ".join(parts)
+    return text[:_MAX_EMBED_TEXT_CHARS]
 
 
 def _collect_commit_context(
@@ -305,20 +237,15 @@ def embed_nodes_streaming(
     skipped_incremental = 0
     for node_id, data in G.nodes(data=True):
         kind = data.get("kind", "")
-        # Skip external/directory nodes — they lack source code and pollute
-        # the vector index with low-information embeddings.
-        if kind.lower() in SKIP_KINDS:
+        # EMBED_KINDSに含まれないノードはスキップ（低情報ノードのベクター汚染防止）
+        if kind.lower() not in EMBED_KINDS:
             skipped += 1
             continue
         # Skip nodes that already have embeddings (incremental build)
         if skip_ids and node_id in skip_ids:
             skipped_incremental += 1
             continue
-        # Enrich module nodes with git commit context for better semantic search
-        commit_ctx = ""
-        if kind == "module":
-            commit_ctx = _collect_commit_context(G, node_id)
-        text = _node_text(data, commit_context=commit_ctx)
+        text = _node_text(data)
         if not text.strip():
             continue
         if is_code_node(kind):
@@ -369,10 +296,7 @@ def embed_nodes(
         result = {}
         node_ids, texts = [], []
         for node_id, data in G.nodes(data=True):
-            commit_ctx = ""
-            if data.get("kind") == "module":
-                commit_ctx = _collect_commit_context(G, node_id)
-            text = _node_text(data, commit_context=commit_ctx)
+            text = _node_text(data)
             if text.strip():
                 node_ids.append(node_id)
                 texts.append(text)

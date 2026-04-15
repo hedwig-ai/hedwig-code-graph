@@ -21,7 +21,7 @@
 
 > raw data from a given number of sources is collected, then compiled by an LLM into a .md wiki, then operated on by various CLIs by the LLM to do Q&A and to incrementally enhance the wiki - Andrej Karpathy
 
-hedwig-cg builds a queryable code graph and knowledge base from codebases with 10,000+ files and knowledge documents, powered by lightweight local LLM models. Two-Stage 5-signal hybrid search (vector + graph + keyword + community → RRF fusion → Cross-Encoder reranking) lets coding agents truly understand your entire project, not just search keywords. Install it, and Claude Code sees the full picture — no extra tokens, no extra commands, everything runs 100% locally.
+hedwig-cg builds a queryable code graph and knowledge base from codebases with 10,000+ files and knowledge documents, powered by lightweight local LLM models. Hybrid vector + keyword search with subgraph response (vector + keyword → RRF fusion with MST subgraph) lets coding agents truly understand your entire project, not just search keywords. Install it, and Claude Code sees the full picture — no extra tokens, no extra commands, everything runs 100% locally.
 
 ## Quick Start
 
@@ -107,36 +107,43 @@ No cloud services, no API keys, no telemetry. SQLite + FAISS for storage, senten
 
 ---
 
-## Two-Stage Hybrid Search
+## Hybrid Search with Subgraph Response
 
-Every query runs through a two-stage pipeline:
+Every query returns seed nodes and a subgraph showing how they connect:
 
-**Stage 1 — 5-Signal Retrieval** (RRF fusion)
+**Search Pipeline**
 
 | Signal | What it finds |
 |--------|---------------|
-| **Code Vector** | Semantically similar code |
-| **Text Vector** | Docs and comments in 100+ languages |
-| **Graph Expansion** | Structurally connected nodes (callers, imports) |
-| **Full-Text Search** | Exact keyword matches (BM25) |
-| **Community Context** | Related nodes from the same cluster |
+| **Vector Search** | Semantically similar code and documents (dual-model: code + text) |
+| **Keyword Search** | Exact name matches via FTS5 (BM25) |
 
-**Stage 2 — Cross-Encoder Reranking**
+Results are fused via Weighted Reciprocal Rank Fusion (RRF), then connected through MST-based shortest paths to reveal how seed nodes relate.
 
-A cross-encoder model rescores the candidates, pushing implementation code above test and documentation nodes. Results include relationship edges between nodes.
+**Response Format**
+```
+seeds:
+hedwig_cg/core/pipeline.py:71
+hedwig_cg/query/embeddings.py:70
+
+edges:
+hedwig_cg/core/pipeline.py:71 -calls-> hedwig_cg/core/extract.py:747
+hedwig_cg/core/pipeline.py:0 -co_change-> hedwig_cg/query/embeddings.py:0
+```
+
+- `seeds`: Node IDs (file:line) found by search
+- `edges`: Subgraph connecting seeds through shortest paths (intermediate nodes appear in edges)
 
 ## CLI Reference
 
-All commands output compact JSON by default (designed for AI agent consumption).
+All commands output compact text by default (designed for AI agent consumption).
 
 | Command | Description |
 |---------|-------------|
 | `build <dir>` | Build code graph (`--incremental`) |
-| `search <query>` | Two-Stage 5-signal hybrid search (`--top-k`, `--fast`, `--expand`) |
+| `search <query>` | Hybrid vector + keyword search with subgraph (`--top-k`, `--fast`) |
 | `search-vector <query>` | Vector similarity only (code + text dual model) |
-| `search-graph <query>` | Graph expansion only (BFS from vector seeds) |
 | `search-keyword <query>` | FTS5 keyword matching only (BM25 ranking) |
-| `search-community <query>` | Community cluster matching only |
 | `query` | Interactive search REPL |
 | `communities` | List and search communities (`--search`, `--level`) |
 | `stats` | Graph statistics |
@@ -168,14 +175,14 @@ Benchmarks on hedwig-cg's own codebase (~3,500 lines, 90 files, 1,300 nodes):
 | Warm search | ~0.08s |
 | Cached search | <1ms |
 
-- **Embedding models**: ~470MB, downloaded once to `~/.hedwig-cg/models/`
+- **Embedding models**: ~180MB, downloaded once to `~/.hedwig-cg/models/`
 - **Database**: ~2MB (SQLite + FTS5 + FAISS indices)
 - **Incremental builds**: SHA-256 hashing, 95%+ faster than full rebuild
 
 ## Requirements
 
 - Python 3.10+
-- ~470MB disk for embedding models (cached on first use)
+- ~180MB disk for embedding models (cached on first use)
 
 ```bash
 # Optional: PDF extraction

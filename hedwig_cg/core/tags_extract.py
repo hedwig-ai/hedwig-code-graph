@@ -18,6 +18,7 @@ from typing import Any
 from tree_sitter import Language, Parser, Query, QueryCursor
 
 from hedwig_cg.core.extract import (
+    MAX_SNIPPET_CHARS,
     ExtractedEdge,
     ExtractedNode,
     ExtractionResult,
@@ -535,7 +536,10 @@ def extract_file_tags(
 
         # Process definition
         if def_capture is not None and def_kind is not None:
-            node_id = _make_node_id(file_path, name_text, def_kind)
+            node_id = _make_node_id(
+                file_path, name_text, def_kind,
+                start_line=def_capture.start_point[0] + 1,  # 1-based行番号
+            )
 
             # Full source for the node (no snippet limit)
             full_source = _node_text(def_capture, source_bytes)
@@ -553,7 +557,8 @@ def extract_file_tags(
                 end_line=def_capture.end_point[0],
                 docstring=doc_text,
                 signature=signature,
-                source_snippet=full_source,
+                # ソーススニペットを最大文字数で切り詰める
+                source_snippet=full_source[:MAX_SNIPPET_CHARS],
             ))
             definitions.append({
                 "node_id": node_id,
@@ -596,7 +601,13 @@ def extract_file_tags(
             old_name = d["name"]
             new_name = f"{parent['name']}.{old_name}"
             old_id = d["node_id"]
-            new_id = _make_node_id(file_path, new_name, d["kind"])
+            # リネームされたメソッドの開始行を取得（1-based行番号で渡す）
+            _rename_start = 1
+            for node in result.nodes:
+                if node.id == old_id:
+                    _rename_start = node.start_line + 1
+                    break
+            new_id = _make_node_id(file_path, new_name, d["kind"], start_line=_rename_start)
             # Update the node in result
             for node in result.nodes:
                 if node.id == old_id:
@@ -686,7 +697,7 @@ def _extract_constants(
                 continue
             if not (name.isupper() or name.startswith("_")):
                 continue
-            node_id = _make_node_id(file_path, name, "variable")
+            node_id = _make_node_id(file_path, name, "variable", start_line=node.start_point[0] + 1)
             const_node = node.parent  # variable_declarator or assignment
             if const_node and const_node.parent:
                 const_node = const_node.parent  # lexical_declaration
@@ -700,7 +711,10 @@ def _extract_constants(
                 language=language,
                 start_line=start_line,
                 end_line=end_line,
-                source_snippet=_node_text(const_node, source_bytes) if const_node else name,
+                # 定数ノードのスニペットを最大文字数で切り詰める
+                source_snippet=(
+                    _node_text(const_node, source_bytes) if const_node else name
+                )[:MAX_SNIPPET_CHARS],
             ))
             parent_id = _find_enclosing(node, defs_sorted, module_id)
             result.edges.append(ExtractedEdge(parent_id, node_id, "defines"))
@@ -867,7 +881,7 @@ def _extract_type_decls(
             if decl_node is None:
                 continue
 
-            node_id = _make_node_id(file_path, name, kind)
+            node_id = _make_node_id(file_path, name, kind, start_line=decl_node.start_point[0] + 1)
             result.nodes.append(ExtractedNode(
                 id=node_id,
                 name=name,
@@ -876,7 +890,8 @@ def _extract_type_decls(
                 language=language,
                 start_line=decl_node.start_point[0],
                 end_line=decl_node.end_point[0],
-                source_snippet=_node_text(decl_node, source_bytes),
+                # 宣言ノードのスニペットを最大文字数で切り詰める
+                source_snippet=_node_text(decl_node, source_bytes)[:MAX_SNIPPET_CHARS],
             ))
             parent_id = _find_enclosing(decl_node, defs_sorted, module_id)
             result.edges.append(ExtractedEdge(parent_id, node_id, "defines"))
@@ -910,11 +925,19 @@ def _extract_enum_members(
         return
     try:
         captures = _run_captures(query, enum_node)
-        enum_name = enum_id.split("::")[-1]
+        # enum_idからenum名を取得（file:line形式なのでグラフから検索）
+        enum_name = ""
+        for n in result.nodes:
+            if n.id == enum_id:
+                enum_name = n.name
+                break
         for node in captures.get("name", []):
             member_name = _node_text(node, source_bytes)
             full_name = f"{enum_name}.{member_name}"
-            member_id = _make_node_id(file_path, full_name, "variable")
+            member_id = _make_node_id(
+                file_path, full_name, "variable",
+                start_line=node.start_point[0] + 1,  # 1-based行番号
+            )
             result.nodes.append(ExtractedNode(
                 id=member_id,
                 name=full_name,

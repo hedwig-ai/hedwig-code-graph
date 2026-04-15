@@ -166,9 +166,10 @@ enum Color {
         enums = [n for n in result.nodes if n.kind == "enum"]
         assert len(enums) == 1
         assert enums[0].name == "Color"
-        # Enum members should have defines edges
+        # enumメンバーはdefinesエッジを持つべき
+        enum_id = enums[0].id
         defines = [e for e in result.edges
-                   if e.relation == "defines" and "Color" in e.source]
+                   if e.relation == "defines" and e.source == enum_id]
         assert len(defines) >= 1
 
     def test_exported_enum(self, tmp_path):

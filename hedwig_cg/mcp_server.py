@@ -1,7 +1,7 @@
 """hedwig-cg MCP Server — exposes code graph tools to AI agents.
 
 Provides 5 tools over the Model Context Protocol (MCP):
-- search: 5-signal HybridRAG search
+- search: Hybrid vector + keyword search with subgraph response
 - node: Get detailed node information
 - stats: Graph statistics overview
 - communities: List or search communities
@@ -33,12 +33,11 @@ mcp = FastMCP(
     "hedwig-cg",
     instructions=(
         "Local-first code graph for code and document search. "
-        "START with 'search' — it is the primary tool and handles most queries. "
-        "Only use 'node' when you need full details about a specific entity "
-        "found in search results. Use 'stats' for a structural overview. "
-        "Use 'build' after code changes to update the graph. "
-        "Avoid calling 'communities' directly — search already includes "
-        "community signals in its ranking."
+        "START with 'search' — it returns seeds (file:line node IDs) and "
+        "a subgraph showing how they connect via edges. "
+        "Use seed IDs with Read(file, offset=line) to view code. "
+        "Use 'node' for detailed info about a specific node. "
+        "Use 'build' after code changes to update the graph."
     ),
 )
 
@@ -109,8 +108,8 @@ def _reload():
 def search(query: str, top_k: int = 10, fast: bool = False) -> str:
     """Search the code graph. This is the PRIMARY tool — use it first.
 
-    Finds functions, classes, modules, and documents by combining semantic
-    vector search, keyword matching, graph structure, and community context.
+    Returns seeds (file:line node IDs) and a subgraph of edges showing
+    how they connect. Use seed IDs with Read(file, offset=line) for details.
 
     Args:
         query: What to search for (e.g. "authentication handler",
@@ -119,45 +118,12 @@ def search(query: str, top_k: int = 10, fast: bool = False) -> str:
         fast: Use text model only for faster response (default False)
     """
     store, G = _load()
-    from hedwig_cg.query.hybrid import extract_result_edges, hybrid_search
+    from hedwig_cg.query.hybrid import hybrid_search
 
-    results = hybrid_search(query, store, G, top_k=top_k, fast=fast)
-    if not results:
-        return f"No results found for '{query}'."
-
-    lines = [f"## Search: '{query}' ({len(results)} results)\n"]
-    for i, r in enumerate(results, 1):
-        lines.append(f"### {i}. {r.label} ({r.kind})")
-        loc = r.file_path
-        if r.start_line:
-            loc += f":{r.start_line}"
-            if r.end_line and r.end_line != r.start_line:
-                loc += f"-{r.end_line}"
-        lines.append(f"- **File**: {loc}")
-        lines.append(f"- **Score**: {r.score:.4f}")
-        if r.signal_contributions:
-            sigs = ", ".join(
-                f"{k}={v:.3f}" for k, v in
-                sorted(r.signal_contributions.items(), key=lambda x: -x[1]) if v > 0
-            )
-            lines.append(f"- **Signals**: {sigs}")
-        if r.neighbors:
-            lines.append(f"- **Neighbors**: {', '.join(r.neighbors[:5])}")
-        if getattr(r, "signature", ""):
-            lines.append(f"- **Signature**: `{r.signature}`")
-        if getattr(r, "docstring", ""):
-            lines.append(f"- **Docstring**: {r.docstring}")
-        lines.append("")
-
-    # Add relationship edges between result nodes
-    edges = extract_result_edges(G, results)
-    if edges:
-        lines.append("## Relationships\n")
-        for e in edges:
-            lines.append(f"- {e['from']} --{e['rel']}--> {e['to']}")
-        lines.append("")
-
-    return "\n".join(lines)
+    graph = hybrid_search(query, store, G, top_k=top_k, fast=fast)
+    # source_dirプレフィックスを除去して相対パスに変換
+    source_dir = str(Path(_get_db_path()).parent.parent) + "/"
+    return graph.to_text(source_dir=source_dir)
 
 
 @mcp.tool()
@@ -174,8 +140,12 @@ def node(node_id: str) -> str:
     if node_id in G.nodes:
         matches = [node_id]
     else:
-        # Partial match
-        matches = [n for n in G.nodes if node_id.lower() in n.lower()]
+        # IDとラベルの両方で部分一致検索
+        q = node_id.lower()
+        matches = [
+            n for n in G.nodes
+            if q in n.lower() or q in G.nodes[n].get("label", "").lower()
+        ]
 
     if not matches:
         return f"No node found matching '{node_id}'."
@@ -200,14 +170,14 @@ def node(node_id: str) -> str:
         if out_edges:
             lines.append("- **Outgoing edges**:")
             for _, target, edata in out_edges:
-                tlabel = G.nodes.get(target, {}).get("label", target.split("::")[-1])
+                tlabel = G.nodes.get(target, {}).get("label", target)
                 rel = edata.get('relation', '?')
                 w = edata.get('weight', 0)
                 lines.append(f"  - → {tlabel} ({rel}, w={w:.2f})")
         if in_edges:
             lines.append("- **Incoming edges**:")
             for source, _, edata in in_edges:
-                slabel = G.nodes.get(source, {}).get("label", source.split("::")[-1])
+                slabel = G.nodes.get(source, {}).get("label", source)
                 rel = edata.get('relation', '?')
                 w = edata.get('weight', 0)
                 lines.append(f"  - ← {slabel} ({rel}, w={w:.2f})")

@@ -10,6 +10,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+# source_snippet の最大文字数制限
+MAX_SNIPPET_CHARS = 2000
+
 
 @dataclass
 class ExtractedNode:
@@ -57,8 +60,13 @@ _JS_IMPORT = re.compile(
 )
 
 
-def _make_node_id(file_path: str, name: str, kind: str) -> str:
-    return f"{file_path}::{kind}::{name}"
+def _make_node_id(file_path: str, name: str, kind: str, start_line: int = 0) -> str:
+    """file:line形式のノードIDを生成（GitHub形式）。
+
+    start_lineは1-based行番号を受け取る。
+    module/documentノードはstart_line=0（ファイルレベル）。
+    """
+    return f"{file_path}:{start_line}"
 
 
 def _extract_snippet(content: str, start: int, end: int, max_lines: int = 0) -> str:
@@ -68,7 +76,8 @@ def _extract_snippet(content: str, start: int, end: int, max_lines: int = 0) -> 
         snippet_lines = lines[start:min(end + 1, start + max_lines)]
     else:
         snippet_lines = lines[start:end + 1]
-    return "\n".join(snippet_lines)
+    # MAX_SNIPPET_CHARS を超えないよう文字数で切り詰める
+    return "\n".join(snippet_lines)[:MAX_SNIPPET_CHARS]
 
 
 def _extract_python(file_path: str, content: str) -> ExtractionResult:
@@ -86,8 +95,8 @@ def _extract_python(file_path: str, content: str) -> ExtractionResult:
     for m in _PYTHON_CLASS.finditer(content):
         name = m.group(1)
         bases = m.group(2) or ""
-        line = content[:m.start()].count("\n")
-        node_id = _make_node_id(file_path, name, "class")
+        line = content[:m.start()].count("\n") + 1  # 1-based行番号
+        node_id = _make_node_id(file_path, name, "class", start_line=line)
         result.nodes.append(ExtractedNode(
             id=node_id, name=name, kind="class",
             file_path=file_path, language="python",
@@ -103,8 +112,8 @@ def _extract_python(file_path: str, content: str) -> ExtractionResult:
     for m in _PYTHON_FUNC.finditer(content):
         name = m.group(1)
         sig = m.group(2) or ""
-        line = content[:m.start()].count("\n")
-        node_id = _make_node_id(file_path, name, "function")
+        line = content[:m.start()].count("\n") + 1  # 1-based行番号
+        node_id = _make_node_id(file_path, name, "function", start_line=line)
         result.nodes.append(ExtractedNode(
             id=node_id, name=name, kind="function",
             file_path=file_path, language="python",
@@ -140,8 +149,8 @@ def _extract_javascript(file_path: str, content: str) -> ExtractionResult:
     for m in _JS_CLASS.finditer(content):
         name = m.group(1)
         extends = m.group(2)
-        line = content[:m.start()].count("\n")
-        node_id = _make_node_id(file_path, name, "class")
+        line = content[:m.start()].count("\n") + 1  # 1-based行番号
+        node_id = _make_node_id(file_path, name, "class", start_line=line)
         result.nodes.append(ExtractedNode(
             id=node_id, name=name, kind="class",
             file_path=file_path, language="javascript",
@@ -158,8 +167,8 @@ def _extract_javascript(file_path: str, content: str) -> ExtractionResult:
         name = m.group(1) or m.group(2)
         if not name:
             continue
-        line = content[:m.start()].count("\n")
-        node_id = _make_node_id(file_path, name, "function")
+        line = content[:m.start()].count("\n") + 1  # 1-based行番号
+        node_id = _make_node_id(file_path, name, "function", start_line=line)
         result.nodes.append(ExtractedNode(
             id=node_id, name=name, kind="function",
             file_path=file_path, language="javascript",
@@ -190,7 +199,8 @@ def _extract_markdown(file_path: str, content: str) -> ExtractionResult:
         kind="document",
         file_path=file_path,
         language="markdown",
-        source_snippet=content,
+        # ドキュメント全体の冒頭部分のみ保持する
+        source_snippet=content[:MAX_SNIPPET_CHARS],
     ))
 
     _MD_HEADING = re.compile(r"^(#{1,6})\s+(.+)", re.MULTILINE)
@@ -211,7 +221,7 @@ def _extract_markdown(file_path: str, content: str) -> ExtractionResult:
     parent_levels: list[int] = [0]
 
     for idx, (level, text, line_num) in enumerate(headings):
-        section_id = _make_node_id(file_path, text, "section")
+        section_id = _make_node_id(file_path, text, "section", start_line=line_num + 1)
 
         # Determine section end
         end_line = headings[idx + 1][2] - 1 if idx + 1 < len(headings) else len(lines) - 1
@@ -226,7 +236,8 @@ def _extract_markdown(file_path: str, content: str) -> ExtractionResult:
             language="markdown",
             start_line=line_num,
             end_line=end_line,
-            source_snippet=section_content,
+            # セクションコンテンツを最大文字数で切り詰める
+            source_snippet=section_content[:MAX_SNIPPET_CHARS],
         ))
 
         # Find parent: pop stack until we find a level < current
@@ -284,7 +295,9 @@ def _extract_pdf(file_path: str, content: str) -> ExtractionResult:
         if not text:
             continue
 
-        section_id = _make_node_id(file_path, f"page_{page_num + 1}", "section")
+        section_id = _make_node_id(
+            file_path, f"page_{page_num + 1}", "section", start_line=page_num + 1,
+        )
         result.nodes.append(ExtractedNode(
             id=section_id,
             name=f"Page {page_num + 1}",
@@ -292,7 +305,8 @@ def _extract_pdf(file_path: str, content: str) -> ExtractionResult:
             file_path=file_path,
             language="pdf",
             start_line=page_num,
-            source_snippet=text,
+            # PDFページテキストを最大文字数で切り詰める
+            source_snippet=text[:MAX_SNIPPET_CHARS],
         ))
         result.edges.append(ExtractedEdge(doc_id, section_id, "defines"))
 
@@ -310,7 +324,8 @@ def _extract_html(file_path: str, content: str) -> ExtractionResult:
         kind="document",
         file_path=file_path,
         language="html",
-        source_snippet=content,
+        # HTMLコンテンツを最大文字数で切り詰める
+        source_snippet=content[:MAX_SNIPPET_CHARS],
     ))
 
     try:
@@ -352,7 +367,7 @@ def _extract_html(file_path: str, content: str) -> ExtractionResult:
         return result
 
     for tag, text, line_num in parser.headings:
-        section_id = _make_node_id(file_path, text, "section")
+        section_id = _make_node_id(file_path, text, "section", start_line=line_num)
         result.nodes.append(ExtractedNode(
             id=section_id,
             name=text,
@@ -410,10 +425,10 @@ def _extract_csv(file_path: str, content: str) -> ExtractionResult:
     ))
 
     if headers:
-        for col in headers:
+        for col_idx, col in enumerate(headers, start=1):
             col = col.strip()
             if col:
-                col_id = _make_node_id(file_path, col, "variable")
+                col_id = _make_node_id(file_path, col, "variable", start_line=col_idx)
                 result.nodes.append(ExtractedNode(
                     id=col_id,
                     name=col,
@@ -444,13 +459,13 @@ def _extract_terraform(file_path: str, content: str) -> ExtractionResult:
 
         import hcl2
     except ImportError:
-        result.nodes[0].source_snippet = content
+        result.nodes[0].source_snippet = content[:MAX_SNIPPET_CHARS]
         return result
 
     try:
         parsed = hcl2.load(io.StringIO(content))
     except Exception:
-        result.nodes[0].source_snippet = content
+        result.nodes[0].source_snippet = content[:MAX_SNIPPET_CHARS]
         return result
 
     # HCL block types that produce nodes
@@ -464,6 +479,8 @@ def _extract_terraform(file_path: str, content: str) -> ExtractionResult:
         "locals": "variable",
     }
 
+    _tf_counter = [0]  # HCLパーサーは行番号を提供しないためカウンターを使用
+
     for block_type, node_kind in _BLOCK_KINDS.items():
         blocks = parsed.get(block_type, [])
         for block in blocks:
@@ -474,8 +491,12 @@ def _extract_terraform(file_path: str, content: str) -> ExtractionResult:
                     # resource/data blocks: {"aws_instance": {"my_name": {...}}}
                     if isinstance(body, dict):
                         for inner_name, inner_body in body.items():
+                            _tf_counter[0] += 1
                             full_name = f"{block_type}.{name}.{inner_name}"
-                            node_id = _make_node_id(file_path, full_name, node_kind)
+                            ln = _tf_counter[0]
+                            node_id = _make_node_id(
+                                file_path, full_name, node_kind, start_line=ln,
+                            )
                             snippet = f"{block_type} \"{name}\" \"{inner_name}\""
                             if isinstance(inner_body, dict):
                                 snippet += " {\n"
@@ -492,8 +513,12 @@ def _extract_terraform(file_path: str, content: str) -> ExtractionResult:
                         for i, inner_block in enumerate(body):
                             if isinstance(inner_block, dict):
                                 for inner_name, inner_body in inner_block.items():
+                                    _tf_counter[0] += 1
                                     full_name = f"{block_type}.{name}.{inner_name}"
-                                    node_id = _make_node_id(file_path, full_name, node_kind)
+                                    ln = _tf_counter[0]
+                                    node_id = _make_node_id(
+                                        file_path, full_name, node_kind, start_line=ln,
+                                    )
                                     result.nodes.append(ExtractedNode(
                                         id=node_id, name=full_name, kind=node_kind,
                                         file_path=file_path, language="terraform",
@@ -504,8 +529,12 @@ def _extract_terraform(file_path: str, content: str) -> ExtractionResult:
                                     )
                 else:
                     # variable, output, module, provider, locals
+                    _tf_counter[0] += 1
                     full_name = f"{block_type}.{name}"
-                    node_id = _make_node_id(file_path, full_name, node_kind)
+                    ln = _tf_counter[0]
+                    node_id = _make_node_id(
+                        file_path, full_name, node_kind, start_line=ln,
+                    )
                     snippet = f"{block_type} \"{name}\""
                     if isinstance(body, dict):
                         snippet += " {\n"
@@ -560,13 +589,16 @@ def _extract_yaml(file_path: str, content: str) -> ExtractionResult:
     if not isinstance(data, dict):
         return result
 
+    _yaml_counter = [0]  # ミュータブルカウンター（クロージャ用）
+
     def _walk(obj: Any, prefix: str, parent_id: str, depth: int = 0) -> None:
         if depth > 3 or not isinstance(obj, dict):
             return
         for key, value in obj.items():
+            _yaml_counter[0] += 1
             key_str = str(key)
             full_path = f"{prefix}.{key_str}" if prefix else key_str
-            node_id = _make_node_id(file_path, full_path, "section")
+            node_id = _make_node_id(file_path, full_path, "section", start_line=_yaml_counter[0])
             snippet = f"{key_str}:"
             if isinstance(value, dict):
                 snippet += f" ({len(value)} keys)"
@@ -610,13 +642,16 @@ def _extract_json(file_path: str, content: str) -> ExtractionResult:
     if not isinstance(data, dict):
         return result
 
+    _json_counter = [0]  # ミュータブルカウンター（クロージャ用）
+
     def _walk(obj: Any, prefix: str, parent_id: str, depth: int = 0) -> None:
         if depth > 3 or not isinstance(obj, dict):
             return
         for key, value in obj.items():
+            _json_counter[0] += 1
             key_str = str(key)
             full_path = f"{prefix}.{key_str}" if prefix else key_str
-            node_id = _make_node_id(file_path, full_path, "section")
+            node_id = _make_node_id(file_path, full_path, "section", start_line=_json_counter[0])
             snippet = f"{key_str}:"
             if isinstance(value, dict):
                 snippet += f" ({len(value)} keys)"
@@ -663,13 +698,16 @@ def _extract_toml(file_path: str, content: str) -> ExtractionResult:
     except Exception:
         return result
 
+    _toml_counter = [0]  # ミュータブルカウンター（クロージャ用）
+
     def _walk(obj: Any, prefix: str, parent_id: str, depth: int = 0) -> None:
         if depth > 3 or not isinstance(obj, dict):
             return
         for key, value in obj.items():
+            _toml_counter[0] += 1
             key_str = str(key)
             full_path = f"{prefix}.{key_str}" if prefix else key_str
-            node_id = _make_node_id(file_path, full_path, "section")
+            node_id = _make_node_id(file_path, full_path, "section", start_line=_toml_counter[0])
             snippet = f"{key_str}:"
             if isinstance(value, dict):
                 snippet += f" ({len(value)} keys)"
@@ -736,6 +774,7 @@ def extract_file(file_path: str, language: str, content: str | None = None) -> E
         kind="module",
         file_path=file_path,
         language=language,
-        source_snippet=content,
+        # 汎用フォールバック: コンテンツを最大文字数で切り詰める
+        source_snippet=content[:MAX_SNIPPET_CHARS],
     ))
     return result

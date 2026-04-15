@@ -111,7 +111,8 @@ class KnowledgeStore:
         except Exception:
             pass  # column already exists
 
-        # FTS5 virtual table for full-text search (separate statement)
+        # FTS5仮想テーブル: source_snippetはDB容量の30-40%を占め、
+        # porterステマーによるトークナイズ品質が低いため除外
         try:
             self.conn.execute("""
                 CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
@@ -121,7 +122,6 @@ class KnowledgeStore:
                     file_path,
                     docstring,
                     signature,
-                    source_snippet,
                     tokenize='porter unicode61'
                 )
             """)
@@ -531,14 +531,14 @@ class KnowledgeStore:
     # --- FTS5 helpers ---
 
     def _rebuild_fts(self, cursor, G: nx.DiGraph) -> None:
-        """Rebuild the FTS5 index from the current graph."""
+        """FTS5インデックスを現在のグラフから再構築する。source_snippetは除外。"""
         try:
             cursor.execute("DELETE FROM nodes_fts")
             for node_id, data in G.nodes(data=True):
                 cursor.execute(
                     """INSERT INTO nodes_fts
-                       (node_id, label, kind, file_path, docstring, signature, source_snippet)
-                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                       (node_id, label, kind, file_path, docstring, signature)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
                     (
                         node_id,
                         data.get("label", ""),
@@ -546,7 +546,6 @@ class KnowledgeStore:
                         data.get("file_path", ""),
                         data.get("docstring", ""),
                         data.get("signature", ""),
-                        data.get("source_snippet", ""),
                     ),
                 )
         except Exception:
@@ -608,13 +607,14 @@ class KnowledgeStore:
         ]
 
     def _scan_search(self, terms: list[str], top_k: int) -> list[dict]:
-        """Fallback: scan all nodes in Python."""
+        """フォールバック: FTS5が利用不可の場合にPythonで全ノードをスキャン。
+        source_snippetは除外。
+        """
         results = []
         for row in self.conn.execute("SELECT * FROM nodes"):
             label = (row["label"] or "").lower()
-            snippet = (row["source_snippet"] or "").lower()
             docstring = (row["docstring"] or "").lower()
-            score = sum(1 for t in terms if t in label or t in snippet or t in docstring)
+            score = sum(1 for t in terms if t in label or t in docstring)
             if score > 0:
                 results.append({
                     "id": row["id"],
