@@ -846,17 +846,40 @@ def doctor():
             fail("dependencies", f"{pip_name} — not installed (pip install {pip_name})")
 
     # 3. Tree-sitter parsers
-    ts_langs = [
-        ("tree_sitter", "tree-sitter"),
-        ("tree_sitter_python", "tree-sitter-python"),
-        ("tree_sitter_javascript", "tree-sitter-javascript"),
+    try:
+        importlib.import_module("tree_sitter")
+        ok("tree_sitter", "tree-sitter (core runtime)")
+    except ImportError:
+        fail("tree_sitter", "tree-sitter — not installed")
+
+    ts_lang_packages = [
+        ("python", "tree_sitter_python"),
+        ("javascript", "tree_sitter_javascript"),
+        ("typescript", "tree_sitter_typescript"),
+        ("go", "tree_sitter_go"),
+        ("rust", "tree_sitter_rust"),
+        ("java", "tree_sitter_java"),
+        ("c", "tree_sitter_c"),
+        ("cpp", "tree_sitter_cpp"),
+        ("c_sharp", "tree_sitter_c_sharp"),
+        ("ruby", "tree_sitter_ruby"),
+        ("scala", "tree_sitter_scala"),
+        ("lua", "tree_sitter_lua"),
+        ("php", "tree_sitter_php"),
+        ("elixir", "tree_sitter_elixir"),
+        ("kotlin", "tree_sitter_kotlin"),
+        ("objc", "tree_sitter_objc"),
+        ("swift", "tree_sitter_swift"),
     ]
-    for mod_name, pip_name in ts_langs:
+    for lang, mod_name in ts_lang_packages:
+        pip_name = mod_name.replace("_", "-")
         try:
             importlib.import_module(mod_name)
-            ok("tree_sitter", pip_name)
+            ok("tree_sitter", f"{pip_name} ({lang})")
         except ImportError:
-            warn("tree_sitter", f"{pip_name} — not installed (optional, enables AST extraction)")
+            warn("tree_sitter",
+                 f"{pip_name} ({lang}) — not installed "
+                 "(falls back to regex extraction)")
 
     # 4. MCP server dependency
     try:
