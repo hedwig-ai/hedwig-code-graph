@@ -36,18 +36,31 @@ def cli(ctx):
 
 @cli.command()
 @click.argument("source_dir", type=click.Path(exists=True))
-@click.option("--output", "-o", type=click.Path(), default=None,
-              help="Output directory for the database")
-@click.option("--model", default=None,
-              help="Override embedding model (default: dual-model, code=bge-small + text=MiniLM)")
+@click.option(
+    "--output", "-o", type=click.Path(), default=None, help="Output directory for the database"
+)
+@click.option(
+    "--model",
+    default=None,
+    help="Override embedding model (default: dual-model, code=bge-small + text=MiniLM)",
+)
 @click.option("--max-file-size", default=1_000_000, type=int, help="Max file size in bytes")
 @click.option("--incremental", is_flag=True, help="Skip unchanged files (faster rebuilds)")
-@click.option("--lang", default="auto", type=click.Choice(["auto", "en", "multilingual"]),
-              help="Language mode for text embeddings")
+@click.option(
+    "--lang",
+    default="auto",
+    type=click.Choice(["auto", "en", "multilingual"]),
+    help="Language mode for text embeddings",
+)
 @click.pass_context
 def build(
-    ctx, source_dir: str, output: str | None,
-    model: str, max_file_size: int, incremental: bool, lang: str,
+    ctx,
+    source_dir: str,
+    output: str | None,
+    model: str,
+    max_file_size: int,
+    incremental: bool,
+    lang: str,
 ):
     """Build code graph from a source directory."""
     from hedwig_cg.core.pipeline import run_pipeline
@@ -76,26 +89,33 @@ def build(
     # Release large in-memory objects (all data is persisted in SQLite)
     result.release_memory()
 
-    json_out({
-        "files_detected": files_detected,
-        "files_skipped": files_skipped,
-        "nodes": nodes,
-        "edges": edges,
-        "communities": communities,
-        "embeddings": embeddings,
-        "database": db_path,
-        "stage_timings": stage_timings,
-    })
+    json_out(
+        {
+            "files_detected": files_detected,
+            "files_skipped": files_skipped,
+            "nodes": nodes,
+            "edges": edges,
+            "communities": communities,
+            "embeddings": embeddings,
+            "database": db_path,
+            "stage_timings": stage_timings,
+        }
+    )
 
 
 @cli.command()
 @click.argument("query")
 @click.option("--db", type=click.Path(), default=None, help="Path to knowledge.db")
 @click.option("--top-k", default=30, type=int, help="Number of results")
-@click.option("--source-dir", type=click.Path(), default=".",
-              help="Source dir (to find default DB)")
-@click.option("--fast", is_flag=True, default=False,
-              help="Fast mode: text model only (lower latency, slightly reduced accuracy)")
+@click.option(
+    "--source-dir", type=click.Path(), default=".", help="Source dir (to find default DB)"
+)
+@click.option(
+    "--fast",
+    is_flag=True,
+    default=False,
+    help="Fast mode: text model only (lower latency, slightly reduced accuracy)",
+)
 @click.pass_context
 def search(ctx, query: str, db: str | None, top_k: int, source_dir: str, fast: bool):
     """Search the code graph with hybrid vector + graph + keyword search."""
@@ -123,7 +143,12 @@ def search(ctx, query: str, db: str | None, top_k: int, source_dir: str, fast: b
     # Read text model from DB metadata (set during build)
     text_model = store.get_meta("text_model", None)
     graph = hybrid_search(
-        query, store, G, top_k=top_k, fast=fast, text_model=text_model,
+        query,
+        store,
+        G,
+        top_k=top_k,
+        fast=fast,
+        text_model=text_model,
     )
 
     source_dir_str = str(Path(source_dir).resolve()) + "/"
@@ -132,6 +157,7 @@ def search(ctx, query: str, db: str | None, top_k: int, source_dir: str, fast: b
 
 
 # --- Per-signal search commands ---
+
 
 def _signal_options(fn):
     """Common options for per-signal search commands."""
@@ -149,7 +175,7 @@ def _node_dict(G, node_id: str, source_dir_str: str) -> dict | None:
         return None
     rel_path = data.get("file_path", "")
     if source_dir_str and rel_path.startswith(source_dir_str):
-        rel_path = rel_path[len(source_dir_str):]
+        rel_path = rel_path[len(source_dir_str) :]
     d = {
         "label": data.get("label", node_id),
         "kind": data.get("kind", ""),
@@ -228,13 +254,15 @@ def search_keyword(query: str, db: str | None, top_k: int, source_dir: str):
     for h in hits:
         rel_path = h.get("file_path", "")
         if source_dir_str and rel_path.startswith(source_dir_str):
-            rel_path = rel_path[len(source_dir_str):]
-        results.append({
-            "label": h.get("label", h.get("node_id", "")),
-            "kind": h.get("kind", ""),
-            "file": rel_path,
-            "score": round(h.get("score", 0), 3),
-        })
+            rel_path = rel_path[len(source_dir_str) :]
+        results.append(
+            {
+                "label": h.get("label", h.get("node_id", "")),
+                "kind": h.get("kind", ""),
+                "file": rel_path,
+                "score": round(h.get("score", 0), 3),
+            }
+        )
     json_out(results)
     store.close()
 
@@ -366,19 +394,21 @@ def stats(ctx, db: str | None, source_dir: str):
     comm_count = store.conn.execute("SELECT COUNT(*) FROM communities").fetchone()[0]
     emb_count = store.conn.execute("SELECT COUNT(*) FROM embeddings").fetchone()[0]
 
-    json_out({
-        "nodes": G.number_of_nodes(),
-        "edges": G.number_of_edges(),
-        "node_kinds": kinds,
-        "edge_confidence": conf,
-        "density": density,
-        "connected_components": components,
-        "avg_clustering_coeff": avg_clustering,
-        "communities": comm_count,
-        "embeddings": emb_count,
-        "database": str(db_path),
-        "source": store.get_meta("source_dir", "unknown"),
-    })
+    json_out(
+        {
+            "nodes": G.number_of_nodes(),
+            "edges": G.number_of_edges(),
+            "node_kinds": kinds,
+            "edge_confidence": conf,
+            "density": density,
+            "connected_components": components,
+            "avg_clustering_coeff": avg_clustering,
+            "communities": comm_count,
+            "embeddings": emb_count,
+            "database": str(db_path),
+            "source": store.get_meta("source_dir", "unknown"),
+        }
+    )
     store.close()
 
 
@@ -401,17 +431,19 @@ def communities(ctx, db: str | None, source_dir: str, level: int | None, query: 
     if query:
         terms = [t.lower() for t in query.split() if len(t) > 2]
         results = store.community_search(terms, top_k=10)
-        json_out([
-            {
-                "community_id": r["community_id"],
-                "level": r["level"],
-                "node_count": len(r["node_ids"]),
-                "score": r["score"],
-                "summary": r["summary"],
-                "node_ids": r["node_ids"],
-            }
-            for r in results
-        ])
+        json_out(
+            [
+                {
+                    "community_id": r["community_id"],
+                    "level": r["level"],
+                    "node_count": len(r["node_ids"]),
+                    "score": r["score"],
+                    "summary": r["summary"],
+                    "node_ids": r["node_ids"],
+                }
+                for r in results
+            ]
+        )
         store.close()
         return
 
@@ -423,15 +455,17 @@ def communities(ctx, db: str | None, source_dir: str, level: int | None, query: 
     sql += " ORDER BY level, id"
     rows = store.conn.execute(sql, params).fetchall()
 
-    json_out([
-        {
-            "id": row["id"],
-            "level": row["level"],
-            "resolution": row["resolution"],
-            "summary": row["summary"],
-        }
-        for row in rows
-    ])
+    json_out(
+        [
+            {
+                "id": row["id"],
+                "level": row["level"],
+                "resolution": row["resolution"],
+                "summary": row["summary"],
+            }
+            for row in rows
+        ]
+    )
     store.close()
 
 
@@ -494,24 +528,28 @@ def _graph_to_d3(G) -> dict:
     nodes = []
     for node_id, data in G.nodes(data=True):
         pr = data.get("pagerank", 0.0)
-        nodes.append({
-            "id": node_id,
-            "label": data.get("label", node_id),
-            "kind": data.get("kind", "unknown"),
-            "group": kind_to_group.get(data.get("kind", "unknown"), 0),
-            "size": 4 + 16 * (pr / pr_max) if pr_max > 0 else 4,
-            "file_path": data.get("file_path", ""),
-            "community_ids": data.get("community_ids", []),
-        })
+        nodes.append(
+            {
+                "id": node_id,
+                "label": data.get("label", node_id),
+                "kind": data.get("kind", "unknown"),
+                "group": kind_to_group.get(data.get("kind", "unknown"), 0),
+                "size": 4 + 16 * (pr / pr_max) if pr_max > 0 else 4,
+                "file_path": data.get("file_path", ""),
+                "community_ids": data.get("community_ids", []),
+            }
+        )
 
     links = []
     for u, v, data in G.edges(data=True):
-        links.append({
-            "source": u,
-            "target": v,
-            "relation": data.get("relation", ""),
-            "value": data.get("weight", 1.0),
-        })
+        links.append(
+            {
+                "source": u,
+                "target": v,
+                "relation": data.get("relation", ""),
+                "value": data.get("weight", 1.0),
+            }
+        )
 
     return {
         "nodes": nodes,
@@ -528,13 +566,16 @@ def _graph_to_d3(G) -> dict:
 @click.option("--db", type=click.Path(), default=None)
 @click.option("--source-dir", type=click.Path(), default=".", help="Source dir")
 @click.option("--output", "-o", type=click.Path(), default=None)
-@click.option("--max-nodes", default=500, type=int,
-              help="Max nodes to include (by PageRank)")
-@click.option("--offline", is_flag=True,
-              help="Inline D3.js for airgapped/offline use (adds ~280KB)")
+@click.option("--max-nodes", default=500, type=int, help="Max nodes to include (by PageRank)")
+@click.option(
+    "--offline", is_flag=True, help="Inline D3.js for airgapped/offline use (adds ~280KB)"
+)
 def visualize(
-    db: str | None, source_dir: str, output: str | None,
-    max_nodes: int, offline: bool,
+    db: str | None,
+    source_dir: str,
+    output: str | None,
+    max_nodes: int,
+    offline: bool,
 ):
     """Generate an interactive HTML visualization of the code graph."""
     from hedwig_cg.storage.store import KnowledgeStore
@@ -558,21 +599,26 @@ def visualize(
     out = output or "code_graph.html"
     Path(out).write_text(html)
 
-    json_out({
-        "saved": str(out),
-        "nodes": d3_data["metadata"]["node_count"],
-        "links": d3_data["metadata"]["link_count"],
-        "offline": offline,
-        "url": f"file://{Path(out).resolve()}",
-    })
+    json_out(
+        {
+            "saved": str(out),
+            "nodes": d3_data["metadata"]["node_count"],
+            "links": d3_data["metadata"]["link_count"],
+            "offline": offline,
+            "url": f"file://{Path(out).resolve()}",
+        }
+    )
     store.close()
 
 
 @cli.command()
-@click.option("--source-dir", type=click.Path(), default=".",
-              help="Source directory whose .hedwig-cg/ to remove")
-@click.option("--db", type=click.Path(), default=None,
-              help="Specific database file to remove")
+@click.option(
+    "--source-dir",
+    type=click.Path(),
+    default=".",
+    help="Source directory whose .hedwig-cg/ to remove",
+)
+@click.option("--db", type=click.Path(), default=None, help="Specific database file to remove")
 @click.option("--yes", "-y", is_flag=True, help="Skip confirmation")
 def clean(source_dir: str, db: str | None, yes: bool):
     """Remove the knowledge base database and associated data."""
@@ -635,17 +681,19 @@ def query(db: str | None, source_dir: str, top_k: int):
 
     # Preload embedding models in background thread so first search is fast
     import threading
+
     def _preload_models():
         try:
             from hedwig_cg.query.embeddings import CODE_MODEL, TEXT_MODEL, _get_model
+
             _get_model(CODE_MODEL)
             _get_model(TEXT_MODEL)
         except Exception:
             pass
+
     threading.Thread(target=_preload_models, daemon=True).start()
 
-    json_out({"status": "ready", "nodes": G.number_of_nodes(),
-               "edges": G.number_of_edges()})
+    json_out({"status": "ready", "nodes": G.number_of_nodes(), "edges": G.number_of_edges()})
 
     while True:
         try:
@@ -663,8 +711,7 @@ def query(db: str | None, source_dir: str, top_k: int):
             node_id = user_input[6:].strip()
             _repl_show_node(G, node_id)
         elif user_input == ":stats":
-            json_out({"nodes": G.number_of_nodes(),
-                        "edges": G.number_of_edges()})
+            json_out({"nodes": G.number_of_nodes(), "edges": G.number_of_edges()})
         else:
             graph = hybrid_search(user_input, store, G, top_k=top_k)
             click.echo(graph.to_text())
@@ -679,8 +726,7 @@ def _repl_show_node(G, node_id: str) -> None:
         # IDとラベルの両方で部分一致検索
         q = node_id.lower()
         matches = [
-            n for n in G.nodes()
-            if q in n.lower() or q in G.nodes[n].get("label", "").lower()
+            n for n in G.nodes() if q in n.lower() or q in G.nodes[n].get("label", "").lower()
         ]
         if not matches:
             json_out({"error": f"Node '{node_id}' not found."})
@@ -688,15 +734,17 @@ def _repl_show_node(G, node_id: str) -> None:
         node_id = matches[0]
 
     data = G.nodes[node_id]
-    json_out({
-        "node_id": node_id,
-        "label": data.get("label", node_id),
-        "kind": data.get("kind", ""),
-        "file_path": data.get("file_path", ""),
-        "pagerank": data.get("pagerank", 0),
-        "outgoing": len(list(G.out_edges(node_id))),
-        "incoming": len(list(G.in_edges(node_id))),
-    })
+    json_out(
+        {
+            "node_id": node_id,
+            "label": data.get("label", node_id),
+            "kind": data.get("kind", ""),
+            "file_path": data.get("file_path", ""),
+            "pagerank": data.get("pagerank", 0),
+            "outgoing": len(list(G.out_edges(node_id))),
+            "incoming": len(list(G.in_edges(node_id))),
+        }
+    )
 
 
 def _build_viz_html(d3_data: dict, *, offline: bool = False) -> str:
@@ -707,7 +755,7 @@ def _build_viz_html(d3_data: dict, *, offline: bool = False) -> str:
     kind_groups = d3_data["metadata"]["kind_groups"]
     legend_items = "".join(
         f'<span style="color: hsl('
-        f'{i * 360 // max(len(kind_groups), 1)}, 70%, 50%)'
+        f"{i * 360 // max(len(kind_groups), 1)}, 70%, 50%)"
         f'">● {kind}</span>&nbsp;&nbsp;'
         for kind, i in kind_groups.items()
     )
@@ -726,12 +774,13 @@ def _build_viz_html(d3_data: dict, *, offline: bool = False) -> str:
             )
 
     html = template.replace(
-        "/* GRAPH_DATA_PLACEHOLDER */ {}", graph_json,
+        "/* GRAPH_DATA_PLACEHOLDER */ {}",
+        graph_json,
     ).replace(
-        "<!-- LEGEND_PLACEHOLDER -->", legend_items,
+        "<!-- LEGEND_PLACEHOLDER -->",
+        legend_items,
     )
     return html
-
 
 
 @cli.command(name="node")
@@ -759,38 +808,39 @@ def show_node(ctx, node_id: str, db: str | None, source_dir: str):
 
     data = G.nodes[node_id]
 
-    json_out({
-        "node_id": node_id,
-        "label": data.get("label", node_id),
-        "kind": data.get("kind", ""),
-        "file_path": data.get("file_path", ""),
-        "start_line": data.get("start_line"),
-        "pagerank": data.get("pagerank", 0),
-        "signature": data.get("signature"),
-        "outgoing": [
-            {
-                "target": target,
-                "target_label": G.nodes[target].get("label", target) if target in G else target,
-                "relation": edata.get("relation", ""),
-                "confidence": edata.get("confidence", ""),
-            }
-            for _, target, edata in G.out_edges(node_id, data=True)
-        ],
-        "incoming": [
-            {
-                "source": source,
-                "source_label": G.nodes[source].get("label", source) if source in G else source,
-                "relation": edata.get("relation", ""),
-                "confidence": edata.get("confidence", ""),
-            }
-            for source, _, edata in G.in_edges(node_id, data=True)
-        ],
-    })
+    json_out(
+        {
+            "node_id": node_id,
+            "label": data.get("label", node_id),
+            "kind": data.get("kind", ""),
+            "file_path": data.get("file_path", ""),
+            "start_line": data.get("start_line"),
+            "pagerank": data.get("pagerank", 0),
+            "signature": data.get("signature"),
+            "outgoing": [
+                {
+                    "target": target,
+                    "target_label": G.nodes[target].get("label", target) if target in G else target,
+                    "relation": edata.get("relation", ""),
+                    "confidence": edata.get("confidence", ""),
+                }
+                for _, target, edata in G.out_edges(node_id, data=True)
+            ],
+            "incoming": [
+                {
+                    "source": source,
+                    "source_label": G.nodes[source].get("label", source) if source in G else source,
+                    "relation": edata.get("relation", ""),
+                    "confidence": edata.get("confidence", ""),
+                }
+                for source, _, edata in G.in_edges(node_id, data=True)
+            ],
+        }
+    )
     store.close()
 
 
 register_integration_commands(cli)
-
 
 
 @cli.command()
@@ -877,9 +927,10 @@ def doctor():
             importlib.import_module(mod_name)
             ok("tree_sitter", f"{pip_name} ({lang})")
         except ImportError:
-            warn("tree_sitter",
-                 f"{pip_name} ({lang}) — not installed "
-                 "(falls back to regex extraction)")
+            warn(
+                "tree_sitter",
+                f"{pip_name} ({lang}) — not installed (falls back to regex extraction)",
+            )
 
     # 4. MCP server dependency
     try:
@@ -898,8 +949,9 @@ def doctor():
         else:
             warn("models", "Model cache exists but empty — models will download on first build")
     else:
-        warn("models",
-             "No model cache at ~/.hedwig-cg/models/ — models will download on first build")
+        warn(
+            "models", "No model cache at ~/.hedwig-cg/models/ — models will download on first build"
+        )
 
     # 6. Code graph database
     cwd = Path.cwd()
@@ -975,11 +1027,16 @@ def mcp():
 
         claude mcp add hedwig-cg -- hedwig-cg mcp
 
+    Or in opencode.json:
+
+        { "mcp": { "hedwig-cg": { "type": "local", "command": ["hedwig-cg", "mcp"] } } }
+
     Or in .cursor/mcp.json / .vscode/mcp.json:
 
         { "mcpServers": { "hedwig-cg": { "command": "hedwig-cg", "args": ["mcp"] } } }
     """
     from hedwig_cg.mcp_server import main as mcp_main
+
     mcp_main()
 
 
