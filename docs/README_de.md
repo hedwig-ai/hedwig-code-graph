@@ -29,14 +29,15 @@ hedwig-cg erstellt mit leichtgewichtigen lokalen LLM-Modellen einen abfragbaren 
 pip install hedwig-cg
 
 cd your-project/
-hedwig-cg claude install
+hedwig-cg opencode install    # fuer OpenCode
+# oder: hedwig-cg claude install  # fuer Claude Code
 ```
 
-Sagen Sie Claude Code:
+Sagen Sie Claude Code oder OpenCode:
 
 > "Baue einen Code Graph fuer dieses Projekt"
 
-Das war's. Claude Code baut den Graph und konsultiert ihn ab sofort bei jeder Suche. Der Graph wird automatisch neu gebaut, wenn Ihre Sitzung endet.
+Das war's. Der Graph wird gebaut und ab sofort bei jeder Suche konsultiert. Der Graph wird automatisch neu gebaut, wenn Ihre Sitzung endet.
 
 ## AI-Agent-Integrationen
 
@@ -45,6 +46,7 @@ hedwig-cg integriert sich mit einem Befehl in fuehrende AI Coding Agents:
 | Agent | Installation | Beschreibung |
 |-------|-------------|-------------|
 | **Claude Code** | `hedwig-cg claude install` | Skill + CLAUDE.md + PreToolUse-Hook |
+| **OpenCode** | `hedwig-cg opencode install` | Skill in `.opencode/skills/` |
 | **Codex CLI** | `hedwig-cg codex install` | AGENTS.md + PreToolUse-Hook |
 | **Gemini CLI** | `hedwig-cg gemini install` | GEMINI.md + BeforeTool-Hook |
 | **Cursor IDE** | `hedwig-cg cursor install` | `.cursor/rules/`-Regeldatei |
@@ -160,6 +162,7 @@ Alle Befehle geben standardmaessig kompakten Text aus (fuer AI-Agent-Nutzung kon
 | `windsurf install\|uninstall` | Windsurf IDE Integration verwalten |
 | `cline install\|uninstall` | Cline Integration verwalten |
 | `aider install\|uninstall` | Aider CLI Integration verwalten |
+| `opencode install\|uninstall` | OpenCode Integration verwalten |
 
 ## Leistung
 

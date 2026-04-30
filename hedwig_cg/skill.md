@@ -1,6 +1,10 @@
 ---
 name: hedwig-cg
-description: Local-first code graph builder with hybrid vector + keyword search and subgraph response. Use when analyzing codebases, searching for code architecture, exploring dependencies, or building code graphs from source code and documents.
+description: Local-first code graph builder with 5-signal hybrid search. Use when analyzing codebases, searching for code architecture, exploring dependencies, or building code graphs from source code and documents.
+compatibility: opencode, claude-code
+metadata:
+  install: hedwig-cg opencode install
+  location: .opencode/skills/hedwig-cg/SKILL.md
 ---
 
 # hedwig-cg

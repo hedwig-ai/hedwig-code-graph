@@ -29,14 +29,15 @@ hedwig-cg builds a queryable code graph and knowledge base from codebases with 1
 pip install hedwig-cg
 
 cd your-project/
-hedwig-cg claude install
+hedwig-cg opencode install    # for OpenCode
+# or: hedwig-cg claude install  # for Claude Code
 ```
 
-Then tell Claude Code:
+Then tell Claude Code or OpenCode:
 
 > "Build a code graph for this project"
 
-That's it. Claude Code will build the graph, and from then on, consult it before every search. The graph auto-rebuilds when your session ends.
+That's it. Your agent will build the graph, and from then on, consult it before every search. The graph auto-rebuilds when your session ends.
 
 ## AI Agent Integrations
 
@@ -45,6 +46,7 @@ hedwig-cg integrates with major AI coding agents in one command:
 | Agent | Install | What it does |
 |-------|---------|-------------|
 | **Claude Code** | `hedwig-cg claude install` | Skill + CLAUDE.md + PreToolUse hook |
+| **OpenCode** | `hedwig-cg opencode install` | Skill in `.opencode/skills/` |
 | **Codex CLI** | `hedwig-cg codex install` | AGENTS.md + PreToolUse hook |
 | **Gemini CLI** | `hedwig-cg gemini install` | GEMINI.md + BeforeTool hook |
 | **Cursor IDE** | `hedwig-cg cursor install` | `.cursor/rules/` rule file |
@@ -160,6 +162,7 @@ All commands output compact text by default (designed for AI agent consumption).
 | `windsurf install\|uninstall` | Manage Windsurf IDE integration |
 | `cline install\|uninstall` | Manage Cline integration |
 | `aider install\|uninstall` | Manage Aider CLI integration |
+| `opencode install\|uninstall` | Manage OpenCode integration |
 
 ## Performance
 

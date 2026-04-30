@@ -18,6 +18,7 @@ from ._helpers import (
 
 # ─── Claude Code ─────────────────────────────────────────────────────────────
 
+
 @click.group(name="claude")
 def claude_group():
     """Manage Claude Code integration (skill + CLAUDE.md + hooks)."""
@@ -30,7 +31,7 @@ def claude_group():
     type=click.Choice(["user", "project"], case_sensitive=False),
     default=None,
     help="Install scope: 'user' (global ~/.claude/skills/) or 'project' (.claude/skills/). "
-         "If omitted, you will be prompted to choose.",
+    "If omitted, you will be prompted to choose.",
 )
 def claude_install(scope: str | None):
     """Install Claude Code integration.
@@ -80,7 +81,7 @@ def claude_install(scope: str | None):
         "\n## hedwig-cg\n\n"
         "This project has a hedwig-cg code graph at `.hedwig-cg/`.\n\n"
         "Rules:\n"
-        "- **Always use `hedwig-cg search \"<query>\"` as the primary search method.** "
+        '- **Always use `hedwig-cg search "<query>"` as the primary search method.** '
         "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
         "in a single call — no need to run separate community or keyword searches.\n"
         "- Before grepping raw files with Glob/Grep, run `hedwig-cg search` first. "
@@ -111,18 +112,20 @@ def claude_install(scope: str | None):
 
     hook_entry = {
         "matcher": "Glob|Grep",
-        "hooks": [{
-            "type": "command",
-            "command": (
-                '[ -f .hedwig-cg/knowledge.db ] && echo '
-                '\'{"hookSpecificOutput":{"hookEventName":"PreToolUse",'
-                '"additionalContext":"hedwig-cg: code graph available. '
-                "Use `hedwig-cg search \\\"<query>\\\"` (5-signal HybridRAG) "
-                "instead of grepping raw files. This single command covers "
-                "vector, graph, keyword, and community search with RRF fusion."
-                '"}}\' || true'
-            ),
-        }],
+        "hooks": [
+            {
+                "type": "command",
+                "command": (
+                    "[ -f .hedwig-cg/knowledge.db ] && echo "
+                    '\'{"hookSpecificOutput":{"hookEventName":"PreToolUse",'
+                    '"additionalContext":"hedwig-cg: code graph available. '
+                    'Use `hedwig-cg search \\"<query>\\"` (5-signal HybridRAG) '
+                    "instead of grepping raw files. This single command covers "
+                    "vector, graph, keyword, and community search with RRF fusion."
+                    "\"}}' || true"
+                ),
+            }
+        ],
     }
 
     if settings_file.exists():
@@ -133,10 +136,7 @@ def claude_install(scope: str | None):
     hooks = settings.setdefault("hooks", {})
     pre_hooks = hooks.setdefault("PreToolUse", [])
 
-    already = any(
-        "hedwig-cg" in json.dumps(h)
-        for h in pre_hooks
-    )
+    already = any("hedwig-cg" in json.dumps(h) for h in pre_hooks)
     if already:
         human_skip("PreToolUse hook already exists")
     else:
@@ -146,15 +146,18 @@ def claude_install(scope: str | None):
     # 3. Write Stop hook for auto-rebuild
     stop_hook_entry = {
         "matcher": "*",
-        "hooks": [{
-            "type": "command",
-            "command": auto_rebuild_command(),
-            "timeout": 10,
-        }],
+        "hooks": [
+            {
+                "type": "command",
+                "command": auto_rebuild_command(),
+                "timeout": 10,
+            }
+        ],
     }
     stop_hooks = hooks.setdefault("Stop", [])
-    stop_already = any("hedwig-cg" in json.dumps(h) or "auto_rebuild" in json.dumps(h)
-                       for h in stop_hooks)
+    stop_already = any(
+        "hedwig-cg" in json.dumps(h) or "auto_rebuild" in json.dumps(h) for h in stop_hooks
+    )
     if stop_already:
         human_skip("Stop hook (auto-rebuild) already exists")
     else:
@@ -220,9 +223,9 @@ def claude_uninstall(scope: str):
         for event in ("PreToolUse", "Stop"):
             event_hooks = hooks.get(event, [])
             hooks[event] = [
-                h for h in event_hooks
-                if "hedwig-cg" not in json.dumps(h)
-                and "auto_rebuild" not in json.dumps(h)
+                h
+                for h in event_hooks
+                if "hedwig-cg" not in json.dumps(h) and "auto_rebuild" not in json.dumps(h)
             ]
             if not hooks[event]:
                 hooks.pop(event, None)
@@ -235,6 +238,7 @@ def claude_uninstall(scope: str):
 
 
 # ─── Codex CLI ───────────────────────────────────────────────────────────────
+
 
 @click.group(name="codex")
 def codex_group():
@@ -257,7 +261,7 @@ def codex_install():
         "\n## hedwig-cg\n\n"
         "This project has a hedwig-cg code graph at `.hedwig-cg/`.\n\n"
         "Rules:\n"
-        "- **Always use `hedwig-cg search \"<query>\"` as the primary search method.** "
+        '- **Always use `hedwig-cg search "<query>"` as the primary search method.** '
         "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
         "in a single call — no need to run separate community or keyword searches.\n"
         "- Before grepping raw files, run `hedwig-cg search` first. "
@@ -288,18 +292,20 @@ def codex_install():
 
     hook_entry = {
         "matcher": "Bash",
-        "hooks": [{
-            "type": "command",
-            "command": (
-                '[ -f .hedwig-cg/knowledge.db ] && echo '
-                '\'{"hookSpecificOutput":{"hookEventName":"PreToolUse",'
-                '"additionalContext":"hedwig-cg: code graph available. '
-                "Use `hedwig-cg search \\\"<query>\\\"` (5-signal HybridRAG) "
-                "instead of grepping raw files. This single command covers "
-                "vector, graph, keyword, and community search with RRF fusion."
-                '"}}\' || true'
-            ),
-        }],
+        "hooks": [
+            {
+                "type": "command",
+                "command": (
+                    "[ -f .hedwig-cg/knowledge.db ] && echo "
+                    '\'{"hookSpecificOutput":{"hookEventName":"PreToolUse",'
+                    '"additionalContext":"hedwig-cg: code graph available. '
+                    'Use `hedwig-cg search \\"<query>\\"` (5-signal HybridRAG) '
+                    "instead of grepping raw files. This single command covers "
+                    "vector, graph, keyword, and community search with RRF fusion."
+                    "\"}}' || true"
+                ),
+            }
+        ],
     }
 
     if hooks_file.exists():
@@ -320,11 +326,13 @@ def codex_install():
     # 3. Write Stop hook for auto-rebuild
     stop_hook_entry = {
         "matcher": "*",
-        "hooks": [{
-            "type": "command",
-            "command": auto_rebuild_command(),
-            "timeout": 10,
-        }],
+        "hooks": [
+            {
+                "type": "command",
+                "command": auto_rebuild_command(),
+                "timeout": 10,
+            }
+        ],
     }
     stop_hooks = hooks.setdefault("Stop", [])
     stop_already = any("auto_rebuild" in json.dumps(h) for h in stop_hooks)
@@ -374,9 +382,9 @@ def codex_uninstall():
         for event in ("PreToolUse", "Stop"):
             event_hooks = hooks.get(event, [])
             hooks[event] = [
-                h for h in event_hooks
-                if "hedwig-cg" not in json.dumps(h)
-                and "auto_rebuild" not in json.dumps(h)
+                h
+                for h in event_hooks
+                if "hedwig-cg" not in json.dumps(h) and "auto_rebuild" not in json.dumps(h)
             ]
             if not hooks[event]:
                 hooks.pop(event, None)
@@ -389,6 +397,7 @@ def codex_uninstall():
 
 
 # ─── Gemini CLI ──────────────────────────────────────────────────────────────
+
 
 @click.group(name="gemini")
 def gemini_group():
@@ -411,7 +420,7 @@ def gemini_install():
         "\n## hedwig-cg\n\n"
         "This project has a hedwig-cg code graph at `.hedwig-cg/`.\n\n"
         "Rules:\n"
-        "- **Always use `hedwig-cg search \"<query>\"` as the primary search method.** "
+        '- **Always use `hedwig-cg search "<query>"` as the primary search method.** '
         "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
         "in a single call — no need to run separate community or keyword searches.\n"
         "- Before reading raw files, run `hedwig-cg search` first. "
@@ -442,18 +451,20 @@ def gemini_install():
 
     hook_entry = {
         "matcher": "read_file",
-        "hooks": [{
-            "type": "command",
-            "command": (
-                '[ -f .hedwig-cg/knowledge.db ] && echo '
-                '\'{"hookSpecificOutput":{"additionalContext":'
-                '"hedwig-cg: code graph available. '
-                "Use `hedwig-cg search \\\"<query>\\\"` (5-signal HybridRAG) "
-                "instead of reading raw files. This single command covers "
-                "vector, graph, keyword, and community search with RRF fusion."
-                '"}}\' || true'
-            ),
-        }],
+        "hooks": [
+            {
+                "type": "command",
+                "command": (
+                    "[ -f .hedwig-cg/knowledge.db ] && echo "
+                    '\'{"hookSpecificOutput":{"additionalContext":'
+                    '"hedwig-cg: code graph available. '
+                    'Use `hedwig-cg search \\"<query>\\"` (5-signal HybridRAG) '
+                    "instead of reading raw files. This single command covers "
+                    "vector, graph, keyword, and community search with RRF fusion."
+                    "\"}}' || true"
+                ),
+            }
+        ],
     }
 
     if settings_file.exists():
@@ -474,11 +485,13 @@ def gemini_install():
     # 3. Write SessionEnd hook for auto-rebuild
     session_end_entry = {
         "matcher": "*",
-        "hooks": [{
-            "type": "command",
-            "command": auto_rebuild_command(),
-            "timeout": 10,
-        }],
+        "hooks": [
+            {
+                "type": "command",
+                "command": auto_rebuild_command(),
+                "timeout": 10,
+            }
+        ],
     }
     session_hooks = hooks.setdefault("SessionEnd", [])
     session_already = any("auto_rebuild" in json.dumps(h) for h in session_hooks)
@@ -528,9 +541,9 @@ def gemini_uninstall():
         for event in ("BeforeTool", "SessionEnd"):
             event_hooks = hooks.get(event, [])
             hooks[event] = [
-                h for h in event_hooks
-                if "hedwig-cg" not in json.dumps(h)
-                and "auto_rebuild" not in json.dumps(h)
+                h
+                for h in event_hooks
+                if "hedwig-cg" not in json.dumps(h) and "auto_rebuild" not in json.dumps(h)
             ]
             if not hooks[event]:
                 hooks.pop(event, None)
@@ -543,6 +556,7 @@ def gemini_uninstall():
 
 
 # ─── Cursor IDE ──────────────────────────────────────────────────────────────
+
 
 @click.group(name="cursor")
 def cursor_group():
@@ -569,7 +583,7 @@ def cursor_install():
         "# hedwig-cg\n\n"
         "This project has a hedwig-cg code graph at `.hedwig-cg/`.\n\n"
         "Rules:\n"
-        "- **Always use `hedwig-cg search \"<query>\"` as the primary search method.** "
+        '- **Always use `hedwig-cg search "<query>"` as the primary search method.** '
         "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
         "in a single call — no need to run separate community or keyword searches.\n"
         "- Before grepping raw files, run `hedwig-cg search` first. "
@@ -614,6 +628,7 @@ def cursor_uninstall():
 
 # ─── Windsurf IDE ────────────────────────────────────────────────────────────
 
+
 @click.group(name="windsurf")
 def windsurf_group():
     """Manage per-project Windsurf IDE integration."""
@@ -634,7 +649,7 @@ def windsurf_install():
         "# hedwig-cg\n\n"
         "This project has a hedwig-cg code graph at `.hedwig-cg/`.\n\n"
         "Rules:\n"
-        "- **Always use `hedwig-cg search \"<query>\"` as the primary search method.** "
+        '- **Always use `hedwig-cg search "<query>"` as the primary search method.** '
         "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
         "in a single call — no need to run separate community or keyword searches.\n"
         "- Before grepping raw files, run `hedwig-cg search` first. "
@@ -679,6 +694,7 @@ def windsurf_uninstall():
 
 # ─── Cline ───────────────────────────────────────────────────────────────────
 
+
 @click.group(name="cline")
 def cline_group():
     """Manage per-project Cline (VS Code extension) integration."""
@@ -697,7 +713,7 @@ def cline_install():
         "# hedwig-cg\n\n"
         "This project has a hedwig-cg code graph at `.hedwig-cg/`.\n\n"
         "Rules:\n"
-        "- **Always use `hedwig-cg search \"<query>\"` as the primary search method.** "
+        '- **Always use `hedwig-cg search "<query>"` as the primary search method.** '
         "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
         "in a single call — no need to run separate community or keyword searches.\n"
         "- Before grepping raw files, run `hedwig-cg search` first. "
@@ -765,6 +781,7 @@ def cline_uninstall():
 
 # ─── Aider CLI ───────────────────────────────────────────────────────────────
 
+
 @click.group(name="aider")
 def aider_group():
     """Manage per-project Aider CLI integration."""
@@ -786,7 +803,7 @@ def aider_install():
         "\n## hedwig-cg\n\n"
         "This project has a hedwig-cg code graph at `.hedwig-cg/`.\n\n"
         "Rules:\n"
-        "- **Always use `hedwig-cg search \"<query>\"` as the primary search method.** "
+        '- **Always use `hedwig-cg search "<query>"` as the primary search method.** '
         "It runs 5-signal HybridRAG (vector + graph + keyword + community → RRF fusion) "
         "in a single call — no need to run separate community or keyword searches.\n"
         "- Before grepping raw files, run `hedwig-cg search` first. "
@@ -880,7 +897,80 @@ def aider_uninstall():
     human_done("hedwig-cg integration removed.")
 
 
+# ─── OpenCode ──────────────────────────────────────────────────────────────────
+
+
+@click.group(name="opencode")
+def opencode_group():
+    """Manage OpenCode integration (skill in .opencode/skills/)."""
+    pass
+
+
+@opencode_group.command(name="install")
+def opencode_install():
+    """Install the hedwig-cg skill for OpenCode.
+
+    Writes the skill file to .opencode/skills/hedwig-cg/SKILL.md.
+    OpenCode discovers skills automatically from .opencode/skills/<name>/SKILL.md.
+    """
+    import shutil
+
+    human_header("Installing hedwig-cg for OpenCode...")
+    project_root = Path.cwd()
+
+    skill_source = Path(__file__).parent.parent / "skill.md"
+    skill_dir = project_root / ".opencode" / "skills" / "hedwig-cg"
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    skill_dest = skill_dir / "SKILL.md"
+
+    if skill_dest.exists():
+        human_skip("SKILL.md already exists in .opencode/skills/hedwig-cg/")
+    elif skill_source.exists():
+        shutil.copy2(skill_source, skill_dest)
+        human_ok(f"Skill installed to {skill_dir}/")
+    else:
+        human_warn("Skill source not found")
+
+    # Also add OpenCode MCP config hint
+    human_ok("To enable MCP tools, add to opencode.json:")
+    click.echo(
+        '  "mcp": {\n'
+        '    "hedwig-cg": {\n'
+        '      "type": "local",\n'
+        '      "command": ["hedwig-cg", "mcp"]\n'
+        "    }\n"
+        "  }"
+    )
+
+    human_done("Done! OpenCode will discover the skill automatically.")
+
+
+@opencode_group.command(name="uninstall")
+def opencode_uninstall():
+    """Remove OpenCode integration."""
+    import shutil
+
+    human_header("Removing hedwig-cg from OpenCode...")
+    project_root = Path.cwd()
+
+    skill_dir = project_root / ".opencode" / "skills" / "hedwig-cg"
+    if skill_dir.exists():
+        shutil.rmtree(skill_dir)
+        human_ok("Removed .opencode/skills/hedwig-cg/")
+    else:
+        human_skip(".opencode/skills/hedwig-cg/ not found")
+
+    # Clean up empty parent directories
+    parent = skill_dir.parent
+    if parent.exists() and not any(parent.iterdir()):
+        parent.rmdir()
+        human_ok("Removed empty .opencode/skills/ directory")
+
+    human_done("hedwig-cg integration removed.")
+
+
 # ─── Register all groups ─────────────────────────────────────────────────────
+
 
 def register_integration_commands(cli_group):
     """Register all integration subcommands on the given CLI group."""
@@ -891,3 +981,4 @@ def register_integration_commands(cli_group):
     cli_group.add_command(windsurf_group)
     cli_group.add_command(cline_group)
     cli_group.add_command(aider_group)
+    cli_group.add_command(opencode_group)
